@@ -1,24 +1,10 @@
-import { useEffect, type ReactNode } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
-import { useAuth } from './AuthProvider';
+import { type ReactNode } from 'react';
 
 interface ProtectLoginProps {
   children: ReactNode;
 }
 
 export const ProtectLogin = ({ children }: ProtectLoginProps) => {
-  const { isAuthenticated } = useAuth();
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      navigate('/', { replace: true });
-    }
-  }, [isAuthenticated, navigate]);
-
-  if (isAuthenticated) {
-    return <Navigate to="/" replace />;
-  }
-
+  // Router gestisce la protezione, questo componente è solo un wrapper
   return <>{children}</>;
 };

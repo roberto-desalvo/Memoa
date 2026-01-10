@@ -30,10 +30,10 @@ export const useEntries = () => {
     }
   };
 
-  const addEntry = async (title: string, content: string) => {
+  const addEntry = async (text: string) => {
     setError(null);
     try {
-      const response = await entriesService.addEntry(title, content);
+      const response = await entriesService.addEntry(text);
       if (response.success && response.data) {
         setEntries(prev => [response.data, ...prev]);
         return true;
@@ -70,6 +70,6 @@ export const useEntries = () => {
     error,
     addEntry,
     deleteEntry,
-    refetch: loadEntries,
+    loadEntries,
   };
 };

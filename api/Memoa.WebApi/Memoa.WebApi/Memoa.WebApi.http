@@ -1,0 +1,6 @@
+@Memoa.WebApi_HostAddress = http://localhost:5055
+
+GET {{Memoa.WebApi_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

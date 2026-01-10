@@ -1,9 +1,11 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useCallback, type ReactNode } from 'react';
+import { useAuthSessionManagement } from '../../shared/hooks/useAuthSessionManagement';
 
 interface AuthContextType {
   isAuthenticated: boolean;
-  login: (email: string, password: string) => void;
+  accessToken: string | null;
+  isLoading: boolean;
   logout: () => void;
 }
 
@@ -14,32 +16,24 @@ interface AuthProviderProps {
 }
 
 export const AuthProvider = ({ children }: AuthProviderProps) => {
-  const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    // Leggi dal localStorage
-    const stored = localStorage.getItem('isAuthenticated');
-    return stored ? JSON.parse(stored) : false;
-  });
-
-  // Salva nello localStorage ogni volta che cambia
-  useEffect(() => {
-    localStorage.setItem('isAuthenticated', JSON.stringify(isAuthenticated));
-  }, [isAuthenticated]);
-
-  const login = (email: string, password: string) => {
-    // Simulazione di login
-    console.log('Logging in with:', email, password);
-    setIsAuthenticated(true);
-  };
-
-  const logout = () => {
-    setIsAuthenticated(false);
-  };
+  const { isAuthenticated, accessToken, isLoading, logout } =
+    useAuthSessionManagement();
 
   const value: AuthContextType = {
     isAuthenticated,
-    login,
+    accessToken,
+    isLoading,
     logout,
   };
+
+  // Optional: mostra loading mentre verifica la sessione
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <p className="text-gray-600 dark:text-gray-400">Caricamento...</p>
+      </div>
+    );
+  }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

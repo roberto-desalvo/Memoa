@@ -1,8 +1,6 @@
 import { Routes, Route, Outlet, Navigate } from 'react-router-dom';
 import { LoginPage } from '../features/auth/LoginPage';
 import { HomePage } from '../features/entries/HomePage';
-import { RequireAuth } from '../features/auth/RequireAuth';
-import { ProtectLogin } from '../features/auth/ProtectLogin';
 import { Header } from '../shared/Header';
 import { useAuth } from '../features/auth/AuthProvider';
 
@@ -19,26 +17,36 @@ const RootLayout = () => {
   );
 };
 
-export const Router = () => (
-  <Routes>
-    <Route element={<RootLayout />}>
-      <Route
-        path="/login"
-        element={
-          <ProtectLogin>
-            <LoginPage />
-          </ProtectLogin>
-        }
-      />
-      <Route
-        path="/"
-        element={
-          <RequireAuth>
-            <HomePage />
-          </RequireAuth>
-        }
-      />
-      <Route path="*" element={<Navigate to="/login" replace />} />
-    </Route>
-  </Routes>
-);
+export const Router = () => {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  console.log('[Router] State:', { isAuthenticated, isLoading });
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <p className="text-gray-600 dark:text-gray-400">Caricamento...</p>
+      </div>
+    );
+  }
+
+  return (
+    <Routes>
+      <Route element={<RootLayout />}>
+        {isAuthenticated ? (
+          <>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/login" element={<Navigate to="/" replace />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </>
+        ) : (
+          <>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/" element={<Navigate to="/login" replace />} />
+            <Route path="*" element={<Navigate to="/login" replace />} />
+          </>
+        )}
+      </Route>
+    </Routes>
+  );
+};

@@ -1,0 +1,31 @@
+using FluentResults;
+using MediatR;
+using Memoa.Core.Api;
+using Memoa.Domain.Dtos;
+using Memoa.Domain.Requests;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace Memoa.WebApi.Controllers
+{
+    [ApiController]
+    [Authorize]
+    [Route("api/v1/[controller]")]
+    public class UserController : BaseController
+    {
+        private readonly IMediator _mediator;
+
+        public UserController(IMediator mediator)
+        {
+            _mediator = mediator ?? throw new ArgumentNullException(nameof(mediator));
+        }
+
+        [HttpGet(Name = "GetUser")]
+        [ProducesResponseType<UserDto>(StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetUser()
+        {
+            var user = await _mediator.Send(new GetUserRequest());
+            return CreateApiResult(user);
+        }        
+    }
+}
