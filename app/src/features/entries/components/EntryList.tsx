@@ -1,4 +1,4 @@
-import type { Entry } from '../../../shared/api/types';
+import type { Entry } from '../../../shared/types/types';
 import { EntryCard } from './EntryCard';
 
 interface EntryListProps {

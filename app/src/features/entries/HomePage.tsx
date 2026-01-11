@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
-import { useEntries } from '../../shared/hooks/useEntries';
-import { useUser } from '../../shared/hooks/useUser';
-import { useEntryForm } from '../../shared/hooks/useEntryForm';
+import { useEntries } from './hooks/useEntries';
+import { useUser } from './hooks/useUser';
+import { useEntryForm } from './hooks/useEntryForm';
 import { UserInfo } from './components/UserInfo';
 import { UserLoadingState } from './components/UserLoadingState';
 import { EntryForm } from './components/EntryForm';
@@ -9,9 +9,9 @@ import { EntryList } from './components/EntryList';
 import { ErrorMessage } from './components/ErrorMessage';
 
 export const HomePage = () => {
-  const { entries, loading, error, deleteEntry } = useEntries();
+  const { entries, loading, error, deleteEntry, loadEntries } = useEntries();
   const { user, loading: userLoading } = useUser();
-  const form = useEntryForm();
+  const form = useEntryForm(() => loadEntries());
 
   const handleAddEntry = useCallback(
     async (e: React.FormEvent<HTMLFormElement>) => {
@@ -24,8 +24,8 @@ export const HomePage = () => {
 
       const success = await form.submitEntry();
       if (success) {
-        // Ricarica entries dopo il submit
-        window.location.reload();
+        // Reset form senza ricaricare la pagina
+        form.reset();
       }
     },
     [form]

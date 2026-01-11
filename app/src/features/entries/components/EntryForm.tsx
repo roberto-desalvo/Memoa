@@ -1,11 +1,13 @@
-import { useAudioRecorder } from '../../../shared/hooks/useAudioRecorder';
+import { useAudioRecorder } from '../hooks/useAudioRecorder';
+import type { AudioMetadata } from '../hooks/useAudioRecorder';
+import { Spinner } from '../../../shared/components/Spinner';
 
 interface EntryFormProps {
   content: string;
   onContentChange: (value: string) => void;
   validationError: string | null;
   onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
-  onAudioBlob?: (blob: Blob | null, metadata: any) => void;
+  onAudioBlob?: (blob: Blob | null, metadata: AudioMetadata | null) => void;
   onAudioClear?: () => void;
   hasAudio?: boolean;
   isSubmitting?: boolean;
@@ -27,10 +29,11 @@ export const EntryForm = ({
 
   const handleAudioRecording = () => {
     if (isRecording) {
-      stopRecording();
-      if (blob && audioMetadata && onAudioBlob) {
-        onAudioBlob(blob, audioMetadata);
-      }
+      stopRecording((audioBlob: Blob, audioMetadataData: AudioMetadata) => {
+        if (onAudioBlob) {
+          onAudioBlob(audioBlob, audioMetadataData);
+        }
+      });
     } else {
       resetRecording();
       startRecording();
@@ -132,9 +135,10 @@ export const EntryForm = ({
         <button
           type="submit"
           disabled={isDisabled}
-          className="w-full py-2 px-4 bg-indigo-600 dark:bg-indigo-700 text-white font-medium rounded-lg hover:opacity-90 transition disabled:opacity-50"
+          className="w-full py-2 px-4 bg-indigo-600 dark:bg-indigo-700 text-white font-medium rounded-lg hover:opacity-90 transition disabled:opacity-50 flex items-center justify-center gap-2"
         >
-          {isSubmitting ? 'Caricamento audio...' : 'Aggiungi Nota'}
+          {isSubmitting && <Spinner label="" />}
+          <span>{isSubmitting ? 'Caricamento nota...' : 'Aggiungi Nota'}</span>
         </button>
       </form>
     </div>

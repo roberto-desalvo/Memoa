@@ -1,12 +1,14 @@
 import { useState, useRef, useEffect } from 'react';
 
-const MAX_DURATION_MS = 300000; // 300 secondi in ms
+const MAX_DURATION_S = 300; // 300 secondi in s
 
 export type AudioMetadata = {
   mimeType: string;
   durationMs: number;
   sizeBytes: number;
 };
+
+export type OnAudioStopCallback = (blob: Blob, metadata: AudioMetadata) => void;
 
 export const useAudioRecorder = () => {
   const [isRecording, setIsRecording] = useState(false);
@@ -17,8 +19,9 @@ export const useAudioRecorder = () => {
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<BlobPart[]>([]);
-  const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startTimeRef = useRef<number>(0);
+  const onStopCallbackRef = useRef<OnAudioStopCallback | null>(null);
 
   // Cleanup al unmount
   useEffect(() => {
@@ -37,6 +40,15 @@ export const useAudioRecorder = () => {
       setError(null);
       audioChunksRef.current = [];
       setElapsedSeconds(0);
+
+      // Check browser compatibility
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Il browser non supporta la registrazione audio');
+      }
+
+      if (typeof MediaRecorder === 'undefined') {
+        throw new Error('MediaRecorder non è supportato in questo browser');
+      }
 
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       
@@ -61,12 +73,20 @@ export const useAudioRecorder = () => {
         const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
         const durationMs = Date.now() - startTimeRef.current;
         
-        setBlob(audioBlob);
-        setAudioMetadata({
+        const metadata: AudioMetadata = {
           mimeType,
           durationMs,
           sizeBytes: audioBlob.size,
-        });
+        };
+
+        setBlob(audioBlob);
+        setAudioMetadata(metadata);
+
+        // Esegui callback se presente
+        if (onStopCallbackRef.current) {
+          onStopCallbackRef.current(audioBlob, metadata);
+          onStopCallbackRef.current = null;
+        }
 
         // Ferma lo stream
         stream.getTracks().forEach(track => track.stop());
@@ -85,8 +105,8 @@ export const useAudioRecorder = () => {
         const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
         setElapsedSeconds(elapsed);
 
-        // Auto-stop a 300s
-        if (elapsed >= 300) {
+        // Auto-stop a MAX_DURATION_S
+        if (elapsed >= MAX_DURATION_S) {
           stopRecording();
         }
       }, 100);
@@ -97,7 +117,11 @@ export const useAudioRecorder = () => {
     }
   };
 
-  const stopRecording = () => {
+  const stopRecording = (onStop?: OnAudioStopCallback) => {
+    if (onStop) {
+      onStopCallbackRef.current = onStop;
+    }
+
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
       mediaRecorderRef.current.stop();
     }

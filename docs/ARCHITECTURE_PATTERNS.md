@@ -359,7 +359,6 @@ UI Updated
 - `LoginForm` → Form element
 - `LinkSentMessage` → Messaggio conferma
 - `AuthProvider` → Context stato auth
-- `ProtectLogin`, `RequireAuth` → Guards (legacy)
 
 **Hooks**:
 - `useAuthLogic` → Logica form email+OTP

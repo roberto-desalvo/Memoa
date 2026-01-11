@@ -9,7 +9,7 @@ export const LinkSentMessage = ({ email, onTryAgain }: LinkSentMessageProps) => 
       <div className="p-4 bg-green-100 dark:bg-green-900 border border-green-300 dark:border-green-700 text-green-700 dark:text-green-100 rounded">
         <p className="font-medium">Link inviato!</p>
         <p className="text-sm mt-2">
-          Abbiamo inviato un magic link a <strong>{email}</strong>
+          Abbiamo inviato un link a <strong>{email}</strong>
         </p>
         <p className="text-sm mt-2">
           Controlla la tua email e clicca il link per accedere.

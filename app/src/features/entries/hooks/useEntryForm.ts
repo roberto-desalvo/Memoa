@@ -1,9 +1,9 @@
 import { useState, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import type { AudioMetadata } from './useAudioRecorder';
-import { supabaseStorage } from '../lib/supabaseStorage';
-import { entriesService } from '../api/entriesService';
-import { supabase } from '../lib/supabaseClient';
+import { supabaseStorage } from '../../../shared/lib/supabaseStorage';
+import { entriesService } from '../services/entriesService';
+import { supabase } from '../../../shared/lib/supabaseClient';
 
 export interface EntryFormState {
   content: string;
@@ -24,7 +24,7 @@ export interface UseEntryFormReturn extends EntryFormState {
   submitEntry: () => Promise<boolean>;
 }
 
-export const useEntryForm = (): UseEntryFormReturn => {
+export const useEntryForm = (onEntryAdded?: () => void): UseEntryFormReturn => {
   const [content, setContent] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
@@ -57,6 +57,7 @@ export const useEntryForm = (): UseEntryFormReturn => {
     setAudioBlob(null);
     setAudioMetadata(null);
     setSubmitError(null);
+    setIsSubmitting(false); 
   }, []);
 
   const submitEntry = useCallback(async (): Promise<boolean> => {
@@ -112,6 +113,7 @@ export const useEntryForm = (): UseEntryFormReturn => {
       }
 
       reset();
+      onEntryAdded?.();
       return true;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Errore nel salvataggio';
@@ -119,7 +121,7 @@ export const useEntryForm = (): UseEntryFormReturn => {
       setIsSubmitting(false);
       return false;
     }
-  }, [content, audioBlob, audioMetadata, validate, reset]);
+  }, [validate, reset, onEntryAdded]);
 
   return {
     content,

@@ -66,8 +66,6 @@ src/
 │   ├── auth/                  # Feature autenticazione
 │   │   ├── AuthProvider.tsx   # Context e provider auth
 │   │   ├── LoginPage.tsx      # Pagina login
-│   │   ├── ProtectLogin.tsx   # Guard login (legacy)
-│   │   ├── RequireAuth.tsx    # Guard auth routes (legacy)
 │   │   └── components/
 │   │       ├── LoginForm.tsx  # Form login
 │   │       └── LinkSentMessage.tsx # Messaggio conferma

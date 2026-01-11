@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { useAuthLogic } from '../../shared/hooks/useAuthLogic';
+import { useAuthLogic } from './hooks/useAuthLogic';
 import { LoginForm } from './components/LoginForm';
 import { LinkSentMessage } from './components/LinkSentMessage';
 
@@ -11,13 +11,7 @@ export const LoginPage = () => {
   const hasInitialized = useRef(false);
   
   useEffect(() => {
-    // Log che LoginPage è montata
-    console.log('[LoginPage] Mounted');
     hasInitialized.current = true;
-    
-    return () => {
-      console.log('[LoginPage] Unmounted');
-    };
   }, []);
 
   return (

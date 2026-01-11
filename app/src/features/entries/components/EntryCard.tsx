@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { Entry } from '../../../shared/api/types';
+import type { Entry } from '../../../shared/types/types';
 import { supabaseStorage } from '../../../shared/lib/supabaseStorage';
 
 interface EntryCardProps {

@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../features/auth/AuthProvider';
-import { useTheme } from './ThemeProvider';
+import { useAuth } from '../../features/auth/AuthProvider';
+import { useTheme } from '../../app/providers/ThemeProvider';
 import { MdDarkMode, MdLightMode } from 'react-icons/md';
 
 export const Header = () => {

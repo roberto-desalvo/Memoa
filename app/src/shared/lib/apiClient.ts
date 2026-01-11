@@ -1,7 +1,19 @@
 import { supabase } from './supabaseClient';
-import type { ApiSuccessResult, ApiResponse, ProblemDetails } from '../api/types';
+import type { ApiSuccessResult, ApiResponse, ProblemDetails } from '../types/types';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5055';
+
+// Callback type for unauthorized handling
+type OnUnauthorizedCallback = () => Promise<void> | void;
+let onUnauthorizedCallback: OnUnauthorizedCallback | null = null;
+
+/**
+ * Registra un callback da eseguire quando viene rilevato un 401 Unauthorized.
+ * Questo permette al router/auth layer di gestire il logout in modo coerente.
+ */
+export const setOnUnauthorizedCallback = (callback: OnUnauthorizedCallback): void => {
+  onUnauthorizedCallback = callback;
+};
 
 class ApiClient {
   private async getAuthToken(): Promise<string | null> {
@@ -16,11 +28,16 @@ class ApiClient {
 
   private async handleUnauthorized(): Promise<void> {
     try {
+      // Path 1: Se un callback è registrato (preferito), delegare al router/auth layer
+      if (onUnauthorizedCallback) {
+        await onUnauthorizedCallback();
+        return;
+      }
+      
+      // Path 2: Fallback - logout diretto da Supabase (se nessun callback è registrato)
       await supabase.auth.signOut();
-      window.location.href = '/login';
     } catch (error) {
       console.error('Error during logout:', error);
-      window.location.href = '/login';
     }
   }
 
@@ -62,34 +79,36 @@ class ApiClient {
       // Handle 401 Unauthorized
       if (response.status === 401) {
         await this.handleUnauthorized();
-        return { error: 'Unauthorized', status: 401 };
+        return { success: false, error: 'Unauthorized', status: 401 };
       }
 
       // Handle 204 No Content
       if (response.status === 204) {
-        return { data: undefined as T, status: 204 };
+        return { success: true, data: undefined as T, status: 204 };
       }
 
       // For error responses, try to parse as ProblemDetails
       if (!response.ok) {
         const error = await this.parseErrorResponse(response);
-        return { error, status: response.status };
+        return { success: false, error, status: response.status };
       }
 
       // Response is wrapped in ApiSuccessResult<T> for successful responses
       const apiResult: ApiSuccessResult<T> = await response.json();
 
       if (apiResult.data !== undefined) {
-        return { data: apiResult.data, status: response.status };
+        return { success: true, data: apiResult.data, status: response.status };
       }
 
       return {
+        success: false,
         error: apiResult.resultDescription || 'No data returned',
         status: response.status,
       };
     } catch (error) {
       console.error('API request error:', error);
       return {
+        success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
         status: 0,
       };

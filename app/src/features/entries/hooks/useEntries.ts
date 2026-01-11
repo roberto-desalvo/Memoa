@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { useState, useEffect } from 'react';
-import type { Entry } from '../api/types';
-import { entriesService } from '../api/entriesService';
+import type { Entry } from '../../../shared/types/types';
+import { entriesService } from '../services/entriesService';
 
 export const useEntries = () => {
   const [entries, setEntries] = useState<Entry[]>([]);
@@ -35,7 +35,7 @@ export const useEntries = () => {
     try {
       const response = await entriesService.addEntry(text);
       if (response.success && response.data) {
-        setEntries(prev => [response.data, ...prev]);
+        setEntries(prev => [response.data as Entry, ...prev]);
         return true;
       } else {
         setError(response.error || 'Errore nell\'aggiunta della nota');

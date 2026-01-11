@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { supabase } from '../lib/supabaseClient';
+import { supabase } from '../../../shared/lib/supabaseClient';
 
 export interface UseAuthLogicReturn {
   email: string;
@@ -46,7 +46,7 @@ export const useAuthLogic = (): UseAuthLogicReturn => {
         setLoading(false);
       }
     },
-    [email]
+    []
   );
 
   const resetForm = useCallback(() => {
