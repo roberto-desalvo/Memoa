@@ -3,7 +3,7 @@ import type { Entry, CreateEntryRequest, ApiResponse } from './types';
 import { supabase } from '../lib/supabaseClient';
 
 // Configurazione API
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 // Funzione helper per ottenere il token JWT da Supabase
 const getAuthToken = async (): Promise<string | null> => {
@@ -87,14 +87,24 @@ export const entriesService = {
   },
 
   /**
-   * Aggiunge una nuova nota
+   * Aggiunge una nuova nota con supporto audio opzionale
    */
-  async addEntry(text: string): Promise<ApiResponse<Entry>> {
+  async addEntry(
+    text: string,
+    audioPath?: string,
+    audioMime?: string,
+    audioDurationMs?: number,
+    audioSizeBytes?: number
+  ): Promise<ApiResponse<Entry>> {
     try {
       const createRequest: CreateEntryRequest = {
         id: crypto.randomUUID(),
         text,
         createdAt: new Date().toISOString(),
+        audioPath,
+        audioMime,
+        audioDurationMs,
+        audioSizeBytes,
       };
 
       const response = await fetchWithAuth(`${API_BASE_URL}/api/v1/entries`, {

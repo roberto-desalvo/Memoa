@@ -9,7 +9,7 @@ import { EntryList } from './components/EntryList';
 import { ErrorMessage } from './components/ErrorMessage';
 
 export const HomePage = () => {
-  const { entries, loading, error, addEntry, deleteEntry } = useEntries();
+  const { entries, loading, error, deleteEntry } = useEntries();
   const { user, loading: userLoading } = useUser();
   const form = useEntryForm();
 
@@ -22,12 +22,13 @@ export const HomePage = () => {
         return;
       }
 
-      const success = await addEntry(form.content);
+      const success = await form.submitEntry();
       if (success) {
-        form.reset();
+        // Ricarica entries dopo il submit
+        window.location.reload();
       }
     },
-    [form, addEntry]
+    [form]
   );
 
   const handleDeleteEntry = useCallback(
@@ -36,6 +37,14 @@ export const HomePage = () => {
     },
     [deleteEntry]
   );
+
+  const handleAudioBlob = useCallback((blob: Blob | null, metadata: any) => {
+    form.setAudioBlob(blob, metadata);
+  }, [form]);
+
+  const handleAudioClear = useCallback(() => {
+    form.clearAudio();
+  }, [form]);
 
   return (
     <main className="max-w-6xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
@@ -49,6 +58,11 @@ export const HomePage = () => {
         onContentChange={form.setContent}
         validationError={form.validationError}
         onSubmit={handleAddEntry}
+        onAudioBlob={handleAudioBlob}
+        onAudioClear={handleAudioClear}
+        hasAudio={form.audioBlob !== null}
+        isSubmitting={form.isSubmitting}
+        submitError={form.submitError}
       />
 
       {/* Error Message */}

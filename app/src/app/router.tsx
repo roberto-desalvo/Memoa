@@ -20,8 +20,6 @@ const RootLayout = () => {
 export const Router = () => {
   const { isAuthenticated, isLoading } = useAuth();
 
-  console.log('[Router] State:', { isAuthenticated, isLoading });
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">

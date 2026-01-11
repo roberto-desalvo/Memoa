@@ -27,6 +27,18 @@ namespace Memoa.Domain.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid");
 
+                    b.Property<int?>("AudioDurationMs")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("AudioMime")
+                        .HasColumnType("text");
+
+                    b.Property<string>("AudioPath")
+                        .HasColumnType("text");
+
+                    b.Property<long?>("AudioSizeBytes")
+                        .HasColumnType("bigint");
+
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")

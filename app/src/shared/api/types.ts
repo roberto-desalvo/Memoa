@@ -2,12 +2,20 @@ export type Entry = {
   id: string;
   text: string;
   createdAt: string;
+  audioPath?: string | null;
+  audioMime?: string | null;
+  audioDurationMs?: number | null;
+  audioSizeBytes?: number | null;
 };
 
 export type CreateEntryRequest = {
   id: string;
   text: string;
   createdAt: string;
+  audioPath?: string | null;
+  audioMime?: string | null;
+  audioDurationMs?: number | null;
+  audioSizeBytes?: number | null;
 };
 
 export type UserDto = {
@@ -26,6 +34,7 @@ export type ApiSuccessResult<T> = {
 };
 
 export type ApiResponse<T> = {
+  success: boolean;
   data?: T;
   error?: string;
   status?: number;

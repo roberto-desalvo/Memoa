@@ -41,7 +41,11 @@ namespace Memoa.Application.Handlers
                 Id = request.Id,
                 UserId = userId,
                 Text = request.Text,
-                CreatedAt = request.CreatedAt
+                CreatedAt = request.CreatedAt,
+                AudioPath = request.AudioPath,
+                AudioMime = request.AudioMime,
+                AudioDurationMs = request.AudioDurationMs,
+                AudioSizeBytes = request.AudioSizeBytes
             };
 
             await _entryRepository.AddAsync(entry, cancellationToken);
@@ -51,7 +55,11 @@ namespace Memoa.Application.Handlers
             {
                 Id = entry.Id,
                 Text = entry.Text,
-                CreatedAt = entry.CreatedAt
+                CreatedAt = entry.CreatedAt,
+                AudioPath = entry.AudioPath,
+                AudioMime = entry.AudioMime,
+                AudioDurationMs = entry.AudioDurationMs,
+                AudioSizeBytes = entry.AudioSizeBytes
             };
 
             return Result.Ok(entryDto);
