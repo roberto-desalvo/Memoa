@@ -37,7 +37,11 @@ namespace Memoa.Application.Handlers
                 {
                     Id = e.Id,
                     Text = e.Text,
-                    CreatedAt = e.CreatedAt
+                    CreatedAt = e.CreatedAt,
+                    AudioPath = e.AudioPath,
+                    AudioMime = e.AudioMime,
+                    AudioDurationMs = e.AudioDurationMs,
+                    AudioSizeBytes = e.AudioSizeBytes
                 })
                 .ToList();
 

@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useAudioRecorder } from '../hooks/useAudioRecorder';
 import type { AudioMetadata } from '../hooks/useAudioRecorder';
 import { Spinner } from '../../../shared/components/Spinner';
@@ -12,6 +13,8 @@ interface EntryFormProps {
   hasAudio?: boolean;
   isSubmitting?: boolean;
   submitError?: string | null;
+  isUploadingAudio?: boolean;
+  uploadProgress?: number;
 }
 
 export const EntryForm = ({
@@ -24,8 +27,18 @@ export const EntryForm = ({
   hasAudio = false,
   isSubmitting = false,
   submitError = null,
+  isUploadingAudio = false,
+  uploadProgress = 0,
 }: EntryFormProps) => {
   const { isRecording, elapsedSeconds, blob, audioMetadata, error: recordingError, startRecording, stopRecording, resetRecording } = useAudioRecorder();
+
+  // Sincronizzazione: quando il form viene resettato (hasAudio diventa false),
+  // resetta anche l'audio recorder locale
+  useEffect(() => {
+    if (!hasAudio && blob) {
+      resetRecording();
+    }
+  }, [hasAudio, blob, resetRecording]);
 
   const handleAudioRecording = () => {
     if (isRecording) {
@@ -51,7 +64,7 @@ export const EntryForm = ({
   const progressPercent = (elapsedSeconds / maxSeconds) * 100;
   const audioDurationDisplay = `${elapsedSeconds}s`;
 
-  const isDisabled = isRecording || isSubmitting;
+  const isDisabled = isRecording || isSubmitting || isUploadingAudio;
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6">
@@ -61,19 +74,25 @@ export const EntryForm = ({
 
       {validationError && (
         <div className="mb-4 p-3 bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-100 rounded-lg text-sm">
-          {validationError}
+          ❌ {validationError}
         </div>
       )}
 
       {recordingError && (
         <div className="mb-4 p-3 bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-100 rounded-lg text-sm">
-          {recordingError}
+          ❌ {recordingError}
         </div>
       )}
 
       {submitError && (
-        <div className="mb-4 p-3 bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-100 rounded-lg text-sm">
-          {submitError}
+        <div className="mb-4 p-3 bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-100 rounded-lg text-sm border border-red-400 dark:border-red-700">
+          <div className="font-semibold mb-1">⚠️ Errore nel salvataggio:</div>
+          <p className="text-sm">{submitError}</p>
+          <p className="text-xs mt-2 opacity-75">
+            {submitError.includes('permission denied') || submitError.includes('Access Denied')
+              ? 'Verifica che sei loggato correttamente. Se il problema persiste, contatta il supporto.'
+              : 'Riprova o contatta il supporto se il problema persiste.'}
+          </p>
         </div>
       )}
 
@@ -93,7 +112,7 @@ export const EntryForm = ({
             <button
               type="button"
               onClick={handleAudioRecording}
-              disabled={isSubmitting}
+              disabled={isSubmitting || isUploadingAudio}
               className={`flex-1 py-2 px-4 font-medium rounded-lg transition ${
                 isRecording
                   ? 'bg-red-600 hover:opacity-90 text-white'
@@ -123,11 +142,31 @@ export const EntryForm = ({
               <button
                 type="button"
                 onClick={handleClearAudio}
-                disabled={isSubmitting}
+                disabled={isSubmitting || isUploadingAudio}
                 className="text-sm px-3 py-1 bg-red-500 hover:opacity-90 text-white rounded disabled:opacity-50"
               >
                 ❌ Scarta
               </button>
+            </div>
+          )}
+
+          {/* Upload Progress */}
+          {isUploadingAudio && (
+            <div className="space-y-2 p-3 bg-blue-100 dark:bg-blue-900 rounded-lg">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-blue-700 dark:text-blue-200">
+                  📤 Caricamento audio in corso...
+                </span>
+                <span className="text-sm font-semibold text-blue-700 dark:text-blue-200">
+                  {uploadProgress}%
+                </span>
+              </div>
+              <div className="w-full bg-blue-300 dark:bg-blue-700 rounded-full h-2">
+                <div
+                  className="bg-blue-600 dark:bg-blue-400 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${uploadProgress}%` }}
+                />
+              </div>
             </div>
           )}
         </div>
@@ -138,7 +177,7 @@ export const EntryForm = ({
           className="w-full py-2 px-4 bg-indigo-600 dark:bg-indigo-700 text-white font-medium rounded-lg hover:opacity-90 transition disabled:opacity-50 flex items-center justify-center gap-2"
         >
           {isSubmitting && <Spinner label="" />}
-          <span>{isSubmitting ? 'Caricamento nota...' : 'Aggiungi Nota'}</span>
+          <span>{isUploadingAudio ? `Caricamento nota (${uploadProgress}%)...` : isSubmitting ? 'Caricamento nota...' : 'Aggiungi Nota'}</span>
         </button>
       </form>
     </div>

@@ -46,7 +46,7 @@ export const useAuthLogic = (): UseAuthLogicReturn => {
         setLoading(false);
       }
     },
-    []
+    [email]
   );
 
   const resetForm = useCallback(() => {

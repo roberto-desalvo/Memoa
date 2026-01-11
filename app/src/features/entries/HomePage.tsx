@@ -22,11 +22,8 @@ export const HomePage = () => {
         return;
       }
 
-      const success = await form.submitEntry();
-      if (success) {
-        // Reset form senza ricaricare la pagina
-        form.reset();
-      }
+      await form.submitEntry();
+      // Reset è già gestito dentro form.submitEntry()
     },
     [form]
   );
@@ -63,6 +60,8 @@ export const HomePage = () => {
         hasAudio={form.audioBlob !== null}
         isSubmitting={form.isSubmitting}
         submitError={form.submitError}
+        isUploadingAudio={form.isUploadingAudio}
+        uploadProgress={form.uploadProgress}
       />
 
       {/* Error Message */}

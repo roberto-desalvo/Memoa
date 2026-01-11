@@ -12,6 +12,8 @@ export interface EntryFormState {
   audioMetadata: AudioMetadata | null;
   isSubmitting: boolean;
   submitError: string | null;
+  isUploadingAudio: boolean;
+  uploadProgress: number; // 0-100
 }
 
 export interface UseEntryFormReturn extends EntryFormState {
@@ -24,6 +26,14 @@ export interface UseEntryFormReturn extends EntryFormState {
   submitEntry: () => Promise<boolean>;
 }
 
+/**
+ * Hook per la gestione del form di creazione entries con audio
+ * Gestisce:
+ * - Validazione contenuto
+ * - Upload audio con path pattern: audio/{userId}/{entryId}.webm
+ * - Salvataggio metadati (mime, durata, size)
+ * - Gestione errori con feedback specifici (es: permission denied)
+ */
 export const useEntryForm = (onEntryAdded?: () => void): UseEntryFormReturn => {
   const [content, setContent] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -31,6 +41,8 @@ export const useEntryForm = (onEntryAdded?: () => void): UseEntryFormReturn => {
   const [audioMetadata, setAudioMetadata] = useState<AudioMetadata | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isUploadingAudio, setIsUploadingAudio] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const validate = useCallback((): boolean => {
     if (!content.trim()) {
@@ -57,8 +69,35 @@ export const useEntryForm = (onEntryAdded?: () => void): UseEntryFormReturn => {
     setAudioBlob(null);
     setAudioMetadata(null);
     setSubmitError(null);
-    setIsSubmitting(false); 
+    setIsSubmitting(false);
+    setIsUploadingAudio(false);
+    setUploadProgress(0);
   }, []);
+
+  /**
+   * Interpreta errore upload e fornisce messaggio user-friendly
+   */
+  const getUploadErrorMessage = (error: unknown): string => {
+    const message = error instanceof Error ? error.message : 'Errore sconosciuto';
+    
+    if (message.includes('Access Denied') || message.includes('Unauthorized')) {
+      return 'Accesso negato. Assicurati di essere loggato e che il percorso sia corretto (audio/{userId}/{entryId}.webm)';
+    }
+    if (message.includes('No such bucket')) {
+      return 'Bucket di archiviazione non trovato. Contatta il supporto.';
+    }
+    if (message.includes('404')) {
+      return 'File non trovato durante l\'upload. Riprova.';
+    }
+    if (message.includes('413') || message.includes('Payload too large')) {
+      return 'File troppo grande. Massimo 50MB.';
+    }
+    if (message.includes('Network') || message.includes('timeout')) {
+      return 'Errore di connessione. Verifica la tua rete e riprova.';
+    }
+    
+    return `Errore upload: ${message}`;
+  };
 
   const submitEntry = useCallback(async (): Promise<boolean> => {
     if (!validate()) {
@@ -74,7 +113,7 @@ export const useEntryForm = (onEntryAdded?: () => void): UseEntryFormReturn => {
       const userId = session?.user?.id;
 
       if (!userId) {
-        throw new Error('Utente non autenticato');
+        throw new Error('Utente non autenticato. Accedi per continuare.');
       }
 
       // Genera ID entry
@@ -84,23 +123,41 @@ export const useEntryForm = (onEntryAdded?: () => void): UseEntryFormReturn => {
 
       // Se c'è audio, fai l'upload
       if (audioBlob && audioMetadata) {
+        setIsUploadingAudio(true);
+        setUploadProgress(0);
+        
         try {
+          // Simulare progress (l'SDK Supabase non fornisce hook di progress)
+          const progressInterval = setInterval(() => {
+            setUploadProgress((prev) => Math.min(prev + 10, 90));
+          }, 200);
+
           const uploadResult = await supabaseStorage.uploadAudio(
             audioBlob,
             userId,
             entryId,
             audioMetadata.mimeType
           );
+          
+          clearInterval(progressInterval);
+          setUploadProgress(100);
+          
           audioPath = uploadResult.audioPath;
           audioSizeBytes = uploadResult.audioSizeBytes;
+          
+          setIsUploadingAudio(false);
         } catch (uploadError) {
-          const message = uploadError instanceof Error ? uploadError.message : 'Errore upload audio';
-          throw new Error(message);
+          setIsUploadingAudio(false);
+          setUploadProgress(0);
+          const friendlyMessage = getUploadErrorMessage(uploadError);
+          throw new Error(friendlyMessage);
         }
       }
 
       // POST /entries con tutti i campi
+      // Nota: entryId è lo stesso usato per uploadare l'audio su Supabase
       const response = await entriesService.addEntry(
+        entryId,
         content,
         audioPath,
         audioMetadata?.mimeType,
@@ -132,6 +189,8 @@ export const useEntryForm = (onEntryAdded?: () => void): UseEntryFormReturn => {
     audioMetadata,
     isSubmitting,
     submitError,
+    isUploadingAudio,
+    uploadProgress,
     setAudioBlob: setAudioBlobWithMetadata,
     clearAudio,
     validate,

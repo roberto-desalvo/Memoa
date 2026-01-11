@@ -14,8 +14,6 @@ export const LoginForm = ({
   onSubmit,
 }: LoginFormProps) => {
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
     onEmailChange(e.target.value);
   };
 

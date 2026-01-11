@@ -23,8 +23,15 @@ export const entriesService = {
 
   /**
    * Aggiunge una nuova nota con supporto audio opzionale
+   * @param entryId - ID dell'entry (già generato dal chiamante, usato per il path audio)
+   * @param text - Contenuto testuale della nota
+   * @param audioPath - Path dell'audio su Supabase (es: userId/entryId.webm)
+   * @param audioMime - MIME type dell'audio
+   * @param audioDurationMs - Durata registrazione in millisecondi
+   * @param audioSizeBytes - Dimensione file in bytes
    */
   async addEntry(
+    entryId: string,
     text: string,
     audioPath?: string,
     audioMime?: string,
@@ -32,7 +39,7 @@ export const entriesService = {
     audioSizeBytes?: number
   ): Promise<ApiResponse<Entry>> {
     const createRequest: CreateEntryRequest = {
-      id: crypto.randomUUID(),
+      id: entryId,
       text,
       createdAt: new Date().toISOString(),
       audioPath,
