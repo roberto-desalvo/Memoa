@@ -38,10 +38,12 @@ namespace Memoa.Application.Handlers
                     Id = e.Id,
                     Text = e.Text,
                     CreatedAt = e.CreatedAt,
+                    UpdatedAt = e.UpdatedAt,
                     AudioPath = e.AudioPath,
                     AudioMime = e.AudioMime,
                     AudioDurationMs = e.AudioDurationMs,
-                    AudioSizeBytes = e.AudioSizeBytes
+                    AudioSizeBytes = e.AudioSizeBytes,
+                    AudioTranscription = e.AudioTranscription
                 })
                 .ToList();
 

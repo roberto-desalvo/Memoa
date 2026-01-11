@@ -30,6 +30,12 @@ namespace Memoa.Domain.Repositories
                 .FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
         }
 
+        public Task UpdateAsync(Entry entry, CancellationToken cancellationToken = default)
+        {
+            DbContext.Entries.Update(entry);
+            return Task.CompletedTask;
+        }
+
         public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
         {
             var entry = await GetByIdAsync(id, cancellationToken);

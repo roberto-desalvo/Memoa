@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { LoginPage } from '../features/auth/LoginPage';
 import { HomePage } from '../features/entries/HomePage';
+import { EntryDetailPage } from '../features/entries/EntryDetailPage';
 import { ErrorBoundary } from '../shared/components/ErrorBoundary';
 import { setOnUnauthorizedCallback } from '../shared/lib/apiClient';
 import { useAuth } from '../features/auth/AuthProvider';
@@ -54,6 +55,10 @@ export function Router(): JSX.Element {
           <Route
             path="/"
             element={<ProtectedRoute isAuthenticated={isAuthenticated}>{<HomePage />}</ProtectedRoute>}
+          />
+          <Route
+            path="/entries/:id"
+            element={<ProtectedRoute isAuthenticated={isAuthenticated}>{<EntryDetailPage />}</ProtectedRoute>}
           />
           <Route
             path="/login"

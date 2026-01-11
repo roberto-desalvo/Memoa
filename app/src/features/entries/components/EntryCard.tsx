@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { Entry } from '../../../shared/types/types';
 import { supabaseStorage } from '../../../shared/lib/supabaseStorage';
 
@@ -10,6 +11,7 @@ interface EntryCardProps {
 const URL_EXPIRY_WARNING_THRESHOLD = 3600; // 1 ora prima della scadenza
 
 export const EntryCard = ({ entry, onDelete }: EntryCardProps) => {
+  const navigate = useNavigate();
   const [audioSignedUrl, setAudioSignedUrl] = useState<string | null>(null);
   const [audioLoading, setAudioLoading] = useState(false);
   const [audioError, setAudioError] = useState<string | null>(null);
@@ -84,7 +86,10 @@ export const EntryCard = ({ entry, onDelete }: EntryCardProps) => {
   }, [loadSignedUrl]);
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 hover:shadow-lg transition">
+    <div 
+      onClick={() => navigate(`/entries/${entry.id}`)}
+      className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 hover:shadow-lg transition cursor-pointer"
+    >
       <p className="text-gray-600 dark:text-gray-400 mb-3 line-clamp-4 text-sm">
         {entry.text}
       </p>
@@ -159,7 +164,10 @@ export const EntryCard = ({ entry, onDelete }: EntryCardProps) => {
           {formatDate(entry.createdAt)}
         </span>
         <button
-          onClick={() => onDelete(entry.id)}
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete(entry.id);
+          }}
           className="px-3 py-1 bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-100 rounded hover:opacity-80 transition text-sm font-medium"
         >
           Elimina

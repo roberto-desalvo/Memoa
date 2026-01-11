@@ -36,6 +36,28 @@ namespace Memoa.WebApi.Controllers
             return CreateApiResult(result);
         }
 
+        [HttpGet("{id}", Name = "GetEntryById")]
+        [ProducesResponseType<EntryDto>(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> GetEntryById(Guid id)
+        {
+            var result = await _mediator.Send(new GetEntryByIdRequest(id));
+            return CreateApiResult(result);
+        }
+
+        [HttpPut("{id}", Name = "UpdateEntry")]
+        [ProducesResponseType<EntryDto>(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> UpdateEntry(Guid id, [FromBody] UpdateEntryRequest request)
+        {
+            request.EntryId = id;
+            var result = await _mediator.Send(request);
+            return CreateApiResult(result);
+        }
+
         [HttpDelete("{id}", Name = "DeleteEntry")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]

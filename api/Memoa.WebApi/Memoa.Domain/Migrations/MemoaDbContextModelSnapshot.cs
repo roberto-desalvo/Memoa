@@ -39,6 +39,9 @@ namespace Memoa.Domain.Migrations
                     b.Property<long?>("AudioSizeBytes")
                         .HasColumnType("bigint");
 
+                    b.Property<string>("AudioTranscription")
+                        .HasColumnType("text");
+
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
@@ -46,7 +49,11 @@ namespace Memoa.Domain.Migrations
 
                     b.Property<string>("Text")
                         .IsRequired()
+                        .HasMaxLength(100000)
                         .HasColumnType("text");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("UserId")
                         .IsRequired()

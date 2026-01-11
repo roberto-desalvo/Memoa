@@ -29,11 +29,20 @@ namespace Memoa.Domain.Data
                     .HasMaxLength(255);
 
                 entity.Property(e => e.Text)
-                    .IsRequired();
+                    .IsRequired()
+                    .HasColumnType("text")
+                    .HasMaxLength(100000);
 
                 entity.Property(e => e.CreatedAt)
                     .IsRequired()
                     .HasDefaultValueSql("now()");
+
+                entity.Property(e => e.UpdatedAt)
+                    .IsRequired(false);
+
+                entity.Property(e => e.AudioTranscription)
+                    .IsRequired(false)
+                    .HasColumnType("text");
 
                 // Indice per query per userId
                 entity.HasIndex(e => e.UserId);

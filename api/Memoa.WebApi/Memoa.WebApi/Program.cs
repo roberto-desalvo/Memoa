@@ -1,6 +1,8 @@
 using Memoa.Application.Handlers;
+using Memoa.Application.Services;
 using Memoa.Domain.Data;
 using Memoa.Domain.Repositories;
+using Memoa.WebApi.Supabase;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -23,6 +25,13 @@ builder.Services.AddMediatR(options =>
 {
     _ = options.RegisterServicesFromAssemblyContaining<GetUserRequestHandler>();
 });
+
+// HttpClient for Supabase Storage REST API
+builder.Services.AddHttpClient();
+
+// Supabase Storage REST API options + service registration
+builder.Services.Configure<SupabaseAudioStorageOptions>(builder.Configuration.GetSection("SupabaseStorage"));
+builder.Services.AddSingleton<IAudioStorageService, SupabaseAudioStorageService>();
 
 var supabaseUrl = builder.Configuration["Supabase:Url"];
 var supabaseAudience = builder.Configuration["Supabase:Audience"];

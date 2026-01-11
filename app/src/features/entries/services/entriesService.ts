@@ -1,4 +1,4 @@
-import type { Entry, CreateEntryRequest, ApiResponse } from '../../../shared/types/types';
+import type { Entry, CreateEntryRequest, UpdateEntryRequest, ApiResponse } from '../../../shared/types/types';
 import { apiClient } from '../../../shared/lib/apiClient';
 
 export const entriesService = {
@@ -18,6 +18,25 @@ export const entriesService = {
     return {
       success: true,
       data: response.data || [],
+    };
+  },
+
+  /**
+   * Recupera una singola nota per ID
+   */
+  async getEntryById(id: string): Promise<ApiResponse<Entry>> {
+    const response = await apiClient.get<Entry>(`/api/v1/entries/${id}`);
+    
+    if (response.error) {
+      return {
+        success: false,
+        error: response.error,
+      };
+    }
+
+    return {
+      success: true,
+      data: response.data,
     };
   },
 
@@ -49,6 +68,49 @@ export const entriesService = {
     };
 
     const response = await apiClient.post<Entry>('/api/v1/entries', createRequest);
+    
+    if (response.error) {
+      return {
+        success: false,
+        error: response.error,
+      };
+    }
+
+    return {
+      success: true,
+      data: response.data,
+    };
+  },
+
+  /**
+   * Aggiorna una nota esistente
+   * @param id - ID della nota da aggiornare
+   * @param text - Nuovo contenuto testuale
+   * @param audioTranscription - Trascrizione audio (opzionale)
+   * @param audioPath - Nuovo path audio su Supabase (opzionale, per sostituzione)
+   * @param audioMime - Nuovo MIME type audio (opzionale)
+   * @param audioDurationMs - Nuova durata audio in millisecondi (opzionale)
+   * @param audioSizeBytes - Nuova dimensione audio in bytes (opzionale)
+   */
+  async updateEntry(
+    id: string,
+    text: string,
+    audioTranscription?: string | null,
+    audioPath?: string | null,
+    audioMime?: string | null,
+    audioDurationMs?: number | null,
+    audioSizeBytes?: number | null
+  ): Promise<ApiResponse<Entry>> {
+    const updateRequest: UpdateEntryRequest = {
+      text,
+      audioTranscription,
+      audioPath,
+      audioMime,
+      audioDurationMs,
+      audioSizeBytes,
+    };
+
+    const response = await apiClient.put<Entry>(`/api/v1/entries/${id}`, updateRequest);
     
     if (response.error) {
       return {

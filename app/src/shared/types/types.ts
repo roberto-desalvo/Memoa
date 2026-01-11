@@ -2,16 +2,27 @@ export type Entry = {
   id: string;
   text: string;
   createdAt: string;
+  updatedAt?: string | null;
   audioPath?: string | null;
   audioMime?: string | null;
   audioDurationMs?: number | null;
   audioSizeBytes?: number | null;
+  audioTranscription?: string | null;
 };
 
 export type CreateEntryRequest = {
   id: string;
   text: string;
   createdAt: string;
+  audioPath?: string | null;
+  audioMime?: string | null;
+  audioDurationMs?: number | null;
+  audioSizeBytes?: number | null;
+};
+
+export type UpdateEntryRequest = {
+  text: string;
+  audioTranscription?: string | null;
   audioPath?: string | null;
   audioMime?: string | null;
   audioDurationMs?: number | null;
