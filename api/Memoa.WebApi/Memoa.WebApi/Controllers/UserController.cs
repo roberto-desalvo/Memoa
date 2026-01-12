@@ -13,11 +13,8 @@ namespace Memoa.WebApi.Controllers
     [Route("api/v1/[controller]")]
     public class UserController : BaseController
     {
-        private readonly IMediator _mediator;
-
-        public UserController(IMediator mediator)
+        public UserController(IMediator mediator) : base(mediator)
         {
-            _mediator = mediator ?? throw new ArgumentNullException(nameof(mediator));
         }
 
         [HttpGet(Name = "GetUser")]

@@ -1,4 +1,5 @@
 ﻿using FluentResults;
+using MediatR;
 using Memoa.Core.Errors;
 using Memoa.Core.Extensions;
 using Microsoft.AspNetCore.Mvc;
@@ -9,6 +10,12 @@ namespace Memoa.Core.Api
 {
     public class BaseController : ControllerBase
     {
+        protected readonly IMediator _mediator;
+
+        public BaseController(IMediator mediator)
+        {
+            _mediator = mediator ?? throw new ArgumentNullException(nameof(mediator));
+        }
         protected IActionResult CreateApiResult(Result result)
         {
             return CreateApiResult<object>(result);
