@@ -53,6 +53,11 @@ export const useEntryForm = (onEntryAdded?: () => void): UseEntryFormReturn => {
       return false;
     }
 
+    if (title.length > 200) {
+      setValidationError('Il titolo non può superare i 200 caratteri');
+      return false;
+    }
+
     if (!content.trim()) {
       setValidationError('Il contenuto della nota è obbligatorio');
       return false;
