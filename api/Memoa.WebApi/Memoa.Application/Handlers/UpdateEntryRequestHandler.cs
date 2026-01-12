@@ -54,7 +54,7 @@ namespace Memoa.Application.Handlers
                 return UnauthorizedError.ResultFail<EntryDto>("Non sei autorizzato a modificare questa nota");
             }
 
-            // Usa domain method para aggiornare il testo
+            // Usa domain method per aggiornare il testo
             var updateResult = entry.UpdateText(request.Title, request.Text, request.AudioTranscription);
             if (updateResult.IsFailed)
             {
