@@ -13,6 +13,7 @@ namespace Memoa.Application.Mapping
             return new EntryDto
             {
                 Id = entry.Id,
+                Title = entry.Title,
                 Text = entry.Text,
                 CreatedAt = entry.CreatedAt,
                 UpdatedAt = entry.UpdatedAt,

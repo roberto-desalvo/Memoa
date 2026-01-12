@@ -28,6 +28,11 @@ namespace Memoa.Infrastructure.Data
                     .IsRequired()
                     .HasMaxLength(255);
 
+                entity.Property(e => e.Title)
+                    .IsRequired()
+                    .HasColumnType("text")
+                    .HasMaxLength(200);
+
                 entity.Property(e => e.Text)
                     .IsRequired()
                     .HasColumnType("text")

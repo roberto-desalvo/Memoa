@@ -10,6 +10,10 @@ namespace Memoa.Application.Requests
         public Guid EntryId { get; set; }
         
         [Required]
+        [MaxLength(200, ErrorMessage = "Il titolo non può superare i 200 caratteri")]
+        public string Title { get; set; } = string.Empty;
+        
+        [Required]
         [MaxLength(100000, ErrorMessage = "Il testo non può superare i 100.000 caratteri")]
         public string Text { get; set; } = string.Empty;
         

@@ -19,7 +19,7 @@ export const EntryDetailPage = () => {
   const [audioLoading, setAudioLoading] = useState(false);
   const [audioError, setAudioError] = useState<string | null>(null);
   const [isUrlExpiring, setIsUrlExpiring] = useState(false);
-  const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const refreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // New audio preview signed URL
   const [newAudioSignedUrl, setNewAudioSignedUrl] = useState<string | null>(null);
@@ -176,7 +176,29 @@ export const EntryDetailPage = () => {
         {/* Header */}
         <div className="mb-8">
           <div className="flex justify-between items-start mb-4">
-            <div>
+            <div className="flex-1">
+              {/* Title Display/Edit */}
+              {!editEntry.isEditMode ? (
+                <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-4">
+                  {entry.title}
+                </h1>
+              ) : (
+                <div className="mb-4">
+                  <input
+                    type="text"
+                    value={editEntry.editedTitle}
+                    onChange={(e) => editEntry.setEditedTitle(e.target.value)}
+                    className="w-full p-3 text-2xl font-bold border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Titolo della nota..."
+                  />
+                  <div className="mt-1 text-sm">
+                    <span className={`${editEntry.titleError ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                      {editEntry.titleError || `${editEntry.editedTitle.length} / 200 caratteri`}
+                    </span>
+                  </div>
+                </div>
+              )}
+
               {entry.updatedAt ? (
                 <div className="flex gap-4 text-sm text-gray-600 dark:text-gray-400">
                   <span>Creata: {formatDate(entry.createdAt)}</span>

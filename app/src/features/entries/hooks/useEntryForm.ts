@@ -6,6 +6,7 @@ import { entriesService } from '../services/entriesService';
 import { supabase } from '../../../shared/lib/supabaseClient';
 
 export interface EntryFormState {
+  title: string;
   content: string;
   validationError: string | null;
   audioBlob: Blob | null;
@@ -17,6 +18,7 @@ export interface EntryFormState {
 }
 
 export interface UseEntryFormReturn extends EntryFormState {
+  setTitle: (title: string) => void;
   setContent: (content: string) => void;
   setValidationError: (error: string | null) => void;
   setAudioBlob: (blob: Blob | null, metadata: AudioMetadata | null) => void;
@@ -35,6 +37,7 @@ export interface UseEntryFormReturn extends EntryFormState {
  * - Gestione errori con feedback specifici (es: permission denied)
  */
 export const useEntryForm = (onEntryAdded?: () => void): UseEntryFormReturn => {
+  const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
@@ -45,13 +48,18 @@ export const useEntryForm = (onEntryAdded?: () => void): UseEntryFormReturn => {
   const [uploadProgress, setUploadProgress] = useState(0);
 
   const validate = useCallback((): boolean => {
+    if (!title.trim()) {
+      setValidationError('Il titolo della nota è obbligatorio');
+      return false;
+    }
+
     if (!content.trim()) {
       setValidationError('Il contenuto della nota è obbligatorio');
       return false;
     }
 
     return true;
-  }, [content]);
+  }, [title, content]);
 
   const setAudioBlobWithMetadata = useCallback((blob: Blob | null, metadata: AudioMetadata | null) => {
     setAudioBlob(blob);
@@ -64,6 +72,7 @@ export const useEntryForm = (onEntryAdded?: () => void): UseEntryFormReturn => {
   }, []);
 
   const reset = useCallback(() => {
+    setTitle('');
     setContent('');
     setValidationError(null);
     setAudioBlob(null);
@@ -158,6 +167,7 @@ export const useEntryForm = (onEntryAdded?: () => void): UseEntryFormReturn => {
       // Nota: entryId è lo stesso usato per uploadare l'audio su Supabase
       const response = await entriesService.addEntry(
         entryId,
+        title,
         content,
         audioPath,
         audioMetadata?.mimeType,
@@ -181,6 +191,8 @@ export const useEntryForm = (onEntryAdded?: () => void): UseEntryFormReturn => {
   }, [validate, reset, onEntryAdded]);
 
   return {
+    title,
+    setTitle,
     content,
     setContent,
     validationError,

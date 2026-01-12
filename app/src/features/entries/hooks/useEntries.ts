@@ -30,23 +30,6 @@ export const useEntries = () => {
     }
   };
 
-  const addEntry = async (text: string) => {
-    setError(null);
-    try {
-      const response = await entriesService.addEntry(text);
-      if (response.success && response.data) {
-        setEntries(prev => [response.data as Entry, ...prev]);
-        return true;
-      } else {
-        setError(response.error || 'Errore nell\'aggiunta della nota');
-        return false;
-      }
-    } catch (err) {
-      setError('Errore imprevisto');
-      return false;
-    }
-  };
-
   const deleteEntry = async (id: string) => {
     setError(null);
     try {
@@ -68,7 +51,6 @@ export const useEntries = () => {
     entries,
     loading,
     error,
-    addEntry,
     deleteEntry,
     loadEntries,
   };

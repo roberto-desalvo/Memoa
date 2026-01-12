@@ -51,6 +51,8 @@ export const HomePage = () => {
 
       {/* Entry Form Section */}
       <EntryForm
+        title={form.title}
+        onTitleChange={form.setTitle}
         content={form.content}
         onContentChange={form.setContent}
         validationError={form.validationError}

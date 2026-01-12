@@ -1,5 +1,6 @@
 export type Entry = {
   id: string;
+  title: string;
   text: string;
   createdAt: string;
   updatedAt?: string | null;
@@ -12,6 +13,7 @@ export type Entry = {
 
 export type CreateEntryRequest = {
   id: string;
+  title: string;
   text: string;
   createdAt: string;
   audioPath?: string | null;
@@ -21,6 +23,7 @@ export type CreateEntryRequest = {
 };
 
 export type UpdateEntryRequest = {
+  title: string;
   text: string;
   audioTranscription?: string | null;
   audioPath?: string | null;

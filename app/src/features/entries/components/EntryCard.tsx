@@ -15,9 +15,8 @@ export const EntryCard = ({ entry, onDelete }: EntryCardProps) => {
   const [audioSignedUrl, setAudioSignedUrl] = useState<string | null>(null);
   const [audioLoading, setAudioLoading] = useState(false);
   const [audioError, setAudioError] = useState<string | null>(null);
-  const [urlExpiresAt, setUrlExpiresAt] = useState<number | null>(null);
   const [isUrlExpiring, setIsUrlExpiring] = useState(false);
-  const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const refreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('it-IT', {
@@ -53,10 +52,8 @@ export const EntryCard = ({ entry, onDelete }: EntryCardProps) => {
 
     try {
       const url = await supabaseStorage.getSignedUrl(entry.audioPath);
-      const expiresAt = Date.now() + 86400 * 1000; // 24 ore
 
       setAudioSignedUrl(url);
-      setUrlExpiresAt(expiresAt);
       setAudioLoading(false);
 
       // Schedulare refresh 1 ora prima della scadenza
@@ -90,6 +87,11 @@ export const EntryCard = ({ entry, onDelete }: EntryCardProps) => {
       onClick={() => navigate(`/entries/${entry.id}`)}
       className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 hover:shadow-lg transition cursor-pointer"
     >
+      {/* Title */}
+      <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">
+        {entry.title}
+      </h3>
+
       <p className="text-gray-600 dark:text-gray-400 mb-3 line-clamp-4 text-sm">
         {entry.text}
       </p>

@@ -10,6 +10,7 @@ namespace Memoa.Domain.Entities
         // Properties - uso setter privati per incapsulamento
         public Guid Id { get; private set; }
         public string UserId { get; private set; } = string.Empty;
+        public string Title { get; private set; } = string.Empty;
         public string Text { get; private set; } = string.Empty;
         public DateTime CreatedAt { get; private set; }
         public DateTime? UpdatedAt { get; private set; }
@@ -30,6 +31,7 @@ namespace Memoa.Domain.Entities
         public static Result<Entry> Create(
             Guid id,
             string userId,
+            string title,
             string text,
             DateTime createdAt,
             string? audioPath = null,
@@ -43,6 +45,12 @@ namespace Memoa.Domain.Entities
 
             if (string.IsNullOrWhiteSpace(userId))
                 return Result.Fail<Entry>("L'ID utente è obbligatorio");
+
+            if (string.IsNullOrWhiteSpace(title))
+                return Result.Fail<Entry>("Il titolo è obbligatorio");
+
+            if (title.Length > 200)
+                return Result.Fail<Entry>("Il titolo non può superare i 200 caratteri");
 
             if (string.IsNullOrWhiteSpace(text))
                 return Result.Fail<Entry>("Il testo è obbligatorio");
@@ -64,6 +72,7 @@ namespace Memoa.Domain.Entities
             {
                 Id = id,
                 UserId = userId,
+                Title = title,
                 Text = text,
                 CreatedAt = createdAt,
                 AudioPath = audioPath,
@@ -78,8 +87,14 @@ namespace Memoa.Domain.Entities
         /// <summary>
         /// Aggiorna il testo dell'entry
         /// </summary>
-        public Result UpdateText(string newText, string? audioTranscription = null)
+        public Result UpdateText(string newTitle, string newText, string? audioTranscription = null)
         {
+            if (string.IsNullOrWhiteSpace(newTitle))
+                return Result.Fail("Il titolo non può essere vuoto");
+
+            if (newTitle.Length > 200)
+                return Result.Fail("Il titolo non può superare i 200 caratteri");
+
             if (string.IsNullOrWhiteSpace(newText))
                 return Result.Fail("Il testo non può essere vuoto");
 
@@ -89,6 +104,7 @@ namespace Memoa.Domain.Entities
             if (audioTranscription?.Length > 100000)
                 return Result.Fail("La trascrizione audio non può superare i 100.000 caratteri");
 
+            Title = newTitle;
             Text = newText;
             AudioTranscription = audioTranscription;
             UpdatedAt = DateTime.UtcNow;

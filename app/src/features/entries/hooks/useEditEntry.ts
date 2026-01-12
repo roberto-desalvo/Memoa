@@ -5,12 +5,14 @@ import { entriesService } from '../services/entriesService';
 import { supabaseStorage } from '../../../shared/lib/supabaseStorage';
 import { useUser } from './useUser';
 
+const MAX_TITLE_LENGTH = 200;
 const MAX_TEXT_LENGTH = 100000;
 const MAX_TRANSCRIPTION_LENGTH = 100000;
 
 export const useEditEntry = (entry: Entry, onUpdate: (updatedEntry: Entry) => void) => {
   const { user } = useUser();
   const [isEditMode, setIsEditMode] = useState(false);
+  const [editedTitle, setEditedTitle] = useState(entry.title);
   const [editedText, setEditedText] = useState(entry.text);
   const [editedTranscription, setEditedTranscription] = useState(entry.audioTranscription || '');
   const [isSaving, setIsSaving] = useState(false);
@@ -28,11 +30,18 @@ export const useEditEntry = (entry: Entry, onUpdate: (updatedEntry: Entry) => vo
 
   // Track if there are unsaved changes
   const hasUnsavedChanges = 
+    editedTitle !== entry.title ||
     editedText !== entry.text ||
     editedTranscription !== (entry.audioTranscription || '') ||
     newAudioPath !== null;
 
   // Validation
+  const titleError = editedTitle.trim().length === 0 
+    ? 'Il titolo non può essere vuoto'
+    : editedTitle.length > MAX_TITLE_LENGTH
+    ? `Il titolo non può superare i ${MAX_TITLE_LENGTH} caratteri`
+    : null;
+
   const textError = editedText.trim().length === 0 
     ? 'Il testo non può essere vuoto'
     : editedText.length > MAX_TEXT_LENGTH
@@ -43,11 +52,12 @@ export const useEditEntry = (entry: Entry, onUpdate: (updatedEntry: Entry) => vo
     ? `La trascrizione non può superare i ${MAX_TRANSCRIPTION_LENGTH.toLocaleString()} caratteri`
     : null;
 
-  const isValid = !textError && !transcriptionError;
+  const isValid = !titleError && !textError && !transcriptionError;
 
   // Enter edit mode
   const enterEditMode = () => {
     setIsEditMode(true);
+    setEditedTitle(entry.title);
     setEditedText(entry.text);
     setEditedTranscription(entry.audioTranscription || '');
     setError(null);
@@ -124,6 +134,7 @@ export const useEditEntry = (entry: Entry, onUpdate: (updatedEntry: Entry) => vo
     }
 
     setIsEditMode(false);
+    setEditedTitle(entry.title);
     setEditedText(entry.text);
     setEditedTranscription(entry.audioTranscription || '');
     setNewAudioBlob(null);
@@ -152,6 +163,7 @@ export const useEditEntry = (entry: Entry, onUpdate: (updatedEntry: Entry) => vo
 
       const response = await entriesService.updateEntry(
         entry.id,
+        editedTitle,
         editedText,
         editedTranscription || null,
         newAudioPath,
@@ -205,10 +217,13 @@ export const useEditEntry = (entry: Entry, onUpdate: (updatedEntry: Entry) => vo
     error,
 
     // Text editing
+    editedTitle,
+    setEditedTitle,
     editedText,
     setEditedText,
     editedTranscription,
     setEditedTranscription,
+    titleError,
     textError,
     transcriptionError,
     isValid,

@@ -52,6 +52,11 @@ namespace Memoa.Infrastructure.Migrations
                         .HasMaxLength(100000)
                         .HasColumnType("text");
 
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("text");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 

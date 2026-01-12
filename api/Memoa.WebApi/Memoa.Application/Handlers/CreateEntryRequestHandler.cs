@@ -39,6 +39,7 @@ namespace Memoa.Application.Handlers
             var entryResult = Entry.Create(
                 request.Id,
                 userId,
+                request.Title,
                 request.Text,
                 request.CreatedAt,
                 request.AudioPath,

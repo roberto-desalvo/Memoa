@@ -43,6 +43,7 @@ export const entriesService = {
   /**
    * Aggiunge una nuova nota con supporto audio opzionale
    * @param entryId - ID dell'entry (già generato dal chiamante, usato per il path audio)
+   * @param title - Titolo della nota
    * @param text - Contenuto testuale della nota
    * @param audioPath - Path dell'audio su Supabase (es: userId/entryId.webm)
    * @param audioMime - MIME type dell'audio
@@ -51,6 +52,7 @@ export const entriesService = {
    */
   async addEntry(
     entryId: string,
+    title: string,
     text: string,
     audioPath?: string,
     audioMime?: string,
@@ -59,6 +61,7 @@ export const entriesService = {
   ): Promise<ApiResponse<Entry>> {
     const createRequest: CreateEntryRequest = {
       id: entryId,
+      title,
       text,
       createdAt: new Date().toISOString(),
       audioPath,
@@ -85,6 +88,7 @@ export const entriesService = {
   /**
    * Aggiorna una nota esistente
    * @param id - ID della nota da aggiornare
+   * @param title - Nuovo titolo
    * @param text - Nuovo contenuto testuale
    * @param audioTranscription - Trascrizione audio (opzionale)
    * @param audioPath - Nuovo path audio su Supabase (opzionale, per sostituzione)
@@ -94,6 +98,7 @@ export const entriesService = {
    */
   async updateEntry(
     id: string,
+    title: string,
     text: string,
     audioTranscription?: string | null,
     audioPath?: string | null,
@@ -102,6 +107,7 @@ export const entriesService = {
     audioSizeBytes?: number | null
   ): Promise<ApiResponse<Entry>> {
     const updateRequest: UpdateEntryRequest = {
+      title,
       text,
       audioTranscription,
       audioPath,
