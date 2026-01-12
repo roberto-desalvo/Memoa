@@ -3,66 +3,60 @@ using MediatR;
 using Memoa.Domain.Dtos;
 using Memoa.Domain.Entities;
 using Memoa.Domain.Repositories;
-using Memoa.Domain.Requests;
+using Memoa.Application.Requests;
+using Memoa.Application.Services;
+using Memoa.Application.Mapping;
 using Memoa.Core.Errors;
-using Microsoft.AspNetCore.Http;
 
 namespace Memoa.Application.Handlers
 {
     public class CreateEntryRequestHandler : IRequestHandler<CreateEntryRequest, Result<EntryDto>>
     {
-        private readonly IHttpContextAccessor _accessor;
+        private readonly ICurrentUserService _currentUserService;
         private readonly IEntryRepository _entryRepository;
+        private readonly IUnitOfWork _unitOfWork;
 
-        public CreateEntryRequestHandler(IHttpContextAccessor accessor, IEntryRepository entryRepository)
+        public CreateEntryRequestHandler(
+            ICurrentUserService currentUserService,
+            IEntryRepository entryRepository,
+            IUnitOfWork unitOfWork)
         {
-            _accessor = accessor ?? throw new ArgumentNullException(nameof(accessor));
+            _currentUserService = currentUserService ?? throw new ArgumentNullException(nameof(currentUserService));
             _entryRepository = entryRepository ?? throw new ArgumentNullException(nameof(entryRepository));
+            _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
         }
 
         public async Task<Result<EntryDto>> Handle(CreateEntryRequest request, CancellationToken cancellationToken)
         {
-            var user = _accessor.HttpContext.User;
-            var userId = user.FindFirst("sub")?.Value ?? user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var userId = _currentUserService.GetCurrentUserId();
 
             if (string.IsNullOrWhiteSpace(userId))
             {
                 return UnauthorizedError.ResultFail<EntryDto>("Utente non riconosciuto");
             }
 
-            if (string.IsNullOrWhiteSpace(request.Text))
+            // Usa il factory method del domain model
+            var entryResult = Entry.Create(
+                request.Id,
+                userId,
+                request.Text,
+                request.CreatedAt,
+                request.AudioPath,
+                request.AudioMime,
+                request.AudioDurationMs,
+                request.AudioSizeBytes);
+
+            if (entryResult.IsFailed)
             {
-                return InvalidInputError.ResultFail<EntryDto>("Il testo è obbligatorio");
+                return InvalidInputError.ResultFail<EntryDto>(entryResult.Errors.First().Message);
             }
 
-            // Crea l'entry tramite il repository
-            var entry = new Entry
-            {
-                Id = request.Id,
-                UserId = userId,
-                Text = request.Text,
-                CreatedAt = request.CreatedAt,
-                AudioPath = request.AudioPath,
-                AudioMime = request.AudioMime,
-                AudioDurationMs = request.AudioDurationMs,
-                AudioSizeBytes = request.AudioSizeBytes
-            };
+            var entry = entryResult.Value;
 
             await _entryRepository.AddAsync(entry, cancellationToken);
-            await _entryRepository.SaveChangesAsync(cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            var entryDto = new EntryDto
-            {
-                Id = entry.Id,
-                Text = entry.Text,
-                CreatedAt = entry.CreatedAt,
-                AudioPath = entry.AudioPath,
-                AudioMime = entry.AudioMime,
-                AudioDurationMs = entry.AudioDurationMs,
-                AudioSizeBytes = entry.AudioSizeBytes
-            };
-
-            return Result.Ok(entryDto);
+            return Result.Ok(entry.ToDto());
         }
     }
 }

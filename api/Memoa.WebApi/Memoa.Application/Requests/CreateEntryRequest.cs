@@ -2,7 +2,7 @@ using FluentResults;
 using MediatR;
 using Memoa.Domain.Dtos;
 
-namespace Memoa.Domain.Requests
+namespace Memoa.Application.Requests
 {
     public class CreateEntryRequest : IRequest<Result<EntryDto>>
     {

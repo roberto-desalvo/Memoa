@@ -1,37 +1,20 @@
-using Memoa.Application.Handlers;
-using Memoa.Application.Services;
-using Memoa.Domain.Data;
-using Memoa.Domain.Repositories;
-using Memoa.WebApi.Supabase;
+using Memoa.Application;
+using Memoa.Infrastructure;
+using Memoa.Infrastructure.Data;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddHttpContextAccessor();
 
-// EF Core + Postgres
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-builder.Services.AddDbContext<MemoaDbContext>(options =>
-    options.UseNpgsql(connectionString));
+// Application layer (MediatR, Validators, Mapping)
+builder.Services.AddApplication();
 
-// Repositories
-builder.Services.AddScoped<IEntryRepository, EntryRepository>();
-
-builder.Services.AddMediatR(options =>
-{
-    _ = options.RegisterServicesFromAssemblyContaining<GetUserRequestHandler>();
-});
-
-// HttpClient for Supabase Storage REST API
-builder.Services.AddHttpClient();
-
-// Supabase Storage REST API options + service registration
-builder.Services.Configure<SupabaseAudioStorageOptions>(builder.Configuration.GetSection("SupabaseStorage"));
-builder.Services.AddSingleton<IAudioStorageService, SupabaseAudioStorageService>();
+// Infrastructure layer (DbContext, Repositories, Services)
+builder.Services.AddInfrastructure(builder.Configuration);
 
 var supabaseUrl = builder.Configuration["Supabase:Url"];
 var supabaseAudience = builder.Configuration["Supabase:Audience"];
@@ -42,7 +25,7 @@ builder.Services
   .AddJwtBearer(options =>
   {
       options.Authority = authority;
-      options.MetadataAddress = $"{authority}/.well-known/openid-configuration"; // opzionale ma esplicito
+      options.MetadataAddress = $"{authority}/.well-known/openid-configuration";
 
       options.TokenValidationParameters = new TokenValidationParameters
       {
@@ -56,7 +39,6 @@ builder.Services
 
 builder.Services.AddAuthorization();
 builder.Services.AddControllers();
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
 // Add CORS

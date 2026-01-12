@@ -1,24 +1,27 @@
-using Memoa.Domain.Data;
+using Memoa.Infrastructure.Data;
 using Memoa.Domain.Entities;
+using Memoa.Domain.Repositories;
 using Microsoft.EntityFrameworkCore;
 
-namespace Memoa.Domain.Repositories
+namespace Memoa.Infrastructure.Repositories
 {
-    public class EntryRepository : RepositoryBase, IEntryRepository
+    public class EntryRepository : IEntryRepository
     {
+        private readonly MemoaDbContext _dbContext;
+
         public EntryRepository(MemoaDbContext dbContext)
-            : base(dbContext)
         {
+            _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
         }
 
         public async Task AddAsync(Entry entry, CancellationToken cancellationToken = default)
         {
-            DbContext.Entries.Add(entry);
+            await _dbContext.Entries.AddAsync(entry, cancellationToken);
         }
 
         public async Task<List<Entry>> GetByUserIdAsync(string userId, CancellationToken cancellationToken = default)
         {
-            return await DbContext.Entries
+            return await _dbContext.Entries
                 .Where(e => e.UserId == userId)
                 .OrderByDescending(e => e.CreatedAt)
                 .ToListAsync(cancellationToken);
@@ -26,13 +29,13 @@ namespace Memoa.Domain.Repositories
 
         public async Task<Entry?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
         {
-            return await DbContext.Entries
+            return await _dbContext.Entries
                 .FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
         }
 
         public Task UpdateAsync(Entry entry, CancellationToken cancellationToken = default)
         {
-            DbContext.Entries.Update(entry);
+            _dbContext.Entries.Update(entry);
             return Task.CompletedTask;
         }
 
@@ -41,13 +44,8 @@ namespace Memoa.Domain.Repositories
             var entry = await GetByIdAsync(id, cancellationToken);
             if (entry != null)
             {
-                DbContext.Entries.Remove(entry);
+                _dbContext.Entries.Remove(entry);
             }
-        }
-
-        public async Task SaveChangesAsync(CancellationToken cancellationToken = default)
-        {
-            await base.SaveChangesAsync(cancellationToken);
         }
     }
 }

@@ -3,7 +3,7 @@ using MediatR;
 using Memoa.Domain.Dtos;
 using System.ComponentModel.DataAnnotations;
 
-namespace Memoa.Domain.Requests
+namespace Memoa.Application.Requests
 {
     public class UpdateEntryRequest : IRequest<Result<EntryDto>>
     {

@@ -2,7 +2,7 @@ using FluentResults;
 using MediatR;
 using Memoa.Core.Api;
 using Memoa.Domain.Dtos;
-using Memoa.Domain.Requests;
+using Memoa.Application.Requests;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 

@@ -9,6 +9,5 @@ namespace Memoa.Domain.Repositories
         Task<Entry?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
         Task UpdateAsync(Entry entry, CancellationToken cancellationToken = default);
         Task DeleteAsync(Guid id, CancellationToken cancellationToken = default);
-        Task SaveChangesAsync(CancellationToken cancellationToken = default);
     }
 }

@@ -3,7 +3,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Net.Http.Headers;
 
-namespace Memoa.WebApi.Supabase
+namespace Memoa.Infrastructure.Services
 {
     public class SupabaseAudioStorageService : IAudioStorageService
     {
@@ -22,7 +22,7 @@ namespace Memoa.WebApi.Supabase
 
             if (string.IsNullOrWhiteSpace(_options.ServiceRoleKey))
             {
-                _logger.LogWarning("ServiceRoleKey mancante per SupabaseAudioStorageService. Le operazioni di cancellazione audio verranno saltate.");
+                _logger.LogWarning("ServiceRoleKey mancante per SupabaseAudioStorageService. Le operazioni di cancellazione audio non potranno essere effettuate.");
             }
             else
             {

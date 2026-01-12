@@ -1,7 +1,7 @@
 using FluentResults;
 using MediatR;
 
-namespace Memoa.Domain.Requests
+namespace Memoa.Application.Requests
 {
     public class DeleteEntryRequest : IRequest<Result>
     {

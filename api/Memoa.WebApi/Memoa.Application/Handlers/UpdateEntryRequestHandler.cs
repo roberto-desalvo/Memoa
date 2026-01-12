@@ -2,45 +2,45 @@ using FluentResults;
 using MediatR;
 using Memoa.Core.Errors;
 using Memoa.Application.Services;
+using Memoa.Application.Requests;
+using Memoa.Application.Mapping;
 using Memoa.Domain.Dtos;
 using Memoa.Domain.Repositories;
-using Memoa.Domain.Requests;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 
 namespace Memoa.Application.Handlers
 {
     public class UpdateEntryRequestHandler : IRequestHandler<UpdateEntryRequest, Result<EntryDto>>
     {
-        private readonly IHttpContextAccessor _accessor;
+        private readonly ICurrentUserService _currentUserService;
         private readonly IEntryRepository _entryRepository;
+        private readonly IUnitOfWork _unitOfWork;
         private readonly IAudioStorageService _audioStorageService;
         private readonly ILogger<UpdateEntryRequestHandler> _logger;
 
         public UpdateEntryRequestHandler(
-            IHttpContextAccessor accessor,
+            ICurrentUserService currentUserService,
             IEntryRepository entryRepository,
+            IUnitOfWork unitOfWork,
             IAudioStorageService audioStorageService,
             ILogger<UpdateEntryRequestHandler> logger)
         {
-            _accessor = accessor ?? throw new ArgumentNullException(nameof(accessor));
+            _currentUserService = currentUserService ?? throw new ArgumentNullException(nameof(currentUserService));
             _entryRepository = entryRepository ?? throw new ArgumentNullException(nameof(entryRepository));
+            _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
             _audioStorageService = audioStorageService ?? throw new ArgumentNullException(nameof(audioStorageService));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         public async Task<Result<EntryDto>> Handle(UpdateEntryRequest request, CancellationToken cancellationToken)
         {
-            // Verifica autenticazione
-            var user = _accessor.HttpContext.User;
-            var userId = user.FindFirst("sub")?.Value ?? user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var userId = _currentUserService.GetCurrentUserId();
 
             if (string.IsNullOrWhiteSpace(userId))
             {
                 return UnauthorizedError.ResultFail<EntryDto>("Utente non riconosciuto");
             }
 
-            // Recupera l'entry
             var entry = await _entryRepository.GetByIdAsync(request.EntryId, cancellationToken);
 
             if (entry == null)
@@ -48,67 +48,58 @@ namespace Memoa.Application.Handlers
                 return NotFoundError.ResultFail<EntryDto>("Nota non trovata");
             }
 
-            // Verifica che l'entry appartenga all'utente
-            if (entry.UserId != userId)
+            // Usa domain method per verificare ownership
+            if (!entry.BelongsToUser(userId))
             {
                 return UnauthorizedError.ResultFail<EntryDto>("Non sei autorizzato a modificare questa nota");
             }
 
-            // Aggiorna i campi
-            entry.Text = request.Text;
-            entry.AudioTranscription = request.AudioTranscription;
-            entry.UpdatedAt = DateTime.UtcNow;
+            // Usa domain method per aggiornare il testo
+            var updateResult = entry.UpdateText(request.Text, request.AudioTranscription);
+            if (updateResult.IsFailed)
+            {
+                return InvalidInputError.ResultFail<EntryDto>(updateResult.Errors.First().Message);
+            }
 
-            // Gestione sostituzione audio
+            // Gestione sostituzione audio con domain method
             if (!string.IsNullOrWhiteSpace(request.AudioPath))
             {
+                var replaceResult = entry.ReplaceAudio(
+                    request.AudioPath,
+                    request.AudioMime,
+                    request.AudioDurationMs,
+                    request.AudioSizeBytes);
+
+                if (replaceResult.IsFailed)
+                {
+                    return InvalidInputError.ResultFail<EntryDto>(replaceResult.Errors.First().Message);
+                }
+
+                var oldAudioPath = replaceResult.Value;
+
                 // Elimina il vecchio audio se presente
-                if (!string.IsNullOrWhiteSpace(entry.AudioPath))
+                if (!string.IsNullOrWhiteSpace(oldAudioPath))
                 {
                     try
                     {
-                        await _audioStorageService.DeleteAudioAsync(entry.AudioPath!, cancellationToken);
+                        await _audioStorageService.DeleteAudioAsync(oldAudioPath, cancellationToken);
                         _logger.LogInformation("Vecchio audio eliminato con successo per Entry {EntryId}", request.EntryId);
                     }
                     catch (AudioNotFoundException)
                     {
-                        // Audio non trovato (404) - OK, continua con aggiornamento
                         _logger.LogInformation("Vecchio audio non trovato per Entry {EntryId}, procedo con aggiornamento", request.EntryId);
                     }
                     catch (Exception ex)
                     {
-                        // Altri errori - registra ma continua (evita blocco se storage ha problemi)
                         _logger.LogWarning(ex, "Eliminazione vecchio audio fallita per Entry {EntryId}, procedo comunque con aggiornamento", request.EntryId);
                     }
                 }
-
-                // Aggiorna i metadati audio con il nuovo file
-                entry.AudioPath = request.AudioPath;
-                entry.AudioMime = request.AudioMime;
-                entry.AudioDurationMs = request.AudioDurationMs;
-                entry.AudioSizeBytes = request.AudioSizeBytes;
             }
 
-            // Marca l'entry come modificata
             await _entryRepository.UpdateAsync(entry, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            // Salva le modifiche
-            await _entryRepository.SaveChangesAsync(cancellationToken);
-
-            var entryDto = new EntryDto
-            {
-                Id = entry.Id,
-                Text = entry.Text,
-                CreatedAt = entry.CreatedAt,
-                UpdatedAt = entry.UpdatedAt,
-                AudioPath = entry.AudioPath,
-                AudioMime = entry.AudioMime,
-                AudioDurationMs = entry.AudioDurationMs,
-                AudioSizeBytes = entry.AudioSizeBytes,
-                AudioTranscription = entry.AudioTranscription
-            };
-
-            return Result.Ok(entryDto);
+            return Result.Ok(entry.ToDto());
         }
     }
 }

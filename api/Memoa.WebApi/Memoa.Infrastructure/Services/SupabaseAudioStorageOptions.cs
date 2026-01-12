@@ -1,4 +1,4 @@
-namespace Memoa.WebApi.Supabase
+namespace Memoa.Infrastructure.Services
 {
     public class SupabaseAudioStorageOptions
     {

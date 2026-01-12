@@ -1,7 +1,7 @@
 using Memoa.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
-namespace Memoa.Domain.Data
+namespace Memoa.Infrastructure.Data
 {
     public class MemoaDbContext : DbContext
     {

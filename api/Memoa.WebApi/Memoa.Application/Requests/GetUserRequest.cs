@@ -1,8 +1,8 @@
-﻿using FluentResults;
+using FluentResults;
 using MediatR;
 using Memoa.Domain.Dtos;
 
-namespace Memoa.Domain.Requests
+namespace Memoa.Application.Requests
 {
     public class GetUserRequest : IRequest<Result<UserDto>>
     {
