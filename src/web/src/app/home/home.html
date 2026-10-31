@@ -9,15 +9,5 @@
 </header>
 
 <main>
-  <h2>Risposta di <code>GET /api/me</code></h2>
-
-  @if (me.isLoading()) {
-    <p>Chiamata in corso…</p>
-  } @else if (me.error(); as error) {
-    <pre class="error">{{ error | json }}</pre>
-  } @else {
-    <pre>{{ me.value() | json }}</pre>
-  }
-
-  <button type="button" (click)="me.reload()" [disabled]="me.isLoading()">Riprova</button>
+  <app-record-audio />
 </main>

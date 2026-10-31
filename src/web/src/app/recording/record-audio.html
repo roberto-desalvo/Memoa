@@ -1,0 +1,56 @@
+@if (!supported) {
+  <p class="message error">Il browser non supporta la registrazione audio.</p>
+} @else {
+  @let current = status();
+  @let busy = current.kind === 'uploading';
+
+  <button
+    type="button"
+    class="record"
+    [class.active]="current.kind === 'recording'"
+    [disabled]="busy"
+    [attr.aria-label]="current.kind === 'recording' ? 'Ferma la registrazione' : 'Registra'"
+    (click)="toggle()"
+  >
+    @if (current.kind === 'recording') {
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="6" y="6" width="12" height="12" rx="2" />
+      </svg>
+    } @else {
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Z" />
+        <path
+          d="M19 11a7 7 0 0 1-14 0M12 18v3"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+        />
+      </svg>
+    }
+  </button>
+
+  <div class="message" aria-live="polite">
+    @switch (current.kind) {
+      @case ('idle') {
+        <p>Tocca per registrare (massimo {{ maxDuration }}).</p>
+      }
+      @case ('recording') {
+        <p class="timer">{{ elapsed() }} / {{ maxDuration }}</p>
+      }
+      @case ('uploading') {
+        <p>Caricamento…</p>
+        <progress [value]="current.fraction" max="1"></progress>
+      }
+      @case ('done') {
+        <p>Registrazione salvata.</p>
+      }
+      @case ('error') {
+        <p class="error">{{ current.message }}</p>
+        @if (current.audio; as audio) {
+          <button type="button" (click)="upload(audio)">Riprova il caricamento</button>
+        }
+      }
+    }
+  </div>
+}

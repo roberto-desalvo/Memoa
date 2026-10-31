@@ -1,0 +1,74 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 2rem 0;
+}
+
+.record {
+  display: grid;
+  place-items: center;
+  width: 5rem;
+  height: 5rem;
+  padding: 0;
+  color: #fff;
+  background: #dc2626;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+
+  svg {
+    width: 2.25rem;
+    height: 2.25rem;
+    fill: currentColor;
+  }
+
+  &.active {
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  &:focus-visible {
+    outline: 3px solid #93c5fd;
+    outline-offset: 3px;
+  }
+}
+
+.message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 3rem;
+  text-align: center;
+
+  p {
+    margin: 0;
+  }
+}
+
+.timer {
+  font-variant-numeric: tabular-nums;
+}
+
+.error {
+  color: #b91c1c;
+}
+
+@keyframes pulse {
+  50% {
+    box-shadow: 0 0 0 0.75rem rgb(220 38 38 / 0.2);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .record.active {
+    animation: none;
+    box-shadow: 0 0 0 0.5rem rgb(220 38 38 / 0.2);
+  }
+}

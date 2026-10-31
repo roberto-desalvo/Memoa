@@ -5,7 +5,9 @@
     "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
     "Auth__Authority": "https://<sottodominio>.ciamlogin.com/<tenant-id>/v2.0",
     "Auth__Audience": "<client-id-registrazione-api>",
-    "Auth__RequiredScope": "access_as_user"
+    "Auth__RequiredScope": "access_as_user",
+    "DataStorage__blobServiceUri": "https://<storage-dati-dev>.blob.core.windows.net/",
+    "Containers__Uploads": "uploads"
   },
   "Host": {
     "CORS": "http://localhost:4200"
