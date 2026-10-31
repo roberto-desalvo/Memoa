@@ -1,0 +1,73 @@
+{
+  // Avvio in locale: "Memoa: avvia tutto" lancia Azurite, Functions (porta 7071) e frontend (porta 4200).
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Memoa: avvia tutto",
+      "dependsOn": ["Functions: avvia", "Web: avvia"],
+      "dependsOrder": "parallel",
+      "problemMatcher": []
+    },
+    {
+      // Storage di AzureWebJobsStorage (UseDevelopmentStorage=true), dati in .azurite/.
+      "label": "Azurite",
+      "type": "shell",
+      "command": "npx -y azurite@3 --silent --skipApiVersionCheck --location .azurite",
+      "isBackground": true,
+      "presentation": { "group": "memoa", "reveal": "silent" },
+      "problemMatcher": {
+        "pattern": { "regexp": "^__never__$" },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "Azurite",
+          "endsPattern": "Table service is successfully listening"
+        }
+      }
+    },
+    {
+      // func start compila il progetto .NET isolated prima di avviare l'host.
+      "label": "Functions: avvia",
+      "type": "shell",
+      "command": "func start --port 7071",
+      "options": { "cwd": "${workspaceFolder}/src/functions" },
+      "dependsOn": ["Azurite"],
+      "isBackground": true,
+      "presentation": { "group": "memoa" },
+      "problemMatcher": [
+        "$msCompile",
+        {
+          "pattern": { "regexp": "^__never__$" },
+          "background": {
+            "activeOnStart": true,
+            "beginsPattern": "Azure Functions Core Tools",
+            "endsPattern": "Worker process started and initialized|Host lock lease acquired"
+          }
+        }
+      ]
+    },
+    {
+      "label": "Web: avvia",
+      "type": "npm",
+      "script": "start",
+      "path": "src/web",
+      "isBackground": true,
+      "presentation": { "group": "memoa" },
+      "problemMatcher": {
+        "owner": "typescript",
+        "pattern": "$tsc",
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": { "regexp": "Changes detected|Building" },
+          "endsPattern": { "regexp": "bundle generation (complete|failed)|Watch mode enabled" }
+        }
+      }
+    },
+    {
+      "label": "Web: npm install",
+      "type": "npm",
+      "script": "install",
+      "path": "src/web",
+      "problemMatcher": []
+    }
+  ]
+}

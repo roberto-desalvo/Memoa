@@ -1,0 +1,8 @@
+{
+  "apiBaseUrl": "http://localhost:7071/api",
+  "auth": {
+    "authority": "https://<sottodominio>.ciamlogin.com/<tenant-id>",
+    "clientId": "<client-id-registrazione-frontend>",
+    "apiScope": "api://<tenant-id>/memoa-<env>-api/access_as_user"
+  }
+}
