@@ -22,6 +22,7 @@ Bicep per tutto ciò che lo supporta; qui sotto i passi manuali per il resto.
 | `modules/openai.bicep` | RG | Azure OpenAI con `text-embedding-3-small` Data Zone Standard |
 | `modules/function-app.bicep` | RG | Flex Consumption, storage di sistema dedicato, app settings |
 | `modules/container-apps-env.bicep` | RG | Container Apps environment (profilo Consumption) condiviso dai due job |
+| `modules/deploy-identity.bicep` | RG | Identità delle pipeline GitHub Actions: federated credential sull'environment GitHub dell'ambiente, Website Contributor sulla Function App, Contributor sulla Static Web App |
 | `modules/queue-job.bicep` | RG | Container Apps Job attivato dalla propria coda, usato due volte: normalizzazione (`uploads` → `audio`, solo ffmpeg) e trascrizione (`audio` → `transcripts`, Whisper). Nessuna scrittura sulle code, nessun accesso ad Azure SQL |
 
 ## Deploy
@@ -117,6 +118,50 @@ Nessun dead-letter: gli eventi non consegnati dopo i retry automatici di Event G
    ALTER ROLE db_datawriter ADD MEMBER [id-memoa-<env>-func];
    ```
    Se l'utente `id-memoa-<env>-transcriber` era già stato creato, rimuoverlo con `DROP USER [id-memoa-<env>-transcriber];`.
+
+   Utente per l'identità delle pipeline, che applica lo script dello schema (modifica dello schema e tabella `__EFMigrationsHistory`):
+   ```sql
+   CREATE USER [id-memoa-<env>-deploy] FROM EXTERNAL PROVIDER;
+   ALTER ROLE db_ddladmin ADD MEMBER [id-memoa-<env>-deploy];
+   ALTER ROLE db_datareader ADD MEMBER [id-memoa-<env>-deploy];
+   ALTER ROLE db_datawriter ADD MEMBER [id-memoa-<env>-deploy];
+   ```
 3. **Entra External ID**: creare un tenant esterno per ambiente (dev e prod, residenza dati in Europa), i flussi utente e il branding; compilare `AUTH_AUTHORITY_<ENV>` in `infra/.env`. Le registrazioni delle app (frontend e API) si distribuiscono con `identity/deploy.ps1` (vedi [Registrazioni delle app in Entra External ID](#registrazioni-delle-app-in-entra-external-id)); il collegamento dell'app del frontend al flusso utente resta manuale.
 4. **GHCR**: quando le immagini dei job sono pubblicate, impostare `normalizerImage`, `transcriberImage` e `ghcrUsername`, e passare `GHCR_TOKEN` (PAT con scope `read:packages`).
-5. **GitHub**: secret e variabili del repository (credenziali OIDC per Azure, token di deployment di Static Web Apps, `GHCR_TOKEN`), da configurare a mano.
+5. **GitHub**: environment e variabili delle pipeline, da configurare a mano (vedi [Pipeline GitHub Actions](#pipeline-github-actions)).
+
+## Pipeline GitHub Actions
+
+| Workflow | Si avvia su push su `main` se cambia | Cosa fa |
+|---|---|---|
+| `web.yml` | `src/web/**` | Build Angular, poi su ogni ambiente genera `config.json` e carica su Static Web Apps |
+| `functions.yml` | `src/functions/**` tranne `Data/Migrations/**` | `dotnet publish`, poi deploy del pacchetto sulla Function App |
+| `schema.yml` | `src/functions/Data/Migrations/**` | Genera lo script idempotente delle migration (scaricabile tra gli artifact) e lo applica con `sqlcmd` |
+
+Ognuno compila una sola volta e distribuisce prima su **dev**, poi su **prod**; il job prod attende l'approvazione dell'environment GitHub `prod`. Tutti si possono avviare anche a mano (**Run workflow**). I file `*-deploy.yml` sono i passi di deploy per un ambiente, richiamati dai workflow principali.
+
+Lo schema e le Functions si distribuiscono separatamente e in ordine non garantito: le modifiche allo schema vanno fatte in due tempi (vedi [docs/sviluppo-locale.md](../docs/sviluppo-locale.md#database-e-migration)).
+
+Autenticazione su Azure con OIDC, senza segreti: ogni ambiente ha l'identità `id-memoa-<env>-deploy` (`modules/deploy-identity.bicep`) con una federated credential sull'environment GitHub omonimo e i ruoli Website Contributor sulla Function App e Contributor sulla Static Web App (per leggerne il token di deployment). Sul database serve l'utente SQL del passo manuale 2. La connessione al server SQL dai runner GitHub passa dalla regola firewall `AllowAllWindowsAzureIps`.
+
+Configurazione, una volta per ambiente, dopo il deploy dell'infrastruttura:
+
+1. **Settings → Environments**: creare `dev` e `prod`. Su `prod` attivare **Required reviewers**; su entrambi limitare **Deployment branches** a `main`.
+2. In ciascun environment, le variabili (**Environment variables**, non sono segreti):
+
+   | Variabile | Valore |
+   |---|---|
+   | `AZURE_CLIENT_ID` | Output `deployIdentityClientId` del deploy `memoa-<env>` |
+   | `AZURE_TENANT_ID` | Tenant della sottoscrizione (`az account show --query tenantId -o tsv`), non quello esterno |
+   | `AZURE_SUBSCRIPTION_ID` | `az account show --query id -o tsv` |
+   | `SQL_SERVER_NAME` | Come `SQL_SERVER_NAME` in `infra/.env` |
+   | `AUTH_AUTHORITY` | Come `AUTH_AUTHORITY_<ENV>` (il suffisso `/v2.0` viene tolto per il frontend) |
+   | `AUTH_WEB_CLIENT_ID` | Come `AUTH_WEB_CLIENT_ID_<ENV>` |
+   | `AUTH_API_SCOPE` | Come `AUTH_API_SCOPE_<ENV>` |
+
+   ```powershell
+   az deployment sub show -n memoa-dev --query properties.outputs.deployIdentityClientId.value -o tsv
+   ```
+3. Creare l'utente SQL dell'identità di deploy (passo manuale 2).
+
+Function App e Static Web App sono cercate per resource group (`rg-memoa-<env>`), il database per nome (`sqldb-memoa-<env>`).

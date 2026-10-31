@@ -1,0 +1,60 @@
+# Schema del database: script SQL idempotente delle migration EF Core, applicato a dev e poi a prod.
+# Lo schema si distribuisce indipendentemente dalle Functions: ogni modifica va fatta in due tempi.
+name: Schema del database
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - src/functions/Data/Migrations/**
+      - .github/workflows/schema.yml
+      - .github/workflows/schema-deploy.yml
+  workflow_dispatch:
+
+concurrency:
+  group: schema
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  script:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      # Stessa versione di Microsoft.EntityFrameworkCore.Design nel progetto.
+      - run: dotnet tool install --global dotnet-ef --version 10.0.14
+
+      # Non si connette al database (DesignTimeDbContextFactory usa una connection string fittizia).
+      - run: dotnet ef migrations script --idempotent --project src/functions -o schema.sql
+
+      # Lo script resta tra gli artifact dell'esecuzione: si può rileggere prima di approvare prod.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: schema
+          path: schema.sql
+          if-no-files-found: error
+
+  dev:
+    needs: script
+    uses: ./.github/workflows/schema-deploy.yml
+    with:
+      environment: dev
+    permissions:
+      contents: read
+      id-token: write
+
+  prod:
+    needs: dev
+    uses: ./.github/workflows/schema-deploy.yml
+    with:
+      environment: prod
+    permissions:
+      contents: read
+      id-token: write

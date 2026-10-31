@@ -1,0 +1,47 @@
+# Applicazione dello script dello schema su un ambiente. Chiamato da schema.yml.
+name: Schema del database (deploy)
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        type: string
+        required: true
+
+env:
+  SQLCMD_VERSION: v1.10.0
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: schema
+
+      - name: Installazione di go-sqlcmd
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download "$SQLCMD_VERSION" --repo microsoft/go-sqlcmd --pattern sqlcmd-linux-amd64.tar.bz2
+          mkdir -p "$RUNNER_TEMP/sqlcmd"
+          tar -xjf sqlcmd-linux-amd64.tar.bz2 -C "$RUNNER_TEMP/sqlcmd"
+          echo "$RUNNER_TEMP/sqlcmd" >> "$GITHUB_PATH"
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      # ActiveDirectoryDefault ricade sulla sessione di az login: l'identità di deploy è un utente del database (vedi infra/README.md).
+      # Il deploy risveglia il database serverless per pochi secondi; la connessione si chiude a fine script.
+      - name: Applicazione dello script
+        env:
+          SQL_SERVER_NAME: ${{ vars.SQL_SERVER_NAME }}
+          SQL_DATABASE: sqldb-memoa-${{ inputs.environment }}
+        run: |
+          sqlcmd -S "tcp:$SQL_SERVER_NAME.database.windows.net,1433" -d "$SQL_DATABASE" \
+            --authentication-method ActiveDirectoryDefault \
+            -b -i schema.sql

@@ -64,6 +64,9 @@ param authAudience string
 @description('Origini aggiuntive consentite da CORS (es. http://localhost:4200 in dev).')
 param extraAllowedOrigins array = []
 
+@description('Repository GitHub (<owner>/<repo>) le cui pipeline distribuiscono su questo ambiente.')
+param githubRepository string
+
 @description('Object ID degli utenti sviluppatori che eseguono le Functions in locale contro questo ambiente (solo dev).')
 param developerPrincipalIds array = []
 
@@ -238,6 +241,21 @@ module eventSubscriptions 'modules/event-subscriptions.bicep' = if (deployEventS
   }
 }
 
+// Identità delle pipeline GitHub Actions (environment GitHub con lo stesso nome dell'ambiente).
+module deployIdentity 'modules/deploy-identity.bicep' = {
+  scope: rg
+  name: 'deployIdentity'
+  params: {
+    location: location
+    tags: tags
+    identityName: 'id-${baseName}-deploy'
+    githubRepository: githubRepository
+    githubEnvironment: environmentName
+    functionAppName: functionApp.outputs.name
+    staticWebAppName: staticWebApp.outputs.name
+  }
+}
+
 module containerAppsEnv 'modules/container-apps-env.bicep' = {
   scope: rg
   name: 'containerAppsEnv'
@@ -319,3 +337,5 @@ output transcriberJobName string = transcriber.outputs.jobName
 output functionIdentityName string = identities.outputs.functionIdentityName
 output normalizerIdentityName string = identities.outputs.normalizerIdentityName
 output transcriberIdentityName string = identities.outputs.transcriberIdentityName
+output deployIdentityName string = deployIdentity.outputs.name
+output deployIdentityClientId string = deployIdentity.outputs.clientId

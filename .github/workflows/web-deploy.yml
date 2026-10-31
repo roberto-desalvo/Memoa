@@ -1,0 +1,63 @@
+# Deploy del frontend già compilato su un ambiente. Chiamato da web.yml.
+name: Frontend (deploy)
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        type: string
+        required: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    env:
+      RESOURCE_GROUP: rg-memoa-${{ inputs.environment }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: web
+          path: site
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      # Il token di deployment si legge a ogni esecuzione: nessun segreto da custodire su GitHub.
+      - name: Lettura di Function App e Static Web App
+        id: azure
+        run: |
+          func_name=$(az functionapp list -g "$RESOURCE_GROUP" --query "[0].name" -o tsv)
+          func_host=$(az functionapp show -g "$RESOURCE_GROUP" -n "$func_name" --query defaultHostName -o tsv)
+          swa_name=$(az staticwebapp list -g "$RESOURCE_GROUP" --query "[0].name" -o tsv)
+          swa_token=$(az staticwebapp secrets list -g "$RESOURCE_GROUP" -n "$swa_name" --query properties.apiKey -o tsv)
+          echo "::add-mask::$swa_token"
+          echo "api_base_url=https://$func_host/api" >> "$GITHUB_OUTPUT"
+          echo "swa_token=$swa_token" >> "$GITHUB_OUTPUT"
+
+      # Stessa forma di src/web/config.example.json. L'authority del frontend è senza il suffisso /v2.0.
+      - name: Generazione di config.json
+        env:
+          API_BASE_URL: ${{ steps.azure.outputs.api_base_url }}
+          AUTH_AUTHORITY: ${{ vars.AUTH_AUTHORITY }}
+          AUTH_WEB_CLIENT_ID: ${{ vars.AUTH_WEB_CLIENT_ID }}
+          AUTH_API_SCOPE: ${{ vars.AUTH_API_SCOPE }}
+        run: |
+          jq -n \
+            --arg apiBaseUrl "$API_BASE_URL" \
+            --arg authority "${AUTH_AUTHORITY%/v2.0}" \
+            --arg clientId "$AUTH_WEB_CLIENT_ID" \
+            --arg apiScope "$AUTH_API_SCOPE" \
+            '{apiBaseUrl: $apiBaseUrl, auth: {authority: $authority, clientId: $clientId, apiScope: $apiScope}}' \
+            > site/config.json
+
+      - uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ steps.azure.outputs.swa_token }}
+          action: upload
+          app_location: site
+          skip_app_build: true
+          skip_api_build: true

@@ -1,0 +1,57 @@
+# Backend → Azure Functions (Flex Consumption). Le migration hanno una pipeline a parte (schema.yml).
+name: Functions
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - src/functions/**
+      - '!src/functions/Data/Migrations/**'
+      - .github/workflows/functions.yml
+      - .github/workflows/functions-deploy.yml
+  workflow_dispatch:
+
+concurrency:
+  group: functions
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - run: dotnet publish src/functions/Memoa.Functions.csproj -c Release -o publish
+
+      # La cartella .azurefunctions del worker isolato è nascosta: senza include-hidden-files l'host non parte.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: functions
+          path: publish
+          include-hidden-files: true
+          if-no-files-found: error
+
+  dev:
+    needs: build
+    uses: ./.github/workflows/functions-deploy.yml
+    with:
+      environment: dev
+    permissions:
+      contents: read
+      id-token: write
+
+  prod:
+    needs: dev
+    uses: ./.github/workflows/functions-deploy.yml
+    with:
+      environment: prod
+    permissions:
+      contents: read
+      id-token: write

@@ -19,6 +19,9 @@ param ghcrToken = readEnvironmentVariable('GHCR_TOKEN', '')
 param authAuthority = readEnvironmentVariable('AUTH_AUTHORITY_DEV')
 param authAudience = readEnvironmentVariable('AUTH_AUDIENCE_DEV')
 
+// Pipeline GitHub Actions: federated credential sull'environment GitHub 'dev'.
+param githubRepository = 'roberto-desalvo/Memoa'
+
 param normalizerCpu = '1.0'
 param normalizerMemory = '2Gi'
 

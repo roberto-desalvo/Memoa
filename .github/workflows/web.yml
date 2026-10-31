@@ -1,0 +1,60 @@
+# Frontend Angular → Static Web Apps. Una sola build per dev e prod: config.json si genera nel deploy.
+name: Frontend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - src/web/**
+      - .github/workflows/web.yml
+      - .github/workflows/web-deploy.yml
+  workflow_dispatch:
+
+concurrency:
+  group: web
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: src/web/package-lock.json
+
+      - run: npm ci
+      - run: npm run build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web
+          path: src/web/dist/memoa-web/browser
+          if-no-files-found: error
+
+  dev:
+    needs: build
+    uses: ./.github/workflows/web-deploy.yml
+    with:
+      environment: dev
+    permissions:
+      contents: read
+      id-token: write
+
+  prod:
+    needs: dev
+    uses: ./.github/workflows/web-deploy.yml
+    with:
+      environment: prod
+    permissions:
+      contents: read
+      id-token: write

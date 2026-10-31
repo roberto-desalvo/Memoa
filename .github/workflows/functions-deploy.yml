@@ -1,0 +1,38 @@
+# Deploy del pacchetto delle Functions già compilato su un ambiente. Chiamato da functions.yml.
+name: Functions (deploy)
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        type: string
+        required: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    env:
+      RESOURCE_GROUP: rg-memoa-${{ inputs.environment }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: functions
+          path: publish
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      # Il nome contiene un suffisso calcolato da Bicep: si legge dal resource group.
+      - name: Lettura della Function App
+        id: azure
+        run: echo "func_name=$(az functionapp list -g "$RESOURCE_GROUP" --query "[0].name" -o tsv)" >> "$GITHUB_OUTPUT"
+
+      - uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ steps.azure.outputs.func_name }}
+          package: publish
+          sku: flexconsumption
