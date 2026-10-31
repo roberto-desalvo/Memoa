@@ -174,7 +174,10 @@ public sealed partial class EnqueueIndexingFunction(
         // Una modifica concorrente del record (RowVersion) solleva un'eccezione: Event Grid riprova.
         await db.SaveChangesAsync(cancellationToken);
 
-        logger.LogWarning("Trascrizione del record {RecordUid} non riuscita ({ErrorCode})", record.RecordUid, errorCode);
+        // Un errore che non dipende dall'audio indica un problema del sistema: livello Error per gli
+        // avvisi di Application Insights. La causa è nei log del job con lo stesso RecordUid.
+        var level = Transcript.IsContentError(errorCode) ? LogLevel.Warning : LogLevel.Error;
+        logger.Log(level, "Trascrizione del record {RecordUid} non riuscita ({ErrorCode})", record.RecordUid, errorCode);
         return null;
     }
 

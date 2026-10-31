@@ -19,12 +19,25 @@ Il job non scrive nel database né sulle code e legge solo `audio`. Nei log solo
 
 ## Codici d'errore
 
-| Codice | Causa |
-|---|---|
-| `no_speech` | Trascrizione vuota: nessun parlato riconosciuto |
-| `processing_failed` | Il messaggio ha superato `Job__MaxDequeueCount` tentativi (predefinito 3). Sostituisce la coda dei messaggi non elaborabili, su cui il job non può scrivere |
+Definiti in `src/shared/Pipeline/Transcript.cs`. Ogni codice indica la fase non riuscita; l'eccezione completa è nei log del job (Application Insights) con lo stesso `RecordUid`.
 
-Errori temporanei (rete, ffmpeg che fallisce, timeout dell'esecuzione) terminano l'esecuzione con codice 1: il messaggio torna visibile dopo il timeout e viene riprovato. Se la copia normalizzata non esiste più (record o account eliminati) il messaggio viene eliminato senza scrivere nulla. Un messaggio non valido (JSON errato, lingua non supportata, URL fuori dallo storage dei dati o dal contenitore `audio`) viene eliminato.
+| Codice | Quando | Cosa controllare |
+|---|---|---|
+| `no_speech` | Subito: trascrizione vuota, nessun parlato riconosciuto | L'audio (silenzio, rumore). Unico codice dovuto al contenuto |
+| `invalid_request` | Subito: il messaggio identifica il record ma la lingua di ripiego non è supportata | `Users.PreferredLanguage` e `EnqueueTranscription` |
+| `audio_download_failed` | All'ultimo tentativo: lettura della copia normalizzata non riuscita | Ruolo di lettura su `audio` dell'identità del job, rete, spazio su disco della replica |
+| `audio_decode_failed` | All'ultimo tentativo: ffmpeg non decodifica la copia in PCM | ffmpeg nell'immagine (`Job__FfmpegPath`), copia corrotta |
+| `model_load_failed` | All'ultimo tentativo: Whisper non carica il modello | `Whisper__ModelPath`, checksum del modello, memoria del job |
+| `transcription_failed` | All'ultimo tentativo: errore del motore durante rilevamento della lingua o trascrizione | Runtime nativo di Whisper.net, memoria |
+| `transcript_upload_failed` | All'ultimo tentativo: scrittura della trascrizione non riuscita | Ruolo di scrittura su `transcripts` dell'identità del job |
+| `processing_timeout` | All'ultimo tentativo: esecuzione interrotta dal SIGTERM allo scadere del `replicaTimeout` | Durata dell'audio rispetto alle vCPU del job |
+| `processing_failed` | Messaggio oltre `Job__MaxDequeueCount` tentativi (predefinito 3) senza causa registrata: l'ultima esecuzione è terminata senza poter scrivere l'esito (memoria esaurita, replica arrestata) | Cronologia delle esecuzioni del job in Container Apps |
+
+Gli errori dei tentativi precedenti all'ultimo terminano l'esecuzione con codice 1 e un warning con il codice: il messaggio torna visibile dopo il `Job__VisibilityTimeout` e viene riprovato. All'ultimo tentativo il job scrive l'esito con il codice della fase ed elimina il messaggio, che sostituisce la coda dei messaggi non elaborabili, su cui il job non può scrivere.
+
+Casi senza esito, con il solo log:
+- copia normalizzata non più presente (record o account eliminati): scrivere l'esito lascerebbe un blob senza record;
+- messaggio da cui non si ricava il record (JSON errato, campo mancante, URL fuori dallo storage dei dati o dal contenitore `audio`, nome del blob non valido): log di errore con l'id del messaggio.
 
 ## Motore di trascrizione
 

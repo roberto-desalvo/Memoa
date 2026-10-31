@@ -29,11 +29,43 @@ public static class Transcript
 
     public const string ErrorCodeMetadata = "errorcode";
 
+    // Codici d'errore: indicano la fase non riuscita, i dettagli sono nei log del job con il RecordUid.
+
     /// <summary>Nessun parlato riconosciuto: la trascrizione è vuota.</summary>
     public const string NoSpeech = "no_speech";
 
-    /// <summary>Tentativi esauriti.</summary>
+    /// <summary>Messaggio che identifica il record ma con un campo non valido (es. lingua non supportata).</summary>
+    public const string InvalidRequest = "invalid_request";
+
+    /// <summary>Lettura della copia normalizzata non riuscita (permessi, rete, disco della replica).</summary>
+    public const string AudioDownloadFailed = "audio_download_failed";
+
+    /// <summary>ffmpeg non riesce a decodificare la copia normalizzata in PCM.</summary>
+    public const string AudioDecodeFailed = "audio_decode_failed";
+
+    /// <summary>Il motore non riesce a caricare il modello (file mancante o corrotto, memoria insufficiente).</summary>
+    public const string ModelLoadFailed = "model_load_failed";
+
+    /// <summary>Errore del motore durante il rilevamento della lingua o la trascrizione.</summary>
+    public const string TranscriptionFailed = "transcription_failed";
+
+    /// <summary>Scrittura della trascrizione nel contenitore non riuscita.</summary>
+    public const string TranscriptUploadFailed = "transcript_upload_failed";
+
+    /// <summary>Esecuzione interrotta allo scadere del replicaTimeout (audio troppo lungo per le vCPU del job).</summary>
+    public const string ProcessingTimeout = "processing_timeout";
+
+    /// <summary>
+    /// Tentativi esauriti senza una causa registrata: l'ultima esecuzione è terminata senza poter scrivere
+    /// l'esito (memoria esaurita, replica arrestata). Usato anche quando il codice d'errore manca o non è valido.
+    /// </summary>
     public const string ProcessingFailed = NormalizedAudio.ProcessingFailed;
+
+    /// <summary>
+    /// True se l'errore dipende dal contenuto dell'audio; gli altri codici indicano un problema del
+    /// sistema da indagare.
+    /// </summary>
+    public static bool IsContentError(string errorCode) => errorCode == NoSpeech;
 
     public static string TextBlobName(Guid entraObjectId, Guid recordUid) =>
         $"{entraObjectId:D}/{recordUid:D}{TextExtension}";

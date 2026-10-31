@@ -14,9 +14,14 @@ public sealed record TranscriptionRequest(string BlobUrl, string FallbackLanguag
     /// <summary>Lingue supportate: gli stessi codici di Users.PreferredLanguage.</summary>
     public static readonly IReadOnlyList<string> SupportedLanguages = ["it", "en"];
 
+    public bool HasSupportedLanguage => SupportedLanguages.Contains(FallbackLanguage);
+
     public string Serialize() => JsonSerializer.Serialize(this, JsonSerializerOptions.Web);
 
-    /// <summary>False se il messaggio non è un JSON valido, manca un campo o la lingua non è supportata.</summary>
+    /// <summary>
+    /// False se il messaggio non è un JSON valido o manca un campo. La lingua va verificata a parte
+    /// (<see cref="HasSupportedLanguage"/>), così il job può scrivere l'esito per il record del messaggio.
+    /// </summary>
     public static bool TryParse(string body, [NotNullWhen(true)] out TranscriptionRequest? request)
     {
         try
@@ -28,8 +33,7 @@ public sealed record TranscriptionRequest(string BlobUrl, string FallbackLanguag
             request = null;
         }
 
-        if (request is not { BlobUrl: not null, FallbackLanguage: not null }
-            || !SupportedLanguages.Contains(request.FallbackLanguage))
+        if (request is not { BlobUrl: not null, FallbackLanguage: not null })
         {
             request = null;
             return false;

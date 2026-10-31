@@ -28,14 +28,33 @@ public sealed class WhisperEngine(Ffmpeg ffmpeg, IOptions<WhisperOptions> option
 
     public async Task<TranscriptionResult> TranscribeAsync(string audioPath, string fallbackLanguage, CancellationToken cancellationToken)
     {
-        var samples = await ffmpeg.DecodeToPcmAsync(audioPath, SampleRate, cancellationToken);
+        float[] samples;
+        try
+        {
+            samples = await ffmpeg.DecodeToPcmAsync(audioPath, SampleRate, cancellationToken);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            throw new TranscriptionException(Transcript.AudioDecodeFailed, "Decodifica in PCM non riuscita.", ex);
+        }
+
         if (samples.Length == 0)
         {
             return new TranscriptionResult(string.Empty, fallbackLanguage, null, null);
         }
 
+        WhisperFactory whisper;
+        try
+        {
+            whisper = factory.Value;
+        }
+        catch (Exception ex)
+        {
+            throw new TranscriptionException(Transcript.ModelLoadFailed, "Caricamento del modello Whisper non riuscito.", ex);
+        }
+
         // In un container Environment.ProcessorCount rispetta il limite di vCPU del job.
-        await using var processor = factory.Value.CreateBuilder()
+        await using var processor = whisper.CreateBuilder()
             .WithThreads(Environment.ProcessorCount)
             .Build();
 

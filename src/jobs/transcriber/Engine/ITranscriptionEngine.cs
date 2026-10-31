@@ -9,7 +9,11 @@ public interface ITranscriptionEngine
     /// <summary>Motore e modello, salvati nei metadati della trascrizione.</summary>
     string Name { get; }
 
-    /// <summary>Trascrive la copia normalizzata (Ogg Opus mono).</summary>
+    /// <summary>
+    /// Trascrive la copia normalizzata (Ogg Opus mono). Gli errori di una fase riconosciuta (decodifica,
+    /// caricamento del modello) si segnalano con <see cref="TranscriptionException"/>; ogni altra eccezione
+    /// viene registrata dal job come "transcription_failed".
+    /// </summary>
     /// <param name="audioPath">File locale della copia normalizzata.</param>
     /// <param name="fallbackLanguage">Lingua dell'account, da usare se il rilevamento automatico è incerto.</param>
     Task<TranscriptionResult> TranscribeAsync(string audioPath, string fallbackLanguage, CancellationToken cancellationToken);
