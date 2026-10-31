@@ -7,6 +7,9 @@ param name string
 @description('Identità user-assigned (nomi, nello stesso resource group) autorizzate a chiamare il modello.')
 param userIdentityNames array
 
+@description('Object ID degli utenti sviluppatori che eseguono le Functions in locale (solo dev).')
+param developerPrincipalIds array = []
+
 @description('Capacità del deployment, in migliaia di token al minuto.')
 param embeddingCapacity int = 50
 
@@ -60,6 +63,20 @@ resource userRoles 'Microsoft.Authorization/roleAssignments@2022-04-01' = [
       roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', cognitiveServicesOpenAiUserRoleId)
       principalId: userIdentities[i].properties.principalId
       principalType: 'ServicePrincipal'
+    }
+  }
+]
+
+// Sviluppatori: le Functions in locale chiamano il modello con l'utente di Azure CLI, e l'account ha
+// l'autenticazione locale disattivata. Owner non basta: non dà accesso ai dati.
+resource developerRoles 'Microsoft.Authorization/roleAssignments@2022-04-01' = [
+  for principalId in developerPrincipalIds: {
+    name: guid(account.id, principalId, cognitiveServicesOpenAiUserRoleId)
+    scope: account
+    properties: {
+      roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', cognitiveServicesOpenAiUserRoleId)
+      principalId: principalId
+      principalType: 'User'
     }
   }
 ]

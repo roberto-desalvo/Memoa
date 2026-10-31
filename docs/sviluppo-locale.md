@@ -18,7 +18,7 @@ In locale non esistono copie delle risorse dati: Functions e strumenti lavorano 
 
 - Azure CLI, Azure Functions Core Tools, .NET SDK, Node.js con npm.
 - `dotnet ef` per le migration e go-sqlcmd per applicare gli script (una volta: `winget install sqlcmd`).
-- Il proprio Object ID in `DEVELOPER_PRINCIPAL_IDS_DEV` di `infra/.env`, con il deploy dell'infrastruttura dev rieseguito: dà al proprio utente sullo storage dei dati gli stessi ruoli delle Functions (Storage Blob Data Contributor, Storage Blob Delegator, Storage Queue Data Contributor). Un user delegation SAS firmato in locale non può concedere più dei ruoli dati di chi lo firma, e Owner non ne dà.
+- Il proprio Object ID in `DEVELOPER_PRINCIPAL_IDS_DEV` di `infra/.env`, con il deploy dell'infrastruttura dev rieseguito: dà al proprio utente sullo storage dei dati gli stessi ruoli delle Functions (Storage Blob Data Contributor, Storage Blob Delegator, Storage Queue Data Contributor) e `Cognitive Services OpenAI User` sull'account Azure OpenAI dev. Un user delegation SAS firmato in locale non può concedere più dei ruoli dati di chi lo firma, e Owner non ne dà.
   ```powershell
   az ad signed-in-user show --query id -o tsv
   ```
@@ -53,6 +53,7 @@ Copiare `src/functions/local.settings.example.json` in `src/functions/local.sett
 | `Auth__Audience` | `AUTH_AUDIENCE_DEV` |
 | `DataStorage__blobServiceUri`, `DataStorage__queueServiceUri` | Endpoint dello storage dei dati dev |
 | `Sql__ConnectionString` | Database dev, con `Authentication=Active Directory Default` |
+| `OpenAI__Endpoint`, `OpenAI__EmbeddingDeployment` | Endpoint dell'account Azure OpenAI dev e nome del deployment (`text-embedding-3-small`). L'account ha l'autenticazione locale disattivata: l'utente di Azure CLI riceve il ruolo `Cognitive Services OpenAI User` sull'account se il suo object ID è in `DEVELOPER_PRINCIPAL_IDS_DEV` di `infra/.env` |
 | `AZURE_TOKEN_CREDENTIALS` | `AzureCliCredential`: fa usare solo l'account di Azure CLI (vedi [Database e migration](#database-e-migration)) |
 
 CORS è già aperto su `http://localhost:4200` nella sezione `Host`.
@@ -289,6 +290,38 @@ Casi da provare:
 | Record non in elaborazione | Evento su un record `Error` o `Ready` | Evento ignorato, nessuna scrittura |
 | Blob inesistente | Evento senza caricare il blob | Evento ignorato (warning), nessuna scrittura |
 | Nome non valido | `TRANSCRIPT_BLOB_NAME=abc.txt` (solo l'evento) | Evento ignorato (warning nel log), nessuna scrittura |
+
+### IndexRecord (coda di indicizzazione)
+
+`IndexRecord` non è attivata da Event Grid ma dalla coda `indexing` dello storage dei dati dev, quindi parte da sola con `func start` quando arriva un messaggio: quelli scritti da `EnqueueIndexing` (sopra) o dalla Function HTTP dei testi. Per inviarne uno a mano partendo da un record `Processing` con `Text` valorizzato (il messaggio è il `recordUid` in base64, come lo scrivono le Functions):
+
+```powershell
+$recordUid = '<recordUid>'
+az storage message put --auth-mode login --account-name <storage-dati-dev> `
+  --queue-name indexing --content ([Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($recordUid)))
+```
+
+Verificare il risultato nel database:
+
+```sql
+SELECT RecordUid, Status, ErrorCode FROM Records WHERE RecordUid = '<recordUid>';
+
+SELECT c.ChunkIndex, LEN(c.Content) AS Length, c.EmbeddingModel
+FROM RecordChunks c JOIN Records r ON r.Id = c.RecordId
+WHERE r.RecordUid = '<recordUid>' ORDER BY c.ChunkIndex;
+```
+
+Casi da provare:
+
+| Caso | Come | Risultato atteso |
+|---|---|---|
+| Indicizzazione | Messaggio per un record `Processing` | Record `Ready`, un chunk ogni 2.000 caratteri circa, `EmbeddingModel = text-embedding-3-small` |
+| Duplicato | Reinviare lo stesso messaggio | Messaggio ignorato (record non più `Processing`), chunk invariati |
+| Reindicizzazione | Riportare il record a `Processing` e reinviare | Chunk sostituiti, non aggiunti |
+| Record inesistente | `recordUid` casuale | Messaggio ignorato (warning) |
+| Messaggio non valido | Contenuto `abc` in base64 | Messaggio scartato (errore nel log) |
+| Testo vuoto | Record `Processing` con `Text` NULL | Record `Error` con `ErrorCode = indexing_failed` |
+| Tentativi esauriti | `OpenAI__Endpoint` errato in `local.settings.json` | Dopo 5 tentativi record `Error` con `ErrorCode = indexing_failed`, messaggio in `indexing-poison` |
 
 ## Deploy dell'infrastruttura con Bicep
 

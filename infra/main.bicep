@@ -194,6 +194,7 @@ module openAi 'modules/openai.bicep' = {
     userIdentityNames: [
       functionIdentityName
     ]
+    developerPrincipalIds: developerPrincipalIds
   }
   dependsOn: [
     identities
