@@ -9,6 +9,9 @@ Bicep per tutto ciò che lo supporta; qui sotto i passi manuali per il resto.
 | `main.bicep` | sottoscrizione | Resource group `rg-memoa-<env>` e tutte le risorse di un ambiente |
 | `main.dev.bicepparam`, `main.prod.bicepparam` | | Parametri per ambiente |
 | `budget.bicep` | sottoscrizione | Budget mensile unico per dev e prod |
+| `identity/main.bicep` | tenant esterno | Registrazioni delle app in Entra External ID (estensione Microsoft Graph): API con scope `access_as_user` e token v2, frontend SPA con redirect URI, service principal e consenso dell'amministratore |
+| `identity/main.dev.bicepparam`, `identity/main.prod.bicepparam` | | Parametri per ambiente |
+| `identity/deploy.ps1` | | Deploy di `identity/main.bicep` nel tenant esterno di un ambiente e salvataggio degli ID in `.env` |
 | `modules/identities.bicep` | RG | Identità user-assigned di Functions, job di normalizzazione e job di trascrizione |
 | `modules/monitoring.bicep` | RG | Log Analytics (limite giornaliero, 30 giorni) + Application Insights |
 | `modules/static-web-app.bicep` | RG | Static Web Apps Free |
@@ -31,7 +34,9 @@ I file `.bicepparam` leggono dall'ambiente i valori da non pubblicare nella repo
 | `SQL_SERVER_NAME` | sì | Nome del server SQL condiviso |
 | `GHCR_TOKEN` | solo con immagini private | PAT GitHub con scope `read:packages` |
 | `AUTH_AUTHORITY_DEV`, `AUTH_AUTHORITY_PROD` | sì | Authority del tenant Entra External ID dell'ambiente (`https://<sottodominio>.ciamlogin.com/<tenant-id>/v2.0`) |
-| `AUTH_AUDIENCE_DEV`, `AUTH_AUDIENCE_PROD` | sì | Client ID della registrazione dell'API nel tenant dell'ambiente |
+| `AUTH_AUDIENCE_DEV`, `AUTH_AUDIENCE_PROD` | sì | Client ID della registrazione dell'API nel tenant dell'ambiente. Scritta da `identity/deploy.ps1` |
+| `AUTH_WEB_CLIENT_ID_DEV`, `AUTH_WEB_CLIENT_ID_PROD` | no (per il frontend) | Client ID della registrazione del frontend. Scritta da `identity/deploy.ps1` |
+| `AUTH_API_SCOPE_DEV`, `AUTH_API_SCOPE_PROD` | no (per il frontend) | Scope da richiedere nel frontend (`api://<tenant-id>/memoa-<env>-api/access_as_user`). Scritta da `identity/deploy.ps1` |
 
 In locale stanno in `infra/.env`, escluso da git: copiare `infra/.env.example` in `infra/.env`, compilarlo e caricarlo nella sessione con `load-env.ps1`. In GitHub Actions vanno impostate come secret o variabili del repository.
 
@@ -51,6 +56,39 @@ az deployment sub create -l westeurope -n memoa-dev -p .\infra\main.dev.biceppar
 az deployment sub create -l westeurope -f infra/budget.bicep \
   -p contactEmails='["tu@example.com"]'
 ```
+
+### Registrazioni delle app in Entra External ID
+
+Il tenant esterno non contiene sottoscrizioni, quindi le registrazioni delle app si distribuiscono con un deploy separato a livello di tenant (`az deployment tenant create`), uno per ambiente. `identity/deploy.ps1` fa tutto il giro:
+
+1. carica `infra/.env` e ricava il tenant esterno da `AUTH_AUTHORITY_<ENV>`;
+2. legge l'hostname della Static Web App dal deploy `memoa-<env>` della sottoscrizione, se esiste, e lo aggiunge ai redirect URI;
+3. passa az sul tenant esterno (con `az login --tenant <id> --allow-no-subscriptions` se serve) e distribuisce `identity/main.bicep` (deploy `memoa-identity-<env>`);
+4. riporta az sulla sottoscrizione di partenza;
+5. salva gli output in `infra/.env` e nella sessione: `AUTH_AUDIENCE_<ENV>`, `AUTH_WEB_CLIENT_ID_<ENV>`, `AUTH_API_SCOPE_<ENV>`.
+
+Prerequisiti, una volta per tenant esterno:
+
+1. tenant creato a mano e `AUTH_AUTHORITY_<ENV>` compilata in `infra/.env` (vedi [Passi manuali](#passi-manuali));
+2. permesso di deploy a livello di tenant. Con l'account amministratore del tenant esterno: nell'interfaccia di amministrazione di Entra, **Identità → Panoramica → Proprietà → Gestione degli accessi per le risorse di Azure = Sì** (elevazione dell'accesso), poi
+   ```powershell
+   az login --tenant <tenant-id> --allow-no-subscriptions
+   az role assignment create --assignee <object-id-del-proprio-utente> --role Owner --scope /
+   ```
+   L'elevazione dell'accesso si può poi disattivare: l'assegnazione Owner su `/` resta.
+
+Primo deploy di un ambiente (le registrazioni servono a `main.bicep` e l'hostname della Static Web App alle registrazioni):
+
+```powershell
+az login                                          # sottoscrizione Azure
+.\infra\identity\deploy.ps1 -Environment dev      # registrazioni, redirect URI senza la Static Web App
+az deployment sub create -l westeurope -n memoa-dev -p .\infra\main.dev.bicepparam
+.\infra\identity\deploy.ps1 -Environment dev      # aggiunge l'hostname della Static Web App ai redirect URI
+```
+
+Nei deploy successivi basta rieseguire `deploy.ps1`: il deploy è idempotente (le app sono identificate da `uniqueName`) e i client ID non cambiano. Se si cancella una registrazione, il client ID cambia: rieseguire anche il deploy dell'infrastruttura per aggiornare `Auth__Audience` delle Functions.
+
+Dopo il primo deploy, nel tenant esterno: collegare l'app del frontend (`Memoa (<env>)`) al flusso utente (**Flussi utente → <flusso> → Applicazioni → Aggiungi applicazione**). L'estensione Graph non gestisce i flussi utente.
 
 ### Sottoscrizioni Event Grid
 
@@ -77,7 +115,7 @@ Nessun dead-letter: gli eventi non consegnati dopo i retry automatici di Event G
    ALTER ROLE db_datawriter ADD MEMBER [id-memoa-<env>-func];
    ```
    Se l'utente `id-memoa-<env>-transcriber` era già stato creato, rimuoverlo con `DROP USER [id-memoa-<env>-transcriber];`.
-3. **Entra External ID**: creare un tenant esterno per ambiente (dev e prod, residenza dati in Europa), i flussi utente e il branding. Le registrazioni delle app (frontend e API) andranno in un deploy separato con l'estensione Microsoft Graph per Bicep, uno per ogni tenant.
+3. **Entra External ID**: creare un tenant esterno per ambiente (dev e prod, residenza dati in Europa), i flussi utente e il branding; compilare `AUTH_AUTHORITY_<ENV>` in `infra/.env`. Le registrazioni delle app (frontend e API) si distribuiscono con `identity/deploy.ps1` (vedi [Registrazioni delle app in Entra External ID](#registrazioni-delle-app-in-entra-external-id)); il collegamento dell'app del frontend al flusso utente resta manuale.
 4. **GHCR**: quando le immagini dei job sono pubblicate, impostare `normalizerImage`, `transcriberImage` e `ghcrUsername`, e passare `GHCR_TOKEN` (PAT con scope `read:packages`).
 5. **GitHub**: secret e variabili del repository (credenziali OIDC per Azure, token di deployment di Static Web Apps, `GHCR_TOKEN`), da configurare a mano.
 6. **Ruoli dei job** (solo per ambienti distribuiti prima dell'architettura event-driven): l'identità `id-memoa-<env>-transcriber` aveva i ruoli Storage Blob Data Contributor, Storage Queue Data Contributor e Storage Queue Data Reader sull'intero storage account dati. Il deploy incrementale non li rimuove: eliminarli a mano, perché ora i ruoli dei job sono limitati ai propri contenitori e alla propria coda.
