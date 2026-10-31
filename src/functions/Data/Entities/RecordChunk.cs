@@ -8,9 +8,9 @@ public sealed class RecordChunk
     /// <summary>Dimensioni di text-embedding-3-small.</summary>
     public const int EmbeddingDimensions = 1536;
 
-    public Guid Id { get; set; }
+    public int Id { get; set; }
 
-    public Guid RecordId { get; set; }
+    public int RecordId { get; set; }
 
     public Record Record { get; set; } = null!;
 

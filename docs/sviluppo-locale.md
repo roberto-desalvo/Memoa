@@ -169,8 +169,8 @@ Se la Function App dev su Azure è distribuita, con le sottoscrizioni attive, ri
 ### ValidateUpload (file caricato nel contenitore degli originali)
 
 1. Dal frontend in locale (`http://localhost:4200`) fare login e registrare o caricare un audio.
-2. Recuperare i due identificativi del percorso del blob `uploads/<oid>/<recordId>`:
-   - `recordId` è nella risposta di `POST /api/uploads/audio` (scheda Network del browser);
+2. Recuperare i due identificativi del percorso del blob `uploads/<oid>/<recordUid>`:
+   - `recordUid` è nella risposta di `POST /api/uploads/audio` (scheda Network del browser);
    - `oid` è la prima parte del percorso del blob: si trova nel portale o con
      ```powershell
      az storage blob list --auth-mode login --account-name <storage-dati-dev> `
@@ -179,14 +179,14 @@ Se la Function App dev su Azure è distribuita, con le sottoscrizioni attive, ri
 3. Leggere dimensione e tipo del blob, che l'evento reale riporterebbe:
    ```powershell
    az storage blob show --auth-mode login --account-name <storage-dati-dev> `
-     --container-name uploads --name "<oid>/<recordId>" `
+     --container-name uploads --name "<oid>/<recordUid>" `
      --query "{size: properties.contentLength, type: properties.contentSettings.contentType}"
    ```
 4. Inviare l'evento:
    ```powershell
    $account = "<storage-dati-dev>"
    $oid = "<oid>"
-   $recordId = "<recordId>"
+   $recordUid = "<recordUid>"
    $size = 12345
    $contentType = "audio/webm;codecs=opus"
 
@@ -194,12 +194,12 @@ Se la Function App dev su Azure è distribuita, con le sottoscrizioni attive, ri
      @{
        id          = [guid]::NewGuid().ToString()
        eventType   = "Microsoft.Storage.BlobCreated"
-       subject     = "/blobServices/default/containers/uploads/blobs/$oid/$recordId"
+       subject     = "/blobServices/default/containers/uploads/blobs/$oid/$recordUid"
        eventTime   = (Get-Date).ToUniversalTime().ToString("o")
        dataVersion = "1"
        data        = @{
          api           = "PutBlob"
-         url           = "https://$account.blob.core.windows.net/uploads/$oid/$recordId"
+         url           = "https://$account.blob.core.windows.net/uploads/$oid/$recordUid"
          contentType   = $contentType
          contentLength = $size
          blobType      = "BlockBlob"
@@ -218,9 +218,9 @@ Se la Function App dev su Azure è distribuita, con le sottoscrizioni attive, ri
 5. Verificare il risultato:
    - nel database, il record in stato `Processing` con il relativo allegato:
      ```sql
-     SELECT r.Id, r.Status, r.ErrorCode, a.OriginalBlobPath, a.OriginalContentType, a.OriginalSizeBytes
+     SELECT r.Id, r.RecordUid, r.Status, r.ErrorCode, a.OriginalBlobPath, a.OriginalContentType, a.OriginalSizeBytes
      FROM Records r JOIN Attachments a ON a.RecordId = r.Id
-     WHERE r.Id = '<recordId>';
+     WHERE r.RecordUid = '<recordUid>';
      ```
    - sulla coda di normalizzazione, il messaggio con l'URL del blob, codificato in base64 (codifica predefinita delle Functions):
      ```powershell
@@ -235,7 +235,7 @@ Casi da provare:
 | Duplicato | Reinviare lo stesso evento | Nessun nuovo record; nuovo messaggio solo se il record è ancora `Processing` e non normalizzato |
 | File vuoto | `$size = 0` | Record `Error` con `ErrorCode = file_empty`, nessun messaggio, file conservato |
 | File troppo grande | `$size = 400MB` | Record `Error` con `ErrorCode = file_too_large`, nessun messaggio, file conservato |
-| Percorso non valido | `$recordId = "abc"` | Evento ignorato (warning nel log), nessuna scrittura |
+| Percorso non valido | `$recordUid = "abc"` | Evento ignorato (warning nel log), nessuna scrittura |
 | Utente inesistente | `$oid` = GUID casuale | Eccezione: in Azure Event Grid riprova la consegna |
 
 ## Deploy dell'infrastruttura con Bicep

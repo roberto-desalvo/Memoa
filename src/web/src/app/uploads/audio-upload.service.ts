@@ -11,13 +11,13 @@ import { concat, filter, map, Observable, retry, switchMap, throwError, timer } 
 import { APP_CONFIG } from '../config/app-config';
 
 interface CreateAudioUploadResponse {
-  recordId: string;
+  recordUid: string;
   uploadUrl: string;
   expiresOn: string;
 }
 
 export type UploadProgress =
-  { kind: 'progress'; fraction: number } | { kind: 'done'; recordId: string };
+  { kind: 'progress'; fraction: number } | { kind: 'done'; recordUid: string };
 
 // Sopra questa soglia il file va a blocchi: un errore di rete costa un blocco, non l'intero file.
 const BLOCK_SIZE = 8 * 1024 * 1024;
@@ -43,12 +43,12 @@ export class AudioUploadService {
         sizeBytes: audio.size,
       })
       .pipe(
-        switchMap(({ recordId, uploadUrl }) =>
+        switchMap(({ recordUid, uploadUrl }) =>
           concat(
             audio.size <= BLOCK_SIZE
               ? this.putBlob(uploadUrl, audio, type)
               : this.putBlocks(uploadUrl, audio, type),
-            [{ kind: 'done', recordId } as const],
+            [{ kind: 'done', recordUid } as const],
           ),
         ),
       );

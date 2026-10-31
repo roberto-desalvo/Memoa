@@ -5,9 +5,9 @@ namespace Memoa.Functions.Data.Entities;
 /// </summary>
 public sealed class Attachment
 {
-    public Guid Id { get; set; }
+    public int Id { get; set; }
 
-    public Guid RecordId { get; set; }
+    public int RecordId { get; set; }
 
     public Record Record { get; set; } = null!;
 

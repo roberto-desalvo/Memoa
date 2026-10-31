@@ -3,7 +3,7 @@ namespace Memoa.Functions.Data.Entities;
 /// <summary>Utente applicativo, collegato all'account di Entra External ID.</summary>
 public sealed class User
 {
-    public Guid Id { get; set; }
+    public int Id { get; set; }
 
     /// <summary>Claim "oid" del token, univoco nel tenant dell'ambiente.</summary>
     public Guid EntraObjectId { get; set; }

@@ -13,6 +13,9 @@ internal sealed class RecordConfiguration : IEntityTypeConfiguration<Record>
             .HasForeignKey(r => r.UserId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        // Ricerca dalla pipeline di elaborazione; l'unicità rende idempotente l'inserimento.
+        builder.HasIndex(r => r.RecordUid).IsUnique();
+
         // Vista elenco.
         builder.HasIndex(r => new { r.UserId, r.OccurredAt });
 

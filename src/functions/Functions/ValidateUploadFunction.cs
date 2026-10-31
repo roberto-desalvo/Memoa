@@ -57,7 +57,7 @@ public sealed class ValidateUploadFunction(
         // Il SAS permette di creare solo i percorsi scelti da CreateAudioUpload: qualsiasi altro file è
         // anomalo e non ha un record a cui collegarsi. Il nome del blob non va nei log perché in questo
         // caso non è sotto il nostro controllo.
-        if (!TryParseBlobName(blobUri.BlobName, out var entraObjectId, out var recordId))
+        if (!TryParseBlobName(blobUri.BlobName, out var entraObjectId, out var recordUid))
         {
             logger.LogWarning("Blob con percorso non valido nell'evento {EventId}: ignorato", eventGridEvent.Id);
             return null;
@@ -65,21 +65,21 @@ public sealed class ValidateUploadFunction(
 
         var userId = await db.Users
             .Where(u => u.EntraObjectId == entraObjectId)
-            .Select(u => (Guid?)u.Id)
+            .Select(u => (int?)u.Id)
             .SingleOrDefaultAsync(cancellationToken);
 
         // L'utente viene creato alla prima richiesta autenticata, quindi prima di CreateAudioUpload: se
         // manca, l'eccezione fa ripetere la consegna a Event Grid.
         if (userId is null)
         {
-            throw new InvalidOperationException($"Nessun utente per il record {recordId}.");
+            throw new InvalidOperationException($"Nessun utente per il record {recordUid}.");
         }
 
         var errorCode = Validate(data);
 
         var existing = await db.Records
             .IgnoreQueryFilters([MemoaDbContext.CurrentUserFilter])
-            .Where(r => r.Id == recordId)
+            .Where(r => r.RecordUid == recordUid)
             .Select(r => new
             {
                 r.UserId,
@@ -90,17 +90,17 @@ public sealed class ValidateUploadFunction(
 
         if (existing is not null && existing.UserId != userId)
         {
-            logger.LogError("Il record {RecordId} appartiene a un altro utente: evento ignorato", recordId);
+            logger.LogError("Il record {RecordUid} appartiene a un altro utente: evento ignorato", recordUid);
             return null;
         }
 
         var inserted = existing is null
-            && await TryInsertRecordAsync(recordId, userId.Value, blobUri.BlobName, data, errorCode,
+            && await TryInsertRecordAsync(recordUid, userId.Value, blobUri.BlobName, data, errorCode,
                 eventGridEvent.EventTime.UtcDateTime, cancellationToken);
 
         if (errorCode is not null)
         {
-            logger.LogWarning("Upload del record {RecordId} non valido ({ErrorCode})", recordId, errorCode);
+            logger.LogWarning("Upload del record {RecordUid} non valido ({ErrorCode})", recordUid, errorCode);
             return null;
         }
 
@@ -112,7 +112,7 @@ public sealed class ValidateUploadFunction(
 
         if (enqueue)
         {
-            logger.LogInformation("Record {RecordId} accodato per la normalizzazione", recordId);
+            logger.LogInformation("Record {RecordUid} accodato per la normalizzazione", recordUid);
         }
 
         return enqueue ? blobUri.ToUri().ToString() : null;
@@ -129,21 +129,21 @@ public sealed class ValidateUploadFunction(
         _ => null,
     };
 
-    /// <summary>Il percorso ha la forma "&lt;oid utente&gt;/&lt;id record&gt;" (vedi CreateAudioUpload).</summary>
-    private static bool TryParseBlobName(string blobName, out Guid entraObjectId, out Guid recordId)
+    /// <summary>Il percorso ha la forma "&lt;oid utente&gt;/&lt;RecordUid&gt;" (vedi CreateAudioUpload).</summary>
+    private static bool TryParseBlobName(string blobName, out Guid entraObjectId, out Guid recordUid)
     {
-        entraObjectId = recordId = Guid.Empty;
+        entraObjectId = recordUid = Guid.Empty;
         var parts = blobName.Split('/');
 
         return parts.Length == 2
             && Guid.TryParseExact(parts[0], "D", out entraObjectId)
-            && Guid.TryParseExact(parts[1], "D", out recordId);
+            && Guid.TryParseExact(parts[1], "D", out recordUid);
     }
 
     /// <summary>Restituisce false se il record è già stato inserito da una consegna concorrente.</summary>
     private async Task<bool> TryInsertRecordAsync(
-        Guid recordId,
-        Guid userId,
+        Guid recordUid,
+        int userId,
         string blobName,
         StorageBlobCreatedEventData data,
         string? errorCode,
@@ -153,7 +153,7 @@ public sealed class ValidateUploadFunction(
         var contentType = data.ContentType ?? string.Empty;
         var record = new Record
         {
-            Id = recordId,
+            RecordUid = recordUid,
             UserId = userId,
             SourceType = SourceType.Audio,
             Status = errorCode is null ? RecordStatus.Processing : RecordStatus.Error,
@@ -165,7 +165,6 @@ public sealed class ValidateUploadFunction(
             [
                 new Attachment
                 {
-                    Id = Guid.CreateVersion7(),
                     Kind = AttachmentKind.Audio,
                     // Relativo al contenitore degli originali.
                     OriginalBlobPath = blobName,
@@ -186,7 +185,7 @@ public sealed class ValidateUploadFunction(
         }
         catch (DbUpdateException ex) when (ex.InnerException is SqlException sql && DuplicateKeyErrors.Contains(sql.Number))
         {
-            logger.LogInformation("Record {RecordId} già inserito da una consegna concorrente", recordId);
+            logger.LogInformation("Record {RecordUid} già inserito da una consegna concorrente", recordUid);
             return false;
         }
     }

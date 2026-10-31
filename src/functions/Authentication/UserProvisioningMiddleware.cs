@@ -64,7 +64,6 @@ public sealed class UserProvisioningMiddleware(ILogger<UserProvisioningMiddlewar
         // La lingua scelta alla registrazione non è nel token: si parte dall'italiano.
         var user = new User
         {
-            Id = Guid.CreateVersion7(),
             EntraObjectId = entraObjectId,
             Email = email,
             PreferredLanguage = Languages.Italian,

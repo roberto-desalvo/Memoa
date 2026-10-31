@@ -13,7 +13,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Memoa.Functions.Data.Migrations
 {
     [DbContext(typeof(MemoaDbContext))]
-    [Migration("20261031164934_InitialCreate")]
+    [Migration("20261031183949_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -28,9 +28,11 @@ namespace Memoa.Functions.Data.Migrations
 
             modelBuilder.Entity("Memoa.Functions.Data.Entities.Attachment", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
@@ -62,8 +64,8 @@ namespace Memoa.Functions.Data.Migrations
                     b.Property<long>("OriginalSizeBytes")
                         .HasColumnType("bigint");
 
-                    b.Property<Guid>("RecordId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("RecordId")
+                        .HasColumnType("int");
 
                     b.HasKey("Id");
 
@@ -74,9 +76,11 @@ namespace Memoa.Functions.Data.Migrations
 
             modelBuilder.Entity("Memoa.Functions.Data.Entities.Record", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
@@ -96,6 +100,9 @@ namespace Memoa.Functions.Data.Migrations
 
                     b.Property<string>("OriginalTranscript")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("RecordUid")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<byte[]>("RowVersion")
                         .IsConcurrencyToken()
@@ -121,10 +128,13 @@ namespace Memoa.Functions.Data.Migrations
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("RecordUid")
+                        .IsUnique();
 
                     b.HasIndex("UserId", "OccurredAt");
 
@@ -133,9 +143,11 @@ namespace Memoa.Functions.Data.Migrations
 
             modelBuilder.Entity("Memoa.Functions.Data.Entities.RecordChunk", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<int>("ChunkIndex")
                         .HasColumnType("int");
@@ -156,8 +168,8 @@ namespace Memoa.Functions.Data.Migrations
                         .IsUnicode(false)
                         .HasColumnType("varchar(100)");
 
-                    b.Property<Guid>("RecordId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("RecordId")
+                        .HasColumnType("int");
 
                     b.HasKey("Id");
 
@@ -169,9 +181,11 @@ namespace Memoa.Functions.Data.Migrations
 
             modelBuilder.Entity("Memoa.Functions.Data.Entities.User", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");

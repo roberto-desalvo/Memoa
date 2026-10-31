@@ -16,7 +16,8 @@ namespace Memoa.Functions.Data.Migrations
                 name: "Users",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
                     EntraObjectId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     Email = table.Column<string>(type: "nvarchar(320)", maxLength: 320, nullable: false),
                     PreferredLanguage = table.Column<string>(type: "varchar(5)", unicode: false, maxLength: 5, nullable: false),
@@ -31,8 +32,10 @@ namespace Memoa.Functions.Data.Migrations
                 name: "Records",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    RecordUid = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    UserId = table.Column<int>(type: "int", nullable: false),
                     SourceType = table.Column<string>(type: "varchar(20)", unicode: false, maxLength: 20, nullable: false),
                     Status = table.Column<string>(type: "varchar(20)", unicode: false, maxLength: 20, nullable: false),
                     ErrorCode = table.Column<string>(type: "varchar(50)", unicode: false, maxLength: 50, nullable: true),
@@ -59,8 +62,9 @@ namespace Memoa.Functions.Data.Migrations
                 name: "Attachments",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    RecordId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    RecordId = table.Column<int>(type: "int", nullable: false),
                     Kind = table.Column<string>(type: "varchar(20)", unicode: false, maxLength: 20, nullable: false),
                     OriginalBlobPath = table.Column<string>(type: "nvarchar(1024)", maxLength: 1024, nullable: false),
                     OriginalContentType = table.Column<string>(type: "varchar(100)", unicode: false, maxLength: 100, nullable: false),
@@ -84,8 +88,9 @@ namespace Memoa.Functions.Data.Migrations
                 name: "RecordChunks",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    RecordId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    RecordId = table.Column<int>(type: "int", nullable: false),
                     ChunkIndex = table.Column<int>(type: "int", nullable: false),
                     Content = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     Embedding = table.Column<SqlVector<float>>(type: "vector(1536)", nullable: false),
@@ -112,6 +117,12 @@ namespace Memoa.Functions.Data.Migrations
                 name: "IX_RecordChunks_RecordId_ChunkIndex",
                 table: "RecordChunks",
                 columns: new[] { "RecordId", "ChunkIndex" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Records_RecordUid",
+                table: "Records",
+                column: "RecordUid",
                 unique: true);
 
             migrationBuilder.CreateIndex(

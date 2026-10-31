@@ -3,10 +3,15 @@ namespace Memoa.Functions.Data.Entities;
 /// <summary>Record del diario, comune a tutte le origini.</summary>
 public sealed class Record
 {
-    /// <summary>Generato nel codice prima del salvataggio: compare anche nel percorso del blob.</summary>
-    public Guid Id { get; set; }
+    public int Id { get; set; }
 
-    public Guid UserId { get; set; }
+    /// <summary>
+    /// Identificativo pubblico, generato nel codice prima del salvataggio: compare nel percorso del blob
+    /// e identifica il record nella pipeline di elaborazione e verso il client.
+    /// </summary>
+    public Guid RecordUid { get; set; }
+
+    public int UserId { get; set; }
 
     public User User { get; set; } = null!;
 
