@@ -23,6 +23,12 @@ param openAiEndpoint string
 param embeddingDeploymentName string
 param keyVaultUri string
 
+@description('Authority del tenant Entra External ID (https://<sottodominio>.ciamlogin.com/<tenant-id>/v2.0).')
+param authAuthority string
+
+@description('Client ID della registrazione dell\'API in Entra External ID (claim "aud" dei token).')
+param authAudience string
+
 @description('Versione del runtime dotnet-isolated.')
 param runtimeVersion string = '10.0'
 
@@ -167,6 +173,9 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
         { name: 'OpenAI__Endpoint', value: openAiEndpoint }
         { name: 'OpenAI__EmbeddingDeployment', value: embeddingDeploymentName }
         { name: 'KeyVault__Uri', value: keyVaultUri }
+        // Validazione dei token di accesso emessi da Entra External ID (middleware delle Functions).
+        { name: 'Auth__Authority', value: authAuthority }
+        { name: 'Auth__Audience', value: authAudience }
       ]
     }
   }

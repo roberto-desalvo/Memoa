@@ -55,6 +55,12 @@ param audioCoolAfterDays int = 90
 @description('Crea le sottoscrizioni Event Grid verso le Functions. Richiede che il codice delle Functions sia già distribuito.')
 param deployEventSubscriptions bool = false
 
+@description('Authority del tenant Entra External ID (https://<sottodominio>.ciamlogin.com/<tenant-id>/v2.0).')
+param authAuthority string
+
+@description('Client ID della registrazione dell\'API in Entra External ID per questo ambiente.')
+param authAudience string
+
 @description('Origini aggiuntive consentite da CORS (es. http://localhost:4200 in dev).')
 param extraAllowedOrigins array = []
 
@@ -210,6 +216,8 @@ module functionApp 'modules/function-app.bicep' = {
     openAiEndpoint: openAi.outputs.endpoint
     embeddingDeploymentName: openAi.outputs.embeddingDeploymentName
     keyVaultUri: keyVault.outputs.uri
+    authAuthority: authAuthority
+    authAudience: authAudience
   }
 }
 

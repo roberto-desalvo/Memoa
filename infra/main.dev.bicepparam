@@ -15,6 +15,10 @@ param transcriberImage = 'mcr.microsoft.com/k8se/quickstart-jobs:latest'
 param ghcrUsername = ''
 param ghcrToken = readEnvironmentVariable('GHCR_TOKEN', '')
 
+// Entra External ID: tenant esterno condiviso, registrazione dell'API distinta per ambiente.
+param authAuthority = readEnvironmentVariable('AUTH_AUTHORITY')
+param authAudience = readEnvironmentVariable('AUTH_AUDIENCE_DEV')
+
 param normalizerCpu = '1.0'
 param normalizerMemory = '2Gi'
 
