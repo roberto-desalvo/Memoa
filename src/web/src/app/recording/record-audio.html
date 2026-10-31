@@ -1,17 +1,12 @@
-@let current = status();
-@let recording = current.kind === 'recording';
-@let busy = current.kind === 'uploading';
-
 @if (supported) {
   <button
     type="button"
     class="record"
-    [class.active]="recording"
-    [disabled]="busy"
-    [attr.aria-label]="recording ? 'Ferma la registrazione' : 'Registra'"
+    [class.active]="recording()"
+    [attr.aria-label]="recording() ? 'Ferma la registrazione' : 'Registra'"
     (click)="toggle()"
   >
-    @if (recording) {
+    @if (recording()) {
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <rect x="6" y="6" width="12" height="12" rx="2" />
       </svg>
@@ -33,39 +28,11 @@
 }
 
 <div class="message" aria-live="polite">
-  @switch (current.kind) {
-    @case ('idle') {
-      @if (supported) {
-        <p>Tocca per registrare (massimo {{ maxDuration }}).</p>
-      }
-    }
-    @case ('recording') {
-      <p class="timer">{{ elapsed() }} / {{ maxDuration }}</p>
-    }
-    @case ('uploading') {
-      <p>Caricamento…</p>
-      <progress [value]="current.fraction" max="1"></progress>
-    }
-    @case ('done') {
-      <p>Audio salvato.</p>
-    }
-    @case ('error') {
-      <p class="error">{{ current.message }}</p>
-      @if (current.retry; as retry) {
-        <button type="button" (click)="upload(retry)">Riprova il caricamento</button>
-      }
-    }
+  @if (error(); as message) {
+    <p class="error">{{ message }}</p>
+  } @else if (recording()) {
+    <p class="timer">{{ elapsed() }} / {{ maxDuration }}</p>
+  } @else if (supported) {
+    <p>Tocca per registrare (massimo {{ maxDuration }}).</p>
   }
 </div>
-
-<label class="file" [class.disabled]="busy || recording">
-  <input
-    #fileInput
-    type="file"
-    [accept]="accept"
-    [disabled]="busy || recording"
-    (change)="selectFile(fileInput)"
-  />
-  Carica un file audio
-</label>
-<p class="hint">{{ formats }} · massimo 350 MB</p>

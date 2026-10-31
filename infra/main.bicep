@@ -220,6 +220,7 @@ module functionApp 'modules/function-app.bicep' = {
     normalizationQueueName: dataStorage.outputs.normalizationQueueName
     transcriptionQueueName: dataStorage.outputs.transcriptionQueueName
     indexingQueueName: dataStorage.outputs.indexingQueueName
+    uploadExpiryQueueName: dataStorage.outputs.uploadExpiryQueueName
     sqlConnectionString: sql.outputs.managedIdentityConnectionStringPrefix
     openAiEndpoint: openAi.outputs.endpoint
     embeddingDeploymentName: openAi.outputs.embeddingDeploymentName

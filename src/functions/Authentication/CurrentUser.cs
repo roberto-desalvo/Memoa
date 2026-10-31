@@ -9,4 +9,8 @@ public sealed class CurrentUser
 {
     /// <summary>Claim "oid" del token, oppure null se l'invocazione non ha un utente.</summary>
     public Guid? EntraObjectId { get; internal set; }
+
+    /// <summary>Claim "oid" per le funzioni HTTP autenticate, dove l'utente c'è sempre.</summary>
+    public Guid RequiredEntraObjectId =>
+        EntraObjectId ?? throw new InvalidOperationException("Utente non autenticato.");
 }

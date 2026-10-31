@@ -1,0 +1,26 @@
+.pick,
+.status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 2rem 0;
+  text-align: center;
+
+  p {
+    margin: 0;
+  }
+}
+
+// Input nascosto ma raggiungibile da tastiera tramite la label.
+.pick input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+progress {
+  width: 100%;
+  max-width: 20rem;
+}

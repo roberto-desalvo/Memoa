@@ -18,6 +18,7 @@ param transcriptsContainerName string
 param normalizationQueueName string
 param transcriptionQueueName string
 param indexingQueueName string
+param uploadExpiryQueueName string
 param sqlConnectionString string
 param openAiEndpoint string
 param embeddingDeploymentName string
@@ -169,6 +170,7 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
         { name: 'Queues__Normalization', value: normalizationQueueName }
         { name: 'Queues__Transcription', value: transcriptionQueueName }
         { name: 'Queues__Indexing', value: indexingQueueName }
+        { name: 'Queues__UploadExpiry', value: uploadExpiryQueueName }
         { name: 'Sql__ConnectionString', value: '${sqlConnectionString};User Id=${identityClientId}' }
         { name: 'OpenAI__Endpoint', value: openAiEndpoint }
         { name: 'OpenAI__EmbeddingDeployment', value: embeddingDeploymentName }

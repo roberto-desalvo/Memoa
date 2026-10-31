@@ -7,10 +7,23 @@ import {
   HttpUploadProgressEvent,
 } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { concat, filter, map, Observable, retry, switchMap, throwError, timer } from 'rxjs';
+import {
+  catchError,
+  concat,
+  filter,
+  map,
+  Observable,
+  of,
+  retry,
+  switchMap,
+  throwError,
+  timer,
+} from 'rxjs';
 import { APP_CONFIG } from '../config/app-config';
+import { NoteDetails } from '../records/records-api';
 
-interface CreateAudioUploadResponse {
+/** Record creato dalle Functions e URL con SAS per caricarne l'audio. */
+interface UploadTarget {
   recordUid: string;
   uploadUrl: string;
   expiresOn: string;
@@ -24,23 +37,29 @@ const BLOCK_SIZE = 8 * 1024 * 1024;
 const BLOCK_RETRIES = 3;
 
 /**
- * Upload diretto su Blob Storage: le Functions restituiscono un URL con SAS valido solo per creare
- * quel blob, poi il file va allo storage senza passare dalle Functions.
+ * Upload diretto su Blob Storage: le Functions creano il record "in elaborazione" con titolo e data
+ * della nota e restituiscono un URL con SAS valido solo per creare quel blob, poi il file va allo
+ * storage senza passare dalle Functions.
  */
 @Injectable({ providedIn: 'root' })
 export class AudioUploadService {
   private readonly http = inject(HttpClient);
   private readonly config = inject(APP_CONFIG);
 
-  /** `contentType` è il tipo MIME salvato sul blob; di default quello del Blob. */
-  upload(audio: Blob, contentType = audio.type): Observable<UploadProgress> {
+  /**
+   * `contentType` è il tipo MIME salvato sul blob. Se l'upload fallisce il record appena creato viene
+   * eliminato, così non resta "in elaborazione" senza file: un nuovo tentativo crea un altro record.
+   */
+  upload(audio: Blob, contentType: string, note: NoteDetails): Observable<UploadProgress> {
     const type = contentType || 'application/octet-stream';
 
     // Il token di accesso lo aggiunge MsalInterceptor; l'URL dello storage non è tra le sue
     // risorse protette, quindi le richieste allo storage partono solo con il SAS.
     return this.http
-      .post<CreateAudioUploadResponse>(`${this.config.apiBaseUrl}/uploads/audio`, {
+      .post<UploadTarget>(`${this.config.apiBaseUrl}/uploads/audio`, {
         sizeBytes: audio.size,
+        title: note.title,
+        occurredAt: note.occurredAt,
       })
       .pipe(
         switchMap(({ recordUid, uploadUrl }) =>
@@ -49,9 +68,30 @@ export class AudioUploadService {
               ? this.putBlob(uploadUrl, audio, type)
               : this.putBlocks(uploadUrl, audio, type),
             [{ kind: 'done', recordUid } as const],
-          ),
+          ).pipe(catchError((error: unknown) => this.cancel(recordUid, error))),
         ),
       );
+  }
+
+  /**
+   * Elimina il record di un upload fallito e ripropaga l'errore dell'upload. Le Functions rispondono 409
+   * se il file risulta arrivato comunque (es. risposta persa dopo il commit): in quel caso l'upload è
+   * riuscito. Se anche l'eliminazione fallisce il record resta in elaborazione.
+   */
+  private cancel(recordUid: string, uploadError: unknown): Observable<UploadProgress> {
+    return this.http.delete(`${this.config.apiBaseUrl}/uploads/audio/${recordUid}`).pipe(
+      map(() => false),
+      catchError((error: unknown) => {
+        const completed = error instanceof HttpErrorResponse && error.status === 409;
+        if (!completed) {
+          console.error("Eliminazione del record dopo l'upload fallito non riuscita", error);
+        }
+        return of(completed);
+      }),
+      switchMap((completed) =>
+        completed ? of({ kind: 'done', recordUid } as const) : throwError(() => uploadError),
+      ),
+    );
   }
 
   // Put Blob in una sola richiesta.

@@ -1,0 +1,107 @@
+@let current = step();
+
+<header class="page-header">
+  <a class="button icon" routerLink="/" aria-label="Torna alle note">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+  </a>
+  <h1>{{ heading() }}</h1>
+</header>
+
+@switch (current.kind) {
+  @case ('capture') {
+    @switch (mode()) {
+      @case ('record') {
+        <app-record-audio (recorded)="onRecorded($event)" />
+      }
+      @case ('write') {
+        <div class="field">
+          <label for="text">Testo</label>
+          <textarea
+            id="text"
+            [maxLength]="maxTextLength"
+            [value]="text()"
+            (input)="text.set($any($event.target).value)"
+          ></textarea>
+          <p class="hint">{{ text().length }} / {{ maxTextLength }}</p>
+        </div>
+        <div class="actions">
+          <button
+            type="button"
+            class="primary"
+            [disabled]="!text().trim()"
+            (click)="continueWithText()"
+          >
+            Avanti
+          </button>
+        </div>
+      }
+      @case ('upload') {
+        <div class="pick">
+          <label class="button primary">
+            <input
+              #fileInput
+              type="file"
+              [accept]="uploadAccept"
+              (change)="onFileInput(fileInput)"
+            />
+            Scegli un file
+          </label>
+          <p class="hint">{{ formats }} · audio fino a 350 MB, testo fino a 10 MB</p>
+        </div>
+      }
+    }
+    @if (captureError(); as message) {
+      <p class="error" role="alert">{{ message }}</p>
+    }
+  }
+
+  @case ('details') {
+    <form (submit)="$event.preventDefault(); save()">
+      <div class="field">
+        <label for="title">Titolo</label>
+        <input
+          id="title"
+          type="text"
+          maxlength="200"
+          [placeholder]="titlePlaceholder()"
+          [value]="title()"
+          (input)="title.set($any($event.target).value)"
+        />
+        <p class="hint">Se lo lasci vuoto viene usata la data della nota.</p>
+      </div>
+      <div class="field">
+        <label for="date">Data della nota</label>
+        <input
+          id="date"
+          type="date"
+          required
+          [value]="date()"
+          (input)="date.set($any($event.target).value)"
+        />
+      </div>
+      <div class="actions">
+        <a class="button" routerLink="/">Annulla</a>
+        <button type="submit" class="primary">Salva</button>
+      </div>
+    </form>
+  }
+
+  @case ('saving') {
+    <div class="status" aria-live="polite">
+      <p>Salvataggio…</p>
+      @if (current.fraction !== null) {
+        <progress [value]="current.fraction" max="1"></progress>
+      }
+    </div>
+  }
+
+  @case ('failed') {
+    <div class="status" role="alert">
+      <p class="error">Salvataggio non riuscito.</p>
+      <div class="actions">
+        <button type="button" (click)="step.set({ kind: 'details' })">Modifica</button>
+        <button type="button" class="primary" (click)="submit()">Riprova</button>
+      </div>
+    </div>
+  }
+}

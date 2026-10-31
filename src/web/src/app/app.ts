@@ -2,6 +2,7 @@ import { Component, DestroyRef, inject, OnInit } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterOutlet } from '@angular/router';
 import { MsalService } from '@azure/msal-angular';
+import { Theme } from './settings/theme';
 
 @Component({
   imports: [RouterOutlet],
@@ -11,6 +12,9 @@ import { MsalService } from '@azure/msal-angular';
 export class App implements OnInit {
   private readonly msal = inject(MsalService);
   private readonly destroyRef = inject(DestroyRef);
+
+  // Applica subito la modalità chiara / scura scelta sul dispositivo.
+  private readonly theme = inject(Theme);
 
   ngOnInit(): void {
     // Completa il login al ritorno dal redirect di Entra External ID e imposta l'account attivo.

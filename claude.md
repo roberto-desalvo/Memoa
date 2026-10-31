@@ -46,7 +46,7 @@ Il documento delle decisioni (`project.md`) è la fonte di verità per funzional
 
 ### Flusso audio
 
-1. La Function HTTP riceve titolo e data della nota, crea il record "in elaborazione" (senza allegato), sceglie il percorso del blob e restituisce un URL SAS **valido solo per scrivere quel file**. I record il cui upload non si completa restano "in elaborazione" (pulizia da definire).
+1. La Function HTTP riceve titolo e data della nota, crea il record "in elaborazione" (senza allegato), sceglie il percorso del blob e restituisce un URL SAS **valido solo per scrivere quel file**. Se l'upload fallisce il client elimina il record; in ogni caso la Function scrive sulla coda `upload-expiry` un messaggio con il solo RecordUid, invisibile fino alla scadenza del SAS più un margine, e la Function attivata da quel messaggio elimina il record se il file non è arrivato.
 2. Il client carica il file direttamente nel contenitore degli **audio originali**.
 3. Evento Event Grid "blob creato" → **Function di validazione**: controlla il file e lo collega come allegato al record esistente; se valido scrive l'URL del blob sulla **coda di normalizzazione**, altrimenti porta il record a "in errore" senza accodare nulla; il file non viene eliminato, per poterlo analizzare.
 4. **Job di normalizzazione** (avviato dalla coda tramite scaler KEDA): `ffprobe` verifica formato reale e durata, `ffmpeg` crea la copia Ogg Opus nel contenitore dell'**audio normalizzato** (`<oid>/<RecordUid>.opus`, durata nei metadati del blob). Se il file va scartato scrive invece nello stesso contenitore l'esito `<oid>/<RecordUid>.error.json`, con il solo codice d'errore.

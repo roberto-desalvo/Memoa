@@ -13,37 +13,23 @@
   height: 5rem;
   padding: 0;
   color: #fff;
-  background: #dc2626;
+  background: var(--record);
   border: none;
   border-radius: 50%;
-  cursor: pointer;
 
   svg {
     width: 2.25rem;
     height: 2.25rem;
     fill: currentColor;
+    stroke: none;
   }
 
   &.active {
     animation: pulse 1.5s ease-in-out infinite;
   }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: default;
-  }
-
-  &:focus-visible {
-    outline: 3px solid #93c5fd;
-    outline-offset: 3px;
-  }
 }
 
 .message {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.5rem;
   min-height: 3rem;
   text-align: center;
 
@@ -52,43 +38,8 @@
   }
 }
 
-.file {
-  padding: 0.5rem 1rem;
-  border: 1px solid #d4d4d8;
-  border-radius: 0.5rem;
-  cursor: pointer;
-
-  // Input nascosto ma raggiungibile da tastiera e lettori di schermo tramite la label.
-  input {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    opacity: 0;
-  }
-
-  &:focus-within {
-    outline: 3px solid #93c5fd;
-    outline-offset: 2px;
-  }
-
-  &.disabled {
-    opacity: 0.5;
-    cursor: default;
-  }
-}
-
-.hint {
-  margin: 0;
-  font-size: 0.875rem;
-  color: #52525b;
-}
-
 .timer {
   font-variant-numeric: tabular-nums;
-}
-
-.error {
-  color: #b91c1c;
 }
 
 @keyframes pulse {

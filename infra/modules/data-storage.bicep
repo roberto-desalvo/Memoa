@@ -29,6 +29,7 @@ var transcriptsContainerName = 'transcripts'
 var normalizationQueueName = 'normalization'
 var transcriptionQueueName = 'transcription'
 var indexingQueueName = 'indexing'
+var uploadExpiryQueueName = 'upload-expiry'
 
 var roles = {
   blobDataContributor: 'ba92f5b4-2d11-453d-a403-e96b0029c9fe'
@@ -212,6 +213,12 @@ resource indexingQueue 'Microsoft.Storage/storageAccounts/queueServices/queues@2
   name: indexingQueueName
 }
 
+// Messaggi ritardati scritti alla richiesta del SAS: eliminano i record il cui upload non arriva.
+resource uploadExpiryQueue 'Microsoft.Storage/storageAccounts/queueServices/queues@2023-05-01' = {
+  parent: queueService
+  name: uploadExpiryQueueName
+}
+
 // Sorgente degli eventi "blob creato"; ogni sottoscrizione filtra sul proprio contenitore.
 resource eventTopic 'Microsoft.EventGrid/systemTopics@2025-02-15' = {
   name: 'evgt-${name}'
@@ -358,3 +365,4 @@ output transcriptsContainerName string = transcriptsContainer.name
 output normalizationQueueName string = normalizationQueue.name
 output transcriptionQueueName string = transcriptionQueue.name
 output indexingQueueName string = indexingQueue.name
+output uploadExpiryQueueName string = uploadExpiryQueue.name

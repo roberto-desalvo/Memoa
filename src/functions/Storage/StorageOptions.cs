@@ -14,6 +14,10 @@ public sealed class DataStorageOptions
     /// <summary>Es. https://&lt;account&gt;.blob.core.windows.net/.</summary>
     [Required]
     public Uri? BlobServiceUri { get; set; }
+
+    /// <summary>Es. https://&lt;account&gt;.queue.core.windows.net/.</summary>
+    [Required]
+    public Uri? QueueServiceUri { get; set; }
 }
 
 /// <summary>Nomi dei contenitori dello storage dei dati (sezione "Containers").</summary>
@@ -32,4 +36,17 @@ public sealed class ContainerOptions
     /// <summary>Trascrizioni ed esiti di errore scritti dal job di trascrizione.</summary>
     [Required]
     public string Transcripts { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Nomi delle code scritte senza binding di output (sezione "Queues"). Le altre code sono indicate solo
+/// nei binding, come "%Queues:&lt;Nome&gt;%".
+/// </summary>
+public sealed class QueueOptions
+{
+    public const string SectionName = "Queues";
+
+    /// <summary>Messaggi ritardati che controllano gli upload audio mai completati.</summary>
+    [Required]
+    public string UploadExpiry { get; set; } = string.Empty;
 }

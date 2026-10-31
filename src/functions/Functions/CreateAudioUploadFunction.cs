@@ -14,10 +14,12 @@ namespace Memoa.Functions.Functions;
 /// Primo passo del flusso audio: riceve titolo e data della nota, crea il record "in elaborazione",
 /// sceglie il percorso del blob e restituisce un URL con SAS valido solo per creare quel file. Il client
 /// carica poi l'audio direttamente su Blob Storage; l'evento "blob creato" attiva la validazione, che
-/// collega il file al record.
+/// collega il file al record. Se il file non arriva entro la scadenza del SAS, il record viene eliminato
+/// (<see cref="UploadExpiryScheduler"/>).
 /// </summary>
 public sealed class CreateAudioUploadFunction(
-    UploadSasService sasService,
+    BlobSasService sasService,
+    UploadExpiryScheduler expiryScheduler,
     MemoaDbContext db,
     CurrentUser currentUser,
     ILogger<CreateAudioUploadFunction> logger)
@@ -30,15 +32,7 @@ public sealed class CreateAudioUploadFunction(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "uploads/audio")] HttpRequest req,
         CancellationToken cancellationToken)
     {
-        CreateAudioUploadRequest? body;
-        try
-        {
-            body = await req.ReadFromJsonAsync<CreateAudioUploadRequest>(cancellationToken);
-        }
-        catch (Exception ex) when (ex is System.Text.Json.JsonException or InvalidOperationException)
-        {
-            body = null;
-        }
+        var body = await req.ReadJsonOrDefaultAsync<CreateAudioUploadRequest>(cancellationToken);
 
         // La dimensione dichiarata serve solo a rifiutare subito i file troppo grandi: il SAS non può
         // limitarla, quindi la Function di validazione ricontrolla quella reale.
@@ -47,20 +41,12 @@ public sealed class CreateAudioUploadFunction(
             return new BadRequestObjectResult(new { error = "invalid_size", maxSizeBytes = MaxSizeBytes });
         }
 
-        // Il client manda sempre un titolo: se l'utente non lo specifica usa la data della nota.
-        var title = body.Title?.Trim();
-        if (string.IsNullOrEmpty(title) || title.Length > Record.MaxTitleLength)
+        if (RecordInput.ValidateNote(body.Title, body.OccurredAt, out var title, out var occurredAt) is { } invalid)
         {
-            return new BadRequestObjectResult(new { error = "invalid_title", maxLength = Record.MaxTitleLength });
+            return invalid;
         }
 
-        if (body.OccurredAt is not { } occurredAt)
-        {
-            return new BadRequestObjectResult(new { error = "invalid_occurred_at" });
-        }
-
-        var entraObjectId = currentUser.EntraObjectId
-            ?? throw new InvalidOperationException("Utente non autenticato.");
+        var entraObjectId = currentUser.RequiredEntraObjectId;
 
         // Creato da UserProvisioningMiddleware prima di questa funzione.
         var userId = await db.Users
@@ -70,14 +56,15 @@ public sealed class CreateAudioUploadFunction(
 
         var recordUid = Guid.CreateVersion7();
 
-        // Prefisso per utente: la cancellazione GDPR elimina tutti i suoi file con un solo prefisso.
-        // Nessuna estensione: il formato reale viene rilevato con ffprobe durante la normalizzazione.
-        var blobName = $"{entraObjectId}/{recordUid}";
+        var blobName = RecordBlobService.UploadBlobName(entraObjectId, recordUid);
         var (uploadUrl, expiresOn) = await sasService.CreateUploadUriAsync(blobName, cancellationToken);
 
+        // Il controllo di scadenza parte prima del salvataggio: se il salvataggio fallisce il messaggio
+        // trova il record assente e non fa nulla, mentre il contrario lascerebbe un record senza pulizia.
+        await expiryScheduler.ScheduleAsync(recordUid, cancellationToken);
+
         // Il record si salva dopo aver firmato il SAS, così un errore di firma non lascia record orfani.
-        // L'allegato lo crea la validazione, quando il file esiste. Se l'upload non si completa il record
-        // resta "in elaborazione" (pulizia da definire).
+        // L'allegato lo crea la validazione, quando il file esiste.
         db.Records.Add(new Record
         {
             RecordUid = recordUid,
@@ -85,7 +72,7 @@ public sealed class CreateAudioUploadFunction(
             Title = title,
             SourceType = SourceType.Audio,
             Status = RecordStatus.Processing,
-            OccurredAt = occurredAt.UtcDateTime,
+            OccurredAt = occurredAt,
         });
         await db.SaveChangesAsync(cancellationToken);
 

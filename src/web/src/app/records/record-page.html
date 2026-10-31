@@ -1,0 +1,101 @@
+<header class="page-header">
+  <a class="button icon" routerLink="/" aria-label="Torna alle note">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+  </a>
+  <h1>{{ record()?.title }}</h1>
+</header>
+
+@if (record(); as record) {
+  @if (editing()) {
+    <form (submit)="$event.preventDefault(); saveEdit(record)">
+      <div class="field">
+        <label for="title">Titolo</label>
+        <input
+          id="title"
+          type="text"
+          maxlength="200"
+          required
+          [value]="editTitle()"
+          (input)="editTitle.set($any($event.target).value)"
+        />
+      </div>
+      <div class="field">
+        <label for="date">Data della nota</label>
+        <input
+          id="date"
+          type="date"
+          required
+          [value]="editDate()"
+          (input)="editDate.set($any($event.target).value)"
+        />
+      </div>
+      @if (record.text !== null) {
+        <div class="field">
+          <label for="text">Testo</label>
+          <textarea
+            id="text"
+            [maxLength]="maxTextLength"
+            [value]="editText()"
+            (input)="editText.set($any($event.target).value)"
+          ></textarea>
+          <p class="hint">Dopo una modifica il testo viene indicizzato di nuovo.</p>
+        </div>
+      }
+      @if (actionError(); as message) {
+        <p class="error" role="alert">{{ message }}</p>
+      }
+      <div class="actions">
+        <button type="button" [disabled]="busy()" (click)="editing.set(false)">Annulla</button>
+        <button type="submit" class="primary" [disabled]="busy()">Salva</button>
+      </div>
+    </form>
+  } @else {
+    <p class="hint">{{ record.occurredAt | noteDate: 'long' }}</p>
+
+    @if (record.status !== 'Ready') {
+      <p class="hint">
+        {{
+          record.status === 'Processing'
+            ? 'La nota è in elaborazione.'
+            : 'Errore nell’elaborazione.'
+        }}
+      </p>
+    }
+
+    @if (audioUrl(); as url) {
+      <audio controls preload="metadata" [src]="url"></audio>
+    }
+
+    @if (record.text) {
+      <p class="text">{{ record.text }}</p>
+    }
+
+    @if (actionError(); as message) {
+      <p class="error" role="alert">{{ message }}</p>
+    }
+
+    <div class="actions">
+      <button type="button" class="danger" (click)="confirmDelete()">Elimina</button>
+      @if (record.status === 'Ready') {
+        <button type="button" class="primary" (click)="startEdit(record)">Modifica</button>
+      }
+    </div>
+  }
+
+  <dialog #deleteDialog>
+    <h2>Eliminare la nota?</h2>
+    <p>
+      I file eliminati restano recuperabili per 14 giorni, poi vengono cancellati definitivamente.
+    </p>
+    <div class="actions">
+      <button type="button" [disabled]="busy()" (click)="deleteDialog.close()">Annulla</button>
+      <button type="button" class="danger" [disabled]="busy()" (click)="delete(record)">
+        Elimina
+      </button>
+    </div>
+  </dialog>
+} @else if (loadError(); as message) {
+  <p class="error" role="alert">{{ message }}</p>
+} @else {
+  <p class="hint">Caricamento…</p>
+}

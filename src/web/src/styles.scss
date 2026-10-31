@@ -1,4 +1,201 @@
+// Colori come variabili: la modalità scura segue il sistema, salvo scelta esplicita nelle impostazioni
+// (attributo data-theme sull'elemento html, vedi app/settings/theme.ts).
+:root {
+  color-scheme: light;
+  --bg: #fafafa;
+  --surface: #ffffff;
+  --text: #18181b;
+  --muted: #52525b;
+  --border: #d4d4d8;
+  --accent: #2563eb;
+  --accent-text: #ffffff;
+  --danger: #b91c1c;
+  --record: #dc2626;
+  --disabled: #a1a1aa;
+  --focus: #93c5fd;
+  --shadow: 0 4px 16px rgb(0 0 0 / 0.12);
+}
+
+@mixin dark {
+  color-scheme: dark;
+  --bg: #18181b;
+  --surface: #27272a;
+  --text: #f4f4f5;
+  --muted: #a1a1aa;
+  --border: #3f3f46;
+  --accent: #60a5fa;
+  --accent-text: #0b1220;
+  --danger: #f87171;
+  --record: #ef4444;
+  --disabled: #71717a;
+  --focus: #1d4ed8;
+  --shadow: 0 4px 16px rgb(0 0 0 / 0.5);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    @include dark;
+  }
+}
+
+:root[data-theme='dark'] {
+  @include dark;
+}
+
 body {
   margin: 0;
   font-family: system-ui, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+}
+
+// Pagine: mobile first, colonna centrata sugli schermi grandi.
+.page {
+  display: block;
+  max-width: 48rem;
+  margin: 0 auto;
+  padding: 1rem;
+  box-sizing: border-box;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 3rem;
+  margin-bottom: 1rem;
+
+  h1 {
+    flex: 1;
+    margin: 0;
+    font-size: 1.25rem;
+    overflow-wrap: anywhere;
+  }
+}
+
+button,
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  padding: 0.5rem 1rem;
+  font: inherit;
+  color: var(--text);
+  text-decoration: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  &.primary {
+    color: var(--accent-text);
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+
+  &.danger {
+    color: var(--danger);
+    border-color: currentColor;
+  }
+
+  // Pulsante con sola icona: l'etichetta va in aria-label.
+  &.icon {
+    width: 2.75rem;
+    padding: 0;
+    border-color: transparent;
+    background: transparent;
+  }
+
+  svg {
+    width: 1.5rem;
+    height: 1.5rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 1rem;
+
+  label {
+    font-weight: 600;
+  }
+}
+
+input[type='text'],
+input[type='date'],
+select,
+textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.5rem 0.75rem;
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+}
+
+textarea {
+  min-height: 12rem;
+  resize: vertical;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.hint {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+
+.error {
+  color: var(--danger);
+}
+
+dialog {
+  width: min(24rem, calc(100vw - 2rem));
+  padding: 1.25rem;
+  color: var(--text);
+  background: var(--surface);
+  border: none;
+  border-radius: 0.75rem;
+  box-shadow: var(--shadow);
+
+  &::backdrop {
+    background: rgb(0 0 0 / 0.4);
+  }
+
+  h2 {
+    margin: 0 0 0.5rem;
+    font-size: 1.125rem;
+  }
+
+  p {
+    margin: 0 0 1rem;
+  }
 }

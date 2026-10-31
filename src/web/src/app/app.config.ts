@@ -1,6 +1,6 @@
 import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
 import { ApplicationConfig, provideBrowserGlobalErrorListeners } from '@angular/core';
-import { provideRouter } from '@angular/router';
+import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { IPublicClientApplication } from '@azure/msal-browser';
 import { routes } from './app.routes';
 import { provideMsal } from './auth/msal';
@@ -13,7 +13,8 @@ export function appConfig(
   return {
     providers: [
       provideBrowserGlobalErrorListeners(),
-      provideRouter(routes),
+      // I parametri del percorso arrivano ai componenti come input (es. recordUid).
+      provideRouter(routes, withComponentInputBinding()),
       // MsalInterceptor è un interceptor di classe: va registrato tramite DI.
       provideHttpClient(withInterceptorsFromDi()),
       { provide: APP_CONFIG, useValue: config },

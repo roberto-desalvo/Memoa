@@ -23,6 +23,10 @@ public sealed class ValidateUploadFunction(
     IOptions<ContainerOptions> containers,
     ILogger<ValidateUploadFunction> logger)
 {
+    // Esiti della validazione: dipendono solo dal file, quindi riprovare non serve.
+    public const string FileEmpty = "file_empty";
+    public const string FileTooLarge = "file_too_large";
+
     // Lunghezza della colonna Attachments.OriginalContentType.
     private const int MaxContentTypeLength = 100;
 
@@ -107,8 +111,8 @@ public sealed class ValidateUploadFunction(
     /// </summary>
     private static string? Validate(StorageBlobCreatedEventData data) => data.ContentLength switch
     {
-        null or <= 0 => "file_empty",
-        > CreateAudioUploadFunction.MaxSizeBytes => "file_too_large",
+        null or <= 0 => FileEmpty,
+        > CreateAudioUploadFunction.MaxSizeBytes => FileTooLarge,
         _ => null,
     };
 

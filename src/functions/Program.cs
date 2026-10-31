@@ -1,6 +1,7 @@
 using Azure.AI.OpenAI;
 using Azure.Identity;
 using Azure.Storage.Blobs;
+using Azure.Storage.Queues;
 using Memoa.Functions.Authentication;
 using Memoa.Functions.Data;
 using Memoa.Functions.Embeddings;
@@ -38,7 +39,18 @@ builder.Services.AddOptions<ContainerOptions>()
 builder.Services.AddSingleton(sp => new BlobServiceClient(
     sp.GetRequiredService<IOptions<DataStorageOptions>>().Value.BlobServiceUri,
     new DefaultAzureCredential()));
-builder.Services.AddSingleton<UploadSasService>();
+builder.Services.AddOptions<QueueOptions>()
+    .Bind(builder.Configuration.GetSection(QueueOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+// Base64 come i binding delle code, così i trigger leggono anche i messaggi scritti da questo client.
+builder.Services.AddSingleton(sp => new QueueServiceClient(
+    sp.GetRequiredService<IOptions<DataStorageOptions>>().Value.QueueServiceUri,
+    new DefaultAzureCredential(),
+    new QueueClientOptions { MessageEncoding = QueueMessageEncoding.Base64 }));
+builder.Services.AddSingleton<BlobSasService>();
+builder.Services.AddSingleton<UploadExpiryScheduler>();
+builder.Services.AddSingleton<RecordBlobService>();
 
 builder.Services.AddOptions<OpenAIOptions>()
     .Bind(builder.Configuration.GetSection(OpenAIOptions.SectionName))

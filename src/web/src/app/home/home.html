@@ -1,13 +1,154 @@
-<header>
+<header class="page-header">
   <h1>Memoa</h1>
-  <div class="account">
-    @if (accountName) {
-      <span>{{ accountName }}</span>
+  <div class="menu">
+    <button
+      type="button"
+      class="icon"
+      aria-label="Menu utente"
+      aria-haspopup="menu"
+      [attr.aria-expanded]="menuOpen()"
+      (click)="menuOpen.set(!menuOpen())"
+    >
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="8" r="4" />
+        <path d="M4 21a8 8 0 0 1 16 0" />
+      </svg>
+    </button>
+    @if (menuOpen()) {
+      <div class="menu-panel" role="menu">
+        @if (accountName) {
+          <p class="hint">{{ accountName }}</p>
+        }
+        <a class="button" role="menuitem" routerLink="/settings">Impostazioni</a>
+        <button type="button" role="menuitem" (click)="logout()">Esci</button>
+      </div>
     }
-    <button type="button" (click)="logout()">Esci</button>
   </div>
 </header>
 
 <main>
-  <app-record-audio />
+  @if (store.records(); as records) {
+    @if (records.length === 0) {
+      <p class="empty hint">Nessuna nota. Tocca + per aggiungerne una.</p>
+    } @else {
+      <ul class="records">
+        @for (record of records; track record.recordUid) {
+          <li>
+            @switch (record.status) {
+              @case ('Ready') {
+                <a class="record" [routerLink]="['/records', record.recordUid]">
+                  <span class="title">{{ record.title }}</span>
+                  <span class="date">{{ record.occurredAt | noteDate }}</span>
+                </a>
+              }
+              @case ('Error') {
+                <button type="button" class="record disabled" (click)="openError(record)">
+                  <span class="title">{{ record.title }}</span>
+                  <span class="date error">Errore</span>
+                </button>
+              }
+              @default {
+                <div class="record disabled" aria-disabled="true">
+                  <span class="title">{{ record.title }}</span>
+                  <span class="date">In elaborazione…</span>
+                </div>
+              }
+            }
+          </li>
+        }
+      </ul>
+    }
+  } @else if (store.loadFailed()) {
+    <div class="empty">
+      <p class="error">Impossibile caricare le note.</p>
+      <button type="button" (click)="store.refresh()">Riprova</button>
+    </div>
+  } @else {
+    <p class="empty hint">Caricamento…</p>
+  }
 </main>
+
+<div class="add">
+  @if (addOpen()) {
+    <nav class="add-bar" aria-label="Aggiungi una nota">
+      <a class="button icon" routerLink="/new/record" aria-label="Registra">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="9" y="3" width="6" height="11" rx="3" />
+          <path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
+        </svg>
+      </a>
+      <a class="button icon" routerLink="/new/write" aria-label="Scrivi">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4 20h4L19 9l-4-4L4 16v4ZM13 7l4 4" />
+        </svg>
+      </a>
+      <label class="button icon" aria-label="Carica un file">
+        <input #fileInput type="file" [accept]="uploadAccept" (change)="selectFile(fileInput)" />
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 15V4M7 9l5-5 5 5M5 20h14" />
+        </svg>
+      </label>
+    </nav>
+  }
+  <button
+    type="button"
+    class="fab primary"
+    [attr.aria-label]="addOpen() ? 'Chiudi' : 'Aggiungi una nota'"
+    [attr.aria-expanded]="addOpen()"
+    (click)="addOpen.set(!addOpen())"
+  >
+    <svg viewBox="0 0 24 24" aria-hidden="true" [class.open]="addOpen()">
+      <path d="M12 5v14M5 12h14" />
+    </svg>
+  </button>
+</div>
+
+<dialog #errorDialog (close)="errorRecord.set(null)">
+  @if (errorRecord(); as record) {
+    @switch (errorState()) {
+      @case ('confirmDelete') {
+        <h2>Eliminare la nota?</h2>
+        <p>
+          I file eliminati restano recuperabili per 14 giorni, poi vengono cancellati
+          definitivamente.
+        </p>
+        <div class="actions">
+          <button type="button" (click)="errorState.set('idle')">Annulla</button>
+          <button type="button" class="danger" (click)="delete(record)">Elimina</button>
+        </div>
+      }
+      @default {
+        <h2>Errore nell'elaborazione</h2>
+        @if (record.canRetry) {
+          <p>Si è verificato un errore durante l'elaborazione di questa nota. Vuoi riprovare?</p>
+        } @else {
+          <p>Il file non è valido e non può essere elaborato.</p>
+        }
+        @if (errorState() === 'failed') {
+          <p class="error">Operazione non riuscita. Riprova più tardi.</p>
+        }
+        <div class="actions">
+          <button
+            type="button"
+            class="danger"
+            [disabled]="errorState() === 'busy'"
+            (click)="errorState.set('confirmDelete')"
+          >
+            Elimina
+          </button>
+          <button type="button" (click)="closeError()">Chiudi</button>
+          @if (record.canRetry) {
+            <button
+              type="button"
+              class="primary"
+              [disabled]="errorState() === 'busy'"
+              (click)="retry(record)"
+            >
+              Riprova
+            </button>
+          }
+        </div>
+      }
+    }
+  }
+</dialog>

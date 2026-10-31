@@ -14,6 +14,7 @@
     "Queues__Normalization": "normalization",
     "Queues__Transcription": "transcription",
     "Queues__Indexing": "indexing",
+    "Queues__UploadExpiry": "upload-expiry",
     "OpenAI__Endpoint": "https://<account-openai-dev>.openai.azure.com/",
     "OpenAI__EmbeddingDeployment": "text-embedding-3-small",
     "Sql__ConnectionString": "Server=tcp:<server-sql>.database.windows.net,1433;Database=sqldb-memoa-dev;Encrypt=True;Authentication=Active Directory Default",
