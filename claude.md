@@ -46,9 +46,9 @@ Il documento delle decisioni (`project.md`) è la fonte di verità per funzional
 
 ### Flusso audio
 
-1. La Function HTTP sceglie il percorso del blob e restituisce un URL SAS **valido solo per scrivere quel file**.
+1. La Function HTTP riceve titolo e data della nota, crea il record "in elaborazione" (senza allegato), sceglie il percorso del blob e restituisce un URL SAS **valido solo per scrivere quel file**. I record il cui upload non si completa restano "in elaborazione" (pulizia da definire).
 2. Il client carica il file direttamente nel contenitore degli **audio originali**.
-3. Evento Event Grid "blob creato" → **Function di validazione**: controlla il file; se valido scrive l'URL del blob sulla **coda di normalizzazione**, altrimenti crea il record "in errore" senza accodare nulla; il file non viene eliminato, per poterlo analizzare.
+3. Evento Event Grid "blob creato" → **Function di validazione**: controlla il file e lo collega come allegato al record esistente; se valido scrive l'URL del blob sulla **coda di normalizzazione**, altrimenti porta il record a "in errore" senza accodare nulla; il file non viene eliminato, per poterlo analizzare.
 4. **Job di normalizzazione** (avviato dalla coda tramite scaler KEDA): `ffprobe` verifica formato reale e durata, `ffmpeg` crea la copia Ogg Opus nel contenitore dell'**audio normalizzato** (`<oid>/<RecordUid>.opus`, durata nei metadati del blob). Se il file va scartato scrive invece nello stesso contenitore l'esito `<oid>/<RecordUid>.error.json`, con il solo codice d'errore.
 5. Evento "blob creato" → Function: per la copia `.opus` salva durata e percorso nel database e scrive sulla **coda di trascrizione**; per l'esito `.error.json` porta il record a "in errore".
 6. **Job di trascrizione**: trascrive la copia normalizzata → file di testo nel contenitore delle **trascrizioni**.
@@ -57,7 +57,7 @@ Il documento delle decisioni (`project.md`) è la fonte di verità per funzional
 
 ### Flusso testo
 
-La Function HTTP salva il testo nel database e, parallelamente, scrive sulla coda di indicizzazione. Il testo dei record resta nel database (non su Blob Storage).
+La Function HTTP salva il testo, con titolo e data della nota, nel database e, parallelamente, scrive sulla coda di indicizzazione. Il testo dei record resta nel database (non su Blob Storage).
 
 ### Regole dell'architettura (vincolanti)
 

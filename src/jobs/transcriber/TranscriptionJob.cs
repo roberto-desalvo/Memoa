@@ -33,8 +33,8 @@ public sealed class TranscriptionJob(
     /// <summary>
     /// Elabora al più un messaggio: ogni esecuzione del job viene avviata dallo scaler KEDA per un
     /// messaggio in coda. Un'eccezione lascia il messaggio in coda, che torna visibile dopo il
-    /// VisibilityTimeout per un nuovo tentativo; all'ultimo tentativo il job scrive invece l'esito con
-    /// il codice della fase non riuscita.
+    /// VisibilityTimeout per un nuovo tentativo; per gli errori deterministici e all'ultimo tentativo il
+    /// job scrive invece l'esito con il codice della fase non riuscita.
     /// </summary>
     public async Task RunAsync(CancellationToken cancellationToken)
     {
@@ -104,7 +104,8 @@ public sealed class TranscriptionJob(
         catch (Exception ex)
         {
             var errorCode = GetErrorCode(ex, cancellationToken);
-            if (message.DequeueCount < job.MaxDequeueCount)
+            var retryable = IsRetryable(errorCode);
+            if (retryable && message.DequeueCount < job.MaxDequeueCount)
             {
                 // L'eccezione la registra Program.cs; il messaggio torna visibile dopo il VisibilityTimeout.
                 logger.LogWarning("Record {RecordUid}: tentativo {Attempt} di {MaxAttempts} non riuscito ({ErrorCode})",
@@ -112,10 +113,10 @@ public sealed class TranscriptionJob(
                 throw;
             }
 
-            // Ultimo tentativo: si scrive l'esito con la causa. Il token può essere già annullato dal
-            // SIGTERM: le ultime scritture usano il periodo di tolleranza dell'arresto.
-            logger.LogError(ex, "Record {RecordUid}: trascrizione fallita dopo {Attempts} tentativi ({ErrorCode})",
-                recordUid, message.DequeueCount, errorCode);
+            // Errore deterministico o ultimo tentativo: si scrive l'esito con la causa. Il token può essere
+            // già annullato dal SIGTERM: le ultime scritture usano il periodo di tolleranza dell'arresto.
+            logger.LogError(ex, "Record {RecordUid}: trascrizione fallita al tentativo {Attempt} ({ErrorCode}, {Retry})",
+                recordUid, message.DequeueCount, errorCode, retryable ? "tentativi esauriti" : "senza retry");
             await WriteErrorAsync(error, errorCode, CancellationToken.None);
             await DeleteAsync(message, CancellationToken.None);
             return;
@@ -136,6 +137,14 @@ public sealed class TranscriptionJob(
         TranscriptionException transcription => transcription.ErrorCode,
         _ => Transcript.ProcessingFailed,
     };
+
+    /// <summary>
+    /// False per gli errori che si ripetono uguali a ogni tentativo con la stessa immagine e lo stesso
+    /// audio: un nuovo tentativo arriverebbe solo dopo il VisibilityTimeout (65 minuti) e per il timeout
+    /// costerebbe un'altra esecuzione completa. L'utente può riprovare dal record dopo la correzione.
+    /// </summary>
+    private static bool IsRetryable(string errorCode) => errorCode is not (
+        Transcript.ModelLoadFailed or Transcript.AudioDecodeFailed or Transcript.ProcessingTimeout);
 
     private static bool IsBlobNotFound(Exception ex) =>
         ex is RequestFailedException { Status: 404, ErrorCode: var code } && code == BlobErrorCode.BlobNotFound;

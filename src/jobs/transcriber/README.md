@@ -26,14 +26,16 @@ Definiti in `src/shared/Pipeline/Transcript.cs`. Ogni codice indica la fase non 
 | `no_speech` | Subito: trascrizione vuota, nessun parlato riconosciuto | L'audio (silenzio, rumore). Unico codice dovuto al contenuto |
 | `invalid_request` | Subito: il messaggio identifica il record ma la lingua di ripiego non è supportata | `Users.PreferredLanguage` e `EnqueueTranscription` |
 | `audio_download_failed` | All'ultimo tentativo: lettura della copia normalizzata non riuscita | Ruolo di lettura su `audio` dell'identità del job, rete, spazio su disco della replica |
-| `audio_decode_failed` | All'ultimo tentativo: ffmpeg non decodifica la copia in PCM | ffmpeg nell'immagine (`Job__FfmpegPath`), copia corrotta |
-| `model_load_failed` | All'ultimo tentativo: Whisper non carica il modello | `Whisper__ModelPath`, checksum del modello, memoria del job |
+| `audio_decode_failed` | Subito, senza retry: ffmpeg non decodifica la copia in PCM | ffmpeg nell'immagine (`Job__FfmpegPath`), copia corrotta |
+| `model_load_failed` | Subito, senza retry: Whisper non carica il modello | Riga di log "Caricamento del modello": percorso, dimensione del file, memoria disponibile. Poi `Whisper__ModelPath`, checksum, memoria del job |
 | `transcription_failed` | All'ultimo tentativo: errore del motore durante rilevamento della lingua o trascrizione | Runtime nativo di Whisper.net, memoria |
 | `transcript_upload_failed` | All'ultimo tentativo: scrittura della trascrizione non riuscita | Ruolo di scrittura su `transcripts` dell'identità del job |
-| `processing_timeout` | All'ultimo tentativo: esecuzione interrotta dal SIGTERM allo scadere del `replicaTimeout` | Durata dell'audio rispetto alle vCPU del job |
+| `processing_timeout` | Subito, senza retry: esecuzione interrotta dal SIGTERM allo scadere del `replicaTimeout` | Durata dell'audio rispetto alle vCPU del job |
 | `processing_failed` | Messaggio oltre `Job__MaxDequeueCount` tentativi (predefinito 3) senza causa registrata: l'ultima esecuzione è terminata senza poter scrivere l'esito (memoria esaurita, replica arrestata) | Cronologia delle esecuzioni del job in Container Apps |
 
-Gli errori dei tentativi precedenti all'ultimo terminano l'esecuzione con codice 1 e un warning con il codice: il messaggio torna visibile dopo il `Job__VisibilityTimeout` e viene riprovato. All'ultimo tentativo il job scrive l'esito con il codice della fase ed elimina il messaggio, che sostituisce la coda dei messaggi non elaborabili, su cui il job non può scrivere.
+Gli errori deterministici (`audio_decode_failed`, `model_load_failed`, `processing_timeout`) si ripeterebbero uguali con la stessa immagine e lo stesso audio: il job scrive subito l'esito ed elimina il messaggio. Dopo la correzione l'utente riprova dal record.
+
+Gli altri errori, prima dell'ultimo tentativo, terminano l'esecuzione con codice 1 e un warning con il codice. Il messaggio resta in coda ma **invisibile** per il `Job__VisibilityTimeout` (65 minuti): portale, `az storage message peek` e lo scaler KEDA vedono solo i messaggi visibili, quindi la coda sembra vuota e il record resta "in elaborazione". `ApproximateMessagesCount` della coda invece lo conta. All'ultimo tentativo il job scrive l'esito con il codice della fase ed elimina il messaggio, al posto della coda dei messaggi non elaborabili, su cui il job non può scrivere.
 
 Casi senza esito, con il solo log:
 - copia normalizzata non più presente (record o account eliminati): scrivere l'esito lascerebbe un blob senza record;

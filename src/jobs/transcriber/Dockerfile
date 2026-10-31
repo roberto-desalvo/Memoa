@@ -21,12 +21,17 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 # Modello large-v3-turbo quantizzato q5_0 (GGML), fissato a una revisione del repository Hugging Face e
 # verificato con lo SHA-256. Sta prima del codice: un cambio del worker non rigenera questo livello.
-ADD --checksum=sha256:394221709cd5ad1f40c46e6031ca61bce88931e6e088c188294c6d5a55ffa7e2 --chmod=644 \
+ADD --checksum=sha256:394221709cd5ad1f40c46e6031ca61bce88931e6e088c188294c6d5a55ffa7e2 \
     https://huggingface.co/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-large-v3-turbo-q5_0.bin \
     /models/ggml-large-v3-turbo-q5_0.bin
 ENV Whisper__ModelPath=/models/ggml-large-v3-turbo-q5_0.bin
+# ADD da URL crea il file con permessi 600 e la cartella senza garanzie per gli altri utenti: il job gira
+# come $APP_UID, quindi cartella attraversabile e file leggibile da tutti.
+RUN chmod 755 /models && chmod 644 "$Whisper__ModelPath"
 WORKDIR /app
 COPY --from=build /app .
 # Utente non privilegiato predefinito delle immagini .NET; i file temporanei vanno in /tmp.
 USER $APP_UID
+# La build fallisce se l'utente del job non può leggere il modello.
+RUN test -r "$Whisper__ModelPath"
 ENTRYPOINT ["dotnet", "Memoa.Transcriber.dll"]

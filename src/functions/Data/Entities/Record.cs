@@ -3,6 +3,9 @@ namespace Memoa.Functions.Data.Entities;
 /// <summary>Record del diario, comune a tutte le origini.</summary>
 public sealed class Record
 {
+    /// <summary>Lunghezza massima del titolo (colonna Records.Title).</summary>
+    public const int MaxTitleLength = 200;
+
     public int Id { get; set; }
 
     /// <summary>
@@ -14,6 +17,9 @@ public sealed class Record
     public int UserId { get; set; }
 
     public User User { get; set; } = null!;
+
+    /// <summary>Titolo mostrato nella lista, scelto dall'utente. Dato personale: mai nei log.</summary>
+    public string Title { get; set; } = string.Empty;
 
     public SourceType SourceType { get; set; }
 
@@ -31,7 +37,7 @@ public sealed class Record
     /// <summary>Lingua rilevata (<see cref="Languages"/>).</summary>
     public string? Language { get; set; }
 
-    /// <summary>Data della nota (UTC), usata per l'ordine cronologico.</summary>
+    /// <summary>Data e ora della nota (UTC), scelte dall'utente e usate per l'ordine cronologico.</summary>
     public DateTime OccurredAt { get; set; }
 
     public DateTime CreatedAt { get; set; }

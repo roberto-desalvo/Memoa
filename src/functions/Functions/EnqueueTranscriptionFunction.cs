@@ -69,7 +69,7 @@ public sealed partial class EnqueueTranscriptionFunction(
             .Where(r => r.RecordUid == recordUid && r.User.EntraObjectId == entraObjectId)
             .SingleOrDefaultAsync(cancellationToken);
 
-        // ValidateUpload crea il record prima di accodare la normalizzazione: se manca è stato eliminato
+        // CreateAudioUpload crea il record prima di restituire il SAS: se manca è stato eliminato
         // dall'utente (o il percorso non corrisponde all'utente del record).
         if (record is null)
         {

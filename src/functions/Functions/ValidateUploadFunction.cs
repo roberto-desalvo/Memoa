@@ -5,7 +5,6 @@ using Memoa.Functions.Data;
 using Memoa.Functions.Data.Entities;
 using Memoa.Functions.Storage;
 using Microsoft.Azure.Functions.Worker;
-using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -14,9 +13,9 @@ namespace Memoa.Functions.Functions;
 
 /// <summary>
 /// Secondo passo del flusso audio, attivato dall'evento "blob creato" sul contenitore degli originali:
-/// valida il file, crea il record "in elaborazione" con l'allegato e scrive l'URL del blob sulla coda
-/// di normalizzazione. Se il file non è valido crea il record "in errore" e non accoda nulla; il file
-/// non viene eliminato, per poterlo analizzare.
+/// valida il file, lo collega come allegato al record creato da CreateAudioUpload e scrive l'URL del blob
+/// sulla coda di normalizzazione. Se il file non è valido porta il record a "in errore" e non accoda
+/// nulla; il file non viene eliminato, per poterlo analizzare.
 /// Idempotente: Event Grid consegna almeno una volta, anche in parallelo.
 /// </summary>
 public sealed class ValidateUploadFunction(
@@ -24,9 +23,6 @@ public sealed class ValidateUploadFunction(
     IOptions<ContainerOptions> containers,
     ILogger<ValidateUploadFunction> logger)
 {
-    // Violazione di chiave primaria o di indice univoco.
-    private static readonly int[] DuplicateKeyErrors = [2627, 2601];
-
     // Lunghezza della colonna Attachments.OriginalContentType.
     private const int MaxContentTypeLength = 100;
 
@@ -63,52 +59,39 @@ public sealed class ValidateUploadFunction(
             return null;
         }
 
-        var userId = await db.Users
-            .Where(u => u.EntraObjectId == entraObjectId)
-            .Select(u => (int?)u.Id)
+        var record = await db.Records
+            .IgnoreQueryFilters([MemoaDbContext.CurrentUserFilter])
+            .Include(r => r.Attachments.Where(a => a.Kind == AttachmentKind.Audio))
+            .Where(r => r.RecordUid == recordUid && r.User.EntraObjectId == entraObjectId)
             .SingleOrDefaultAsync(cancellationToken);
 
-        // L'utente viene creato alla prima richiesta autenticata, quindi prima di CreateAudioUpload: se
-        // manca, l'eccezione fa ripetere la consegna a Event Grid.
-        if (userId is null)
+        // CreateAudioUpload salva il record prima di restituire il SAS: se manca è stato eliminato
+        // dall'utente (o il percorso non corrisponde all'utente del record).
+        if (record is null)
         {
-            throw new InvalidOperationException($"Nessun utente per il record {recordUid}.");
+            logger.LogWarning("Nessun record {RecordUid} per l'utente del blob: evento ignorato", recordUid);
+            return null;
         }
 
         var errorCode = Validate(data);
 
-        var existing = await db.Records
-            .IgnoreQueryFilters([MemoaDbContext.CurrentUserFilter])
-            .Where(r => r.RecordUid == recordUid)
-            .Select(r => new
-            {
-                r.UserId,
-                r.Status,
-                IsNormalized = r.Attachments.Any(a => a.NormalizedBlobPath != null),
-            })
-            .SingleOrDefaultAsync(cancellationToken);
-
-        if (existing is not null && existing.UserId != userId)
+        // L'allegato esiste già se una consegna precedente ha validato il file.
+        if (record.Attachments.Count == 0
+            && !await TryAttachAsync(record, blobUri.BlobName, data, errorCode, cancellationToken))
         {
-            logger.LogError("Il record {RecordUid} appartiene a un altro utente: evento ignorato", recordUid);
             return null;
         }
 
-        var inserted = existing is null
-            && await TryInsertRecordAsync(recordUid, userId.Value, blobUri.BlobName, data, errorCode,
-                eventGridEvent.EventTime.UtcDateTime, cancellationToken);
-
-        if (errorCode is not null)
+        if (record.Status == RecordStatus.Error)
         {
-            logger.LogWarning("Upload del record {RecordUid} non valido ({ErrorCode})", recordUid, errorCode);
+            logger.LogWarning("Upload del record {RecordUid} non valido ({ErrorCode})", recordUid, record.ErrorCode);
             return null;
         }
 
         // Alla seconda consegna si accoda di nuovo solo se l'elaborazione non è andata avanti: la prima
-        // può aver salvato il record senza riuscire a scrivere sulla coda. Se l'inserimento è fallito per
-        // una consegna concorrente, accoda quella.
-        var enqueue = inserted
-            || existing is { Status: RecordStatus.Processing, IsNormalized: false };
+        // può aver salvato l'allegato senza riuscire a scrivere sulla coda.
+        var enqueue = record.Status == RecordStatus.Processing
+            && record.Attachments.All(a => a.NormalizedBlobPath is null);
 
         if (enqueue)
         {
@@ -140,52 +123,49 @@ public sealed class ValidateUploadFunction(
             && Guid.TryParseExact(parts[1], "D", out recordUid);
     }
 
-    /// <summary>Restituisce false se il record è già stato inserito da una consegna concorrente.</summary>
-    private async Task<bool> TryInsertRecordAsync(
-        Guid recordUid,
-        int userId,
+    /// <summary>
+    /// Collega il file al record e, se non è valido, porta il record a "in errore". Restituisce false se
+    /// una consegna concorrente ha già modificato il record.
+    /// </summary>
+    private async Task<bool> TryAttachAsync(
+        Record record,
         string blobName,
         StorageBlobCreatedEventData data,
         string? errorCode,
-        DateTime occurredAt,
         CancellationToken cancellationToken)
     {
         var contentType = data.ContentType ?? string.Empty;
-        var record = new Record
-        {
-            RecordUid = recordUid,
-            UserId = userId,
-            SourceType = SourceType.Audio,
-            Status = errorCode is null ? RecordStatus.Processing : RecordStatus.Error,
-            ErrorCode = errorCode,
-            // Per ora l'unica data disponibile è quella di fine upload.
-            OccurredAt = occurredAt,
-            // Anche il file non valido resta collegato al record.
-            Attachments =
-            [
-                new Attachment
-                {
-                    Kind = AttachmentKind.Audio,
-                    // Relativo al contenitore degli originali.
-                    OriginalBlobPath = blobName,
-                    OriginalContentType = contentType.Length > MaxContentTypeLength
-                        ? contentType[..MaxContentTypeLength]
-                        : contentType,
-                    OriginalSizeBytes = data.ContentLength ?? 0,
-                },
-            ],
-        };
 
-        db.Records.Add(record);
+        // Anche il file non valido resta collegato al record.
+        record.Attachments.Add(new Attachment
+        {
+            Kind = AttachmentKind.Audio,
+            // Relativo al contenitore degli originali.
+            OriginalBlobPath = blobName,
+            OriginalContentType = contentType.Length > MaxContentTypeLength
+                ? contentType[..MaxContentTypeLength]
+                : contentType,
+            OriginalSizeBytes = data.ContentLength ?? 0,
+        });
+
+        if (errorCode is not null)
+        {
+            record.Status = RecordStatus.Error;
+            record.ErrorCode = errorCode;
+        }
+
+        // Aggiungere l'allegato non modifica il record: segnando UpdatedAt (valorizzato al salvataggio) il
+        // salvataggio verifica RowVersion, quindi tra due consegne concorrenti solo una aggiunge l'allegato.
+        db.Entry(record).Property(r => r.UpdatedAt).IsModified = true;
 
         try
         {
             await db.SaveChangesAsync(cancellationToken);
             return true;
         }
-        catch (DbUpdateException ex) when (ex.InnerException is SqlException sql && DuplicateKeyErrors.Contains(sql.Number))
+        catch (DbUpdateConcurrencyException)
         {
-            logger.LogInformation("Record {RecordUid} già inserito da una consegna concorrente", recordUid);
+            logger.LogInformation("Record {RecordUid} già validato da una consegna concorrente", record.RecordUid);
             return false;
         }
     }

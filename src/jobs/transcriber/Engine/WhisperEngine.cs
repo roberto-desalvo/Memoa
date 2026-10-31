@@ -45,29 +45,39 @@ public sealed class WhisperEngine(Ffmpeg ffmpeg, IOptions<WhisperOptions> option
             return new TranscriptionResult(string.Empty, fallbackLanguage, null, null);
         }
 
-        await using var processor = CreateProcessor();
-
-        var (detected, probability) = processor.DetectLanguageWithProbability(
-            samples.AsSpan(0, Math.Min(samples.Length, DetectionSamples)),
-            CandidateLanguages);
-
-        var language = detected is not null && probability >= options.Value.LanguageProbabilityThreshold
-            ? detected
-            : fallbackLanguage;
-        processor.ChangeLanguage(language);
-
-        var text = new StringBuilder();
-        await foreach (var segment in processor.ProcessAsync(samples, cancellationToken))
+        try
         {
-            text.Append(segment.Text);
-        }
+            await using var processor = CreateProcessor();
 
-        return new TranscriptionResult(text.ToString().Trim(), language, detected, probability);
+            var (detected, probability) = processor.DetectLanguageWithProbability(
+                samples.AsSpan(0, Math.Min(samples.Length, DetectionSamples)),
+                CandidateLanguages);
+
+            var language = detected is not null && probability >= options.Value.LanguageProbabilityThreshold
+                ? detected
+                : fallbackLanguage;
+            processor.ChangeLanguage(language);
+
+            var text = new StringBuilder();
+            await foreach (var segment in processor.ProcessAsync(samples, cancellationToken))
+            {
+                text.Append(segment.Text);
+            }
+
+            return new TranscriptionResult(text.ToString().Trim(), language, detected, probability);
+        }
+        catch (WhisperModelLoadException ex)
+        {
+            // Whisper.net può leggere il modello in modo differito, anche al primo uso del processore:
+            // si riconosce dal tipo dell'eccezione, ovunque sia sollevata.
+            throw new TranscriptionException(Transcript.ModelLoadFailed, $"Caricamento del modello {options.Value.ModelPath} non riuscito.", ex);
+        }
     }
 
     /// <summary>
-    /// Whisper.net legge il modello alla creazione del primo processore, non in FromPath: gli errori di
-    /// caricamento (WhisperModelLoadException) arrivano da Build.
+    /// Whisper.net non legge il modello in FromPath ma in modo differito: i controlli sul file e il log
+    /// con dimensione e memoria precedono il primo uso. Le WhisperModelLoadException successive le
+    /// riconosce <see cref="TranscribeAsync"/>.
     /// </summary>
     private WhisperProcessor CreateProcessor()
     {
@@ -75,7 +85,19 @@ public sealed class WhisperEngine(Ffmpeg ffmpeg, IOptions<WhisperOptions> option
         var model = new FileInfo(modelPath);
         if (!model.Exists)
         {
-            throw new TranscriptionException(Transcript.ModelLoadFailed, $"Modello non trovato in {modelPath}.");
+            // Exists è false anche se manca il permesso sulla cartella: l'apertura del file riporta la
+            // causa reale (FileNotFound, DirectoryNotFound, UnauthorizedAccess) come eccezione interna.
+            Exception? cause = null;
+            try
+            {
+                File.OpenRead(modelPath).Dispose();
+            }
+            catch (Exception ex)
+            {
+                cause = ex;
+            }
+
+            throw new TranscriptionException(Transcript.ModelLoadFailed, $"Modello non trovato in {modelPath}.", cause);
         }
 
         // Valori tecnici per distinguere un file troncato o non GGML da memoria insufficiente.

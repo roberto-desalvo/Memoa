@@ -165,7 +165,7 @@ aeg-event-type: Notification
 
 con un array di eventi `Microsoft.Storage.BlobCreated` nel corpo.
 
-Se la Function App dev su Azure è distribuita, con le sottoscrizioni attive, riceve anch'essa l'evento reale dello stesso upload. Le funzioni sono idempotenti, quindi il doppio passaggio non crea duplicati, ma il record può risultare già creato dalla funzione su Azure.
+Se la Function App dev su Azure è distribuita, con le sottoscrizioni attive, riceve anch'essa l'evento reale dello stesso upload. Le funzioni sono idempotenti, quindi il doppio passaggio non crea duplicati, ma l'allegato può risultare già creato dalla funzione su Azure.
 
 Gli script in `docs/scripts/` leggono i valori da `docs/scripts/.env`, escluso da git: copiare [docs/scripts/.env.example](scripts/.env.example) in `docs/scripts/.env` e compilare almeno `DATA_STORAGE_ACCOUNT`, `USER_OID` e `RECORD_ID`. Le altre variabili sono facoltative (valori predefiniti nel file di esempio) e servono a provare i diversi casi. Ogni script carica `.env` da sé (`load-env.ps1`): basta modificare il file e rilanciarlo.
 
@@ -192,10 +192,10 @@ Gli script in `docs/scripts/` leggono i valori da `docs/scripts/.env`, escluso d
    Lo script usa `ConvertTo-Json -InputObject`, che mantiene l'array anche con un solo evento: l'endpoint si aspetta un array.
 
 5. Verificare il risultato:
-   - nel database, il record in stato `Processing` con il relativo allegato:
+   - nel database, il record in stato `Processing` (creato da `CreateAudioUpload` alla richiesta del SAS, con titolo e data della nota) con il relativo allegato, aggiunto dalla validazione:
      ```sql
-     SELECT r.Id, r.RecordUid, r.Status, r.ErrorCode, a.OriginalBlobPath, a.OriginalContentType, a.OriginalSizeBytes
-     FROM Records r JOIN Attachments a ON a.RecordId = r.Id
+     SELECT r.Id, r.RecordUid, r.Title, r.OccurredAt, r.Status, r.ErrorCode, a.OriginalBlobPath, a.OriginalContentType, a.OriginalSizeBytes
+     FROM Records r LEFT JOIN Attachments a ON a.RecordId = r.Id
      WHERE r.RecordUid = '<recordUid>';
      ```
    - sulla coda di normalizzazione, il messaggio con l'URL del blob, codificato in base64 (codifica predefinita delle Functions):
@@ -208,11 +208,12 @@ Casi da provare:
 
 | Caso | Come | Risultato atteso |
 |---|---|---|
-| Duplicato | Reinviare lo stesso evento | Nessun nuovo record; nuovo messaggio solo se il record è ancora `Processing` e non normalizzato |
+| Duplicato | Reinviare lo stesso evento | Nessun nuovo allegato; nuovo messaggio solo se il record è ancora `Processing` e non normalizzato |
 | File vuoto | `UPLOAD_SIZE=0` | Record `Error` con `ErrorCode = file_empty`, nessun messaggio, file conservato |
 | File troppo grande | `UPLOAD_SIZE=419430400` (400 MB) | Record `Error` con `ErrorCode = file_too_large`, nessun messaggio, file conservato |
 | Percorso non valido | `RECORD_ID=abc` | Evento ignorato (warning nel log), nessuna scrittura |
-| Utente inesistente | `USER_OID` = GUID casuale | Eccezione: in Azure Event Grid riprova la consegna |
+| Record inesistente | `RECORD_ID` = GUID casuale | Evento ignorato (warning nel log), nessuna scrittura |
+| Utente diverso | `USER_OID` = GUID casuale | Evento ignorato (warning nel log), nessuna scrittura |
 
 ### EnqueueTranscription (esito della normalizzazione nel contenitore dell'audio normalizzato)
 

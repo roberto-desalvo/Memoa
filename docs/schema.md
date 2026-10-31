@@ -25,15 +25,16 @@ Record del diario, comune a tutte le origini.
 | Colonna | Tipo | Note |
 |---|---|---|
 | Id | int identity, PK | Solo interno al database: mai nei blob, nelle code o verso il client |
-| RecordUid | uniqueidentifier, univoco | Identificativo pubblico, generato nel codice prima del salvataggio (GUID v7): la Function HTTP lo usa nel percorso del blob e identifica il record in tutta la pipeline di elaborazione e verso il client. L'indice univoco rende idempotente l'inserimento da eventi duplicati |
+| RecordUid | uniqueidentifier, univoco | Identificativo pubblico, generato nel codice prima del salvataggio (GUID v7): la Function HTTP lo usa nel percorso del blob e identifica il record in tutta la pipeline di elaborazione e verso il client. Per gli audio il record viene creato dalla Function HTTP alla richiesta del SAS, con stato `Processing`. L'indice univoco garantisce un solo record per identificativo |
 | UserId | int, FK → Users | Filtro globale di EF Core sull'utente corrente (isolamento applicativo). Il filtro si disattiva con `IgnoreQueryFilters` e non si applica a SQL scritto a mano. Le Functions attivate da eventi e code non hanno un utente corrente nel token |
+| Title | nvarchar(200) | Titolo mostrato nella lista, massimo 200 caratteri. Chiesto all'utente dopo la registrazione, la scrittura o la scelta del file, per tutte le modalità; per gli upload è prepopolato con il nome del file. Se non specificato, il client usa la data della nota nel fuso orario dell'utente. Dato personale: mai nei log, da includere nell'esportazione |
 | SourceType | varchar(20) | `Audio` / `Text` / `Image` |
 | Status | varchar(20) | `Processing` / `Ready` / `Error` |
 | ErrorCode | varchar(50), null | Solo un codice, mai contenuti |
 | Text | nvarchar(max), null | Testo scritto o trascrizione corrente, modificabile dall'utente. Dopo una modifica gli embedding (RecordChunks) vanno ricalcolati. Colonna candidata per un futuro indice full-text (ricerca ibrida) |
 | OriginalTranscript | nvarchar(max), null | Trascrizione automatica, mai modificata; permette di ripristinarla e di valutare la qualità della trascrizione. Null per i record di testo. Dato personale da includere in esportazione e cancellazione |
 | Language | varchar(5), null | Lingua rilevata |
-| OccurredAt | datetime2 | Data della nota, usata per l'ordine cronologico |
+| OccurredAt | datetime2 | Data e ora della nota, usate per l'ordine cronologico (a parità di valore si ordina per titolo; con titolo uguale l'ordine resta indifferente). Inserita dall'utente insieme al titolo, che può scegliere solo la data. Il valore predefinito è la data attuale, calcolata dal client nel proprio fuso orario e inviata in UTC |
 | CreatedAt | datetime2 | |
 | UpdatedAt | datetime2 | |
 | RowVersion | rowversion | Concorrenza ottimistica tra modifiche dell'utente e Function di indicizzazione |
@@ -50,7 +51,7 @@ File collegati a un record (audio, in futuro immagini). Tabella unica per tutti 
 | OriginalBlobPath | nvarchar(1024) | File caricato o registrato, mai cancellato né sovrascritto. Percorso relativo al contenitore degli originali (`<oid>/<RecordUid>`, senza estensione) |
 | OriginalContentType | varchar(100) | |
 | OriginalSizeBytes | bigint | |
-| NormalizedBlobPath | nvarchar(1024), null | Copia normalizzata in Opus (solo audio) |
+| NormalizedBlobPath | nvarchar(1024), null | Copia normalizzata in Opus (solo audio). È l'audio riprodotto nella pagina del record |
 | DurationSeconds | int, null | Solo audio. Il job di normalizzazione non scrive nel database: il valore va scritto da una Function |
 | CreatedAt | datetime2 | |
 
