@@ -31,6 +31,9 @@ jobs:
       # Stessa versione di Microsoft.EntityFrameworkCore.Design nel progetto.
       - run: dotnet tool install --global dotnet-ef --version 10.0.14
 
+      # dotnet ef compila il progetto ma non esegue il restore dei pacchetti.
+      - run: dotnet restore src/functions
+
       # Non si connette al database (DesignTimeDbContextFactory usa una connection string fittizia).
       - run: dotnet ef migrations script --idempotent --project src/functions -o schema.sql
 
