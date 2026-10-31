@@ -38,4 +38,4 @@ param extraAllowedOrigins = [
 param developerPrincipalIds = filter(split(readEnvironmentVariable('DEVELOPER_PRINCIPAL_IDS_DEV', ''), ','), id => !empty(trim(id)))
 
 // Impostare a true dopo il primo deploy del codice delle Functions (vedi infra/README.md).
-param deployEventSubscriptions = false
+param deployEventSubscriptions = true

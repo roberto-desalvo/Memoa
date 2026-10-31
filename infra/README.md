@@ -99,7 +99,7 @@ Dopo il primo deploy, nel tenant esterno: collegare l'app del frontend (`Memoa (
 Le sottoscrizioni "blob creato" puntano direttamente alle funzioni (endpoint `AzureFunction`), che devono già esistere quando la sottoscrizione viene creata. Per un ambiente nuovo:
 
 1. deploy dell'infrastruttura con `deployEventSubscriptions = false`;
-2. deploy del codice delle Functions (con le funzioni Event Grid `ValidateUpload`, `EnqueueTranscription`, `EnqueueIndexing`; se i nomi cambiano, aggiornare `functionNames` in `modules/event-subscriptions.bicep`);
+2. deploy del codice delle Functions (con le funzioni Event Grid `ValidateUpload`, `EnqueueTranscription`, `EnqueueIndexing`; se i nomi cambiano, aggiornare `functionNames` in `modules/event-subscriptions.bicep`; per una funzione non ancora implementata lasciare il nome vuoto: la sua sottoscrizione non viene creata);
 3. impostare `deployEventSubscriptions = true` nel `.bicepparam` e ripetere il deploy dell'infrastruttura.
 
 Nessun dead-letter: gli eventi non consegnati dopo i retry automatici di Event Grid vanno persi. In locale Azurite non emette eventi: vanno simulati, vedi [docs/sviluppo-locale.md](../docs/sviluppo-locale.md#simulare-gli-eventi-event-grid).
