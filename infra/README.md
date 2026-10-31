@@ -132,13 +132,13 @@ Nessun dead-letter: gli eventi non consegnati dopo i retry automatici di Event G
 
 ## Pipeline GitHub Actions
 
-| Workflow | Si avvia su push su `main` se cambia | Cosa fa |
+| Workflow | Si avvia su push su `main` o `prod` se cambia | Cosa fa |
 |---|---|---|
 | `web.yml` | `src/web/**` | Build Angular, poi su ogni ambiente genera `config.json` e carica su Static Web Apps |
 | `functions.yml` | `src/functions/**` tranne `Data/Migrations/**` | `dotnet publish`, poi deploy del pacchetto sulla Function App |
 | `schema.yml` | `src/functions/Data/Migrations/**` | Genera lo script idempotente delle migration (scaricabile tra gli artifact) e lo applica con `sqlcmd` |
 
-Ognuno compila una sola volta e distribuisce prima su **dev**, poi su **prod**; il job prod attende l'approvazione dell'environment GitHub `prod`. Tutti si possono avviare anche a mano (**Run workflow**). I file `*-deploy.yml` sono i passi di deploy per un ambiente, richiamati dai workflow principali.
+L'ambiente dipende dal branch: un push su `main` distribuisce su **dev**, un push su `prod` distribuisce su **prod** (il job prod attende l'approvazione dell'environment GitHub `prod`). Assetto temporaneo, in attesa del primo rilascio in produzione. Tutti si possono avviare anche a mano (**Run workflow**), scegliendo il branch dell'ambiente. I file `*-deploy.yml` sono i passi di deploy per un ambiente, richiamati dai workflow principali.
 
 Lo schema e le Functions si distribuiscono separatamente e in ordine non garantito: le modifiche allo schema vanno fatte in due tempi (vedi [docs/sviluppo-locale.md](../docs/sviluppo-locale.md#database-e-migration)).
 
@@ -146,7 +146,7 @@ Autenticazione su Azure con OIDC, senza segreti: ogni ambiente ha l'identità `i
 
 Configurazione, una volta per ambiente, dopo il deploy dell'infrastruttura:
 
-1. **Settings → Environments**: creare `dev` e `prod`. Su `prod` attivare **Required reviewers**; su entrambi limitare **Deployment branches** a `main`.
+1. **Settings → Environments**: creare `dev` e `prod`. Su `prod` attivare **Required reviewers**; limitare **Deployment branches** a `main` per `dev` e a `prod` per `prod`.
 2. In ciascun environment, le variabili (**Environment variables**, non sono segreti):
 
    | Variabile | Valore |

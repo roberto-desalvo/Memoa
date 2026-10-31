@@ -1,9 +1,10 @@
 # Backend → Azure Functions (Flex Consumption). Le migration hanno una pipeline a parte (schema.yml).
+# Push su main → dev, push su prod → prod.
 name: Functions
 
 on:
   push:
-    branches: [main]
+    branches: [main, prod]
     paths:
       - src/functions/**
       - '!src/functions/Data/Migrations/**'
@@ -12,7 +13,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: functions
+  group: functions-${{ github.ref_name }}
   cancel-in-progress: false
 
 permissions:
@@ -40,6 +41,7 @@ jobs:
 
   dev:
     needs: build
+    if: github.ref == 'refs/heads/main'
     uses: ./.github/workflows/functions-deploy.yml
     with:
       environment: dev
@@ -48,7 +50,8 @@ jobs:
       id-token: write
 
   prod:
-    needs: dev
+    needs: build
+    if: github.ref == 'refs/heads/prod'
     uses: ./.github/workflows/functions-deploy.yml
     with:
       environment: prod

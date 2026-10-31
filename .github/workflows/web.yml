@@ -1,9 +1,10 @@
-# Frontend Angular → Static Web Apps. Una sola build per dev e prod: config.json si genera nel deploy.
+# Frontend Angular → Static Web Apps. La build non dipende dall'ambiente: config.json si genera nel deploy.
+# Push su main → dev, push su prod → prod.
 name: Frontend
 
 on:
   push:
-    branches: [main]
+    branches: [main, prod]
     paths:
       - src/web/**
       - .github/workflows/web.yml
@@ -11,7 +12,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: web
+  group: web-${{ github.ref_name }}
   cancel-in-progress: false
 
 permissions:
@@ -43,6 +44,7 @@ jobs:
 
   dev:
     needs: build
+    if: github.ref == 'refs/heads/main'
     uses: ./.github/workflows/web-deploy.yml
     with:
       environment: dev
@@ -51,7 +53,8 @@ jobs:
       id-token: write
 
   prod:
-    needs: dev
+    needs: build
+    if: github.ref == 'refs/heads/prod'
     uses: ./.github/workflows/web-deploy.yml
     with:
       environment: prod

@@ -1,10 +1,10 @@
-# Schema del database: script SQL idempotente delle migration EF Core, applicato a dev e poi a prod.
+# Schema del database: script SQL idempotente delle migration EF Core. Push su main → dev, push su prod → prod.
 # Lo schema si distribuisce indipendentemente dalle Functions: ogni modifica va fatta in due tempi.
 name: Schema del database
 
 on:
   push:
-    branches: [main]
+    branches: [main, prod]
     paths:
       - src/functions/Data/Migrations/**
       - .github/workflows/schema.yml
@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: schema
+  group: schema-${{ github.ref_name }}
   cancel-in-progress: false
 
 permissions:
@@ -46,6 +46,7 @@ jobs:
 
   dev:
     needs: script
+    if: github.ref == 'refs/heads/main'
     uses: ./.github/workflows/schema-deploy.yml
     with:
       environment: dev
@@ -54,7 +55,8 @@ jobs:
       id-token: write
 
   prod:
-    needs: dev
+    needs: script
+    if: github.ref == 'refs/heads/prod'
     uses: ./.github/workflows/schema-deploy.yml
     with:
       environment: prod
