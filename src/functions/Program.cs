@@ -1,6 +1,7 @@
 using Azure.Identity;
 using Azure.Storage.Blobs;
 using Memoa.Functions.Authentication;
+using Memoa.Functions.Data;
 using Memoa.Functions.Observability;
 using Memoa.Functions.Storage;
 using Microsoft.Azure.Functions.Worker.Builder;
@@ -34,5 +35,7 @@ builder.Services.AddSingleton(sp => new BlobServiceClient(
     sp.GetRequiredService<IOptions<DataStorageOptions>>().Value.BlobServiceUri,
     new DefaultAzureCredential()));
 builder.Services.AddSingleton<UploadSasService>();
+
+builder.AddDatabase();
 
 builder.Build().Run();

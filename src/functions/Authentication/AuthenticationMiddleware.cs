@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Middleware;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Net.Http.Headers;
 
 namespace Memoa.Functions.Authentication;
@@ -40,6 +41,8 @@ public sealed class AuthenticationMiddleware(TokenValidator validator) : IFuncti
         }
 
         httpContext.User = principal;
+        context.InstanceServices.GetRequiredService<CurrentUser>().EntraObjectId =
+            Guid.Parse(principal.GetUserId());
         await next(context);
     }
 

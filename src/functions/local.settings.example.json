@@ -8,6 +8,7 @@
     "Auth__RequiredScope": "access_as_user",
     "DataStorage__blobServiceUri": "https://<storage-dati-dev>.blob.core.windows.net/",
     "Containers__Uploads": "uploads",
+    "Sql__ConnectionString": "Server=tcp:<server-sql>.database.windows.net,1433;Database=sqldb-memoa-dev;Encrypt=True;Authentication=Active Directory Default",
     "AZURE_TOKEN_CREDENTIALS": "AzureCliCredential"
   },
   "Host": {
