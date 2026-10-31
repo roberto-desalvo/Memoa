@@ -1,0 +1,88 @@
+<svg width="100%" viewBox="0 0 770 700" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>Flusso di una registrazione audio</title>
+<desc>Architettura event-driven. La PWA chiede un token SAS alla Function HTTP e carica l'originale nel contenitore uploads. L'evento Event Grid "blob creato" attiva la Function di validazione, che scrive sulla coda di normalizzazione; il job di normalizzazione (ffmpeg) scrive la copia Opus nel contenitore audio. L'evento attiva una Function che scrive sulla coda di trascrizione; il job di trascrizione (Whisper) scrive il file di testo nel contenitore transcripts. L'evento attiva una Function che scrive l'identificativo sulla coda di indicizzazione; la Function di indicizzazione legge la trascrizione, calcola l'embedding con Azure OpenAI e salva tutto in Azure SQL. Il client legge lo stato con polling. Solo le Functions scrivono su code e database; i job leggono solo la propria coda e scrivono solo su Blob Storage.</desc>
+<style>
+  text { font-family: anthropic-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  .compute rect { fill: rgb(238, 237, 254); stroke: rgb(83, 74, 183); }
+  .compute .t { fill: rgb(60, 52, 137); }
+  .compute .s { fill: rgb(83, 74, 183); }
+  .storage rect { fill: rgb(225, 245, 238); stroke: rgb(15, 110, 86); }
+  .storage .t { fill: rgb(8, 80, 65); }
+  .storage .s { fill: rgb(15, 110, 86); }
+  .external rect { fill: rgb(241, 239, 232); stroke: rgb(95, 94, 90); }
+  .external .t { fill: rgb(44, 44, 42); }
+  .external .s { fill: rgb(82, 81, 78); }
+  .t { font-size: 14px; font-weight: 500; }
+  .s, .label { font-size: 12px; font-weight: 400; }
+  .label { fill: rgb(82, 81, 78); }
+  .flow { fill: none; stroke: rgb(137, 135, 129); stroke-width: 1.5px; }
+  .event { fill: none; stroke: rgb(186, 117, 23); stroke-width: 1.5px; stroke-dasharray: 5 3; }
+</style>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+
+<!-- Ingresso -->
+<g class="compute"><rect x="30" y="40" width="150" height="56" rx="8" stroke-width="0.5"/><text class="t" x="105" y="58" text-anchor="middle" dominant-baseline="central">PWA Angular</text><text class="s" x="105" y="78" text-anchor="middle" dominant-baseline="central">MediaRecorder</text></g>
+<g class="compute"><rect x="215" y="40" width="150" height="56" rx="8" stroke-width="0.5"/><text class="t" x="290" y="58" text-anchor="middle" dominant-baseline="central">Function HTTP</text><text class="s" x="290" y="78" text-anchor="middle" dominant-baseline="central">Token SAS, stato</text></g>
+
+<!-- Normalizzazione -->
+<g class="storage"><rect x="30" y="160" width="150" height="56" rx="8" stroke-width="0.5"/><text class="t" x="105" y="178" text-anchor="middle" dominant-baseline="central">uploads</text><text class="s" x="105" y="198" text-anchor="middle" dominant-baseline="central">Originali, mai cancellati</text></g>
+<g class="compute"><rect x="215" y="160" width="150" height="56" rx="8" stroke-width="0.5"/><text class="t" x="290" y="178" text-anchor="middle" dominant-baseline="central">Validazione</text><text class="s" x="290" y="198" text-anchor="middle" dominant-baseline="central">Function</text></g>
+<g class="storage"><rect x="400" y="160" width="150" height="56" rx="8" stroke-width="0.5"/><text class="t" x="475" y="178" text-anchor="middle" dominant-baseline="central">normalization</text><text class="s" x="475" y="198" text-anchor="middle" dominant-baseline="central">Coda, URL del blob</text></g>
+<g class="compute"><rect x="585" y="160" width="150" height="56" rx="8" stroke-width="0.5"/><text class="t" x="660" y="178" text-anchor="middle" dominant-baseline="central">Normalizzazione</text><text class="s" x="660" y="198" text-anchor="middle" dominant-baseline="central">Job, ffprobe + ffmpeg</text></g>
+
+<!-- Trascrizione -->
+<g class="storage"><rect x="30" y="280" width="150" height="56" rx="8" stroke-width="0.5"/><text class="t" x="105" y="298" text-anchor="middle" dominant-baseline="central">audio</text><text class="s" x="105" y="318" text-anchor="middle" dominant-baseline="central">Opus normalizzato</text></g>
+<g class="compute"><rect x="215" y="280" width="150" height="56" rx="8" stroke-width="0.5"/><text class="t" x="290" y="298" text-anchor="middle" dominant-baseline="central">Inoltro</text><text class="s" x="290" y="318" text-anchor="middle" dominant-baseline="central">Function</text></g>
+<g class="storage"><rect x="400" y="280" width="150" height="56" rx="8" stroke-width="0.5"/><text class="t" x="475" y="298" text-anchor="middle" dominant-baseline="central">transcription</text><text class="s" x="475" y="318" text-anchor="middle" dominant-baseline="central">Coda, URL del blob</text></g>
+<g class="compute"><rect x="585" y="280" width="150" height="56" rx="8" stroke-width="0.5"/><text class="t" x="660" y="298" text-anchor="middle" dominant-baseline="central">Trascrizione</text><text class="s" x="660" y="318" text-anchor="middle" dominant-baseline="central">Job, Whisper</text></g>
+
+<!-- Indicizzazione -->
+<g class="storage"><rect x="30" y="400" width="150" height="56" rx="8" stroke-width="0.5"/><text class="t" x="105" y="418" text-anchor="middle" dominant-baseline="central">transcripts</text><text class="s" x="105" y="438" text-anchor="middle" dominant-baseline="central">File di testo</text></g>
+<g class="compute"><rect x="215" y="400" width="150" height="56" rx="8" stroke-width="0.5"/><text class="t" x="290" y="418" text-anchor="middle" dominant-baseline="central">Inoltro</text><text class="s" x="290" y="438" text-anchor="middle" dominant-baseline="central">Function</text></g>
+<g class="storage"><rect x="400" y="400" width="150" height="56" rx="8" stroke-width="0.5"/><text class="t" x="475" y="418" text-anchor="middle" dominant-baseline="central">indexing</text><text class="s" x="475" y="438" text-anchor="middle" dominant-baseline="central">Coda, solo ID</text></g>
+<g class="compute"><rect x="585" y="400" width="150" height="56" rx="8" stroke-width="0.5"/><text class="t" x="660" y="418" text-anchor="middle" dominant-baseline="central">Indicizzazione</text><text class="s" x="660" y="438" text-anchor="middle" dominant-baseline="central">Function, legge il testo</text></g>
+
+<!-- Destinazioni -->
+<g class="external"><rect x="400" y="520" width="150" height="56" rx="8" stroke-width="0.5"/><text class="t" x="475" y="538" text-anchor="middle" dominant-baseline="central">Azure OpenAI</text><text class="s" x="475" y="558" text-anchor="middle" dominant-baseline="central">Embedding (EU)</text></g>
+<g class="storage"><rect x="585" y="520" width="150" height="56" rx="8" stroke-width="0.5"/><text class="t" x="660" y="538" text-anchor="middle" dominant-baseline="central">Azure SQL</text><text class="s" x="660" y="558" text-anchor="middle" dominant-baseline="central">Testo, vettori, stato</text></g>
+
+<!-- Frecce -->
+<!-- PWA → Function HTTP (richiesta SAS) e PWA → uploads (upload diretto) -->
+<line class="flow" x1="182" y1="68" x2="211" y2="68" marker-end="url(#arrow)"/>
+<line class="flow" x1="105" y1="98" x2="105" y2="156" marker-end="url(#arrow)"/>
+<text class="label" x="113" y="131">Upload con SAS</text>
+<!-- Riga normalizzazione: evento → Function → coda → job -->
+<line class="event" x1="182" y1="188" x2="211" y2="188" marker-end="url(#arrow)"/>
+<line class="flow" x1="367" y1="188" x2="396" y2="188" marker-end="url(#arrow)"/>
+<line class="flow" x1="552" y1="188" x2="581" y2="188" marker-end="url(#arrow)"/>
+<!-- Job di normalizzazione → audio -->
+<path class="flow" d="M660 218 L660 246 L105 246 L105 276" marker-end="url(#arrow)"/>
+<text class="label" x="382" y="240" text-anchor="middle">Scrive la copia Opus</text>
+<!-- Riga trascrizione -->
+<line class="event" x1="182" y1="308" x2="211" y2="308" marker-end="url(#arrow)"/>
+<line class="flow" x1="367" y1="308" x2="396" y2="308" marker-end="url(#arrow)"/>
+<line class="flow" x1="552" y1="308" x2="581" y2="308" marker-end="url(#arrow)"/>
+<!-- Job di trascrizione → transcripts -->
+<path class="flow" d="M660 338 L660 366 L105 366 L105 396" marker-end="url(#arrow)"/>
+<text class="label" x="382" y="360" text-anchor="middle">Scrive la trascrizione</text>
+<!-- Riga indicizzazione -->
+<line class="event" x1="182" y1="428" x2="211" y2="428" marker-end="url(#arrow)"/>
+<line class="flow" x1="367" y1="428" x2="396" y2="428" marker-end="url(#arrow)"/>
+<line class="flow" x1="552" y1="428" x2="581" y2="428" marker-end="url(#arrow)"/>
+<!-- Indicizzazione ↔ Azure OpenAI e → Azure SQL -->
+<path class="flow" d="M620 460 L620 488 L475 488 L475 516" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+<line class="flow" x1="700" y1="458" x2="700" y2="516" marker-end="url(#arrow)"/>
+<!-- Polling dello stato dalla Function HTTP -->
+<path class="flow" d="M737 548 L752 548 L752 68 L369 68" stroke-dasharray="4 4" marker-end="url(#arrow)"/>
+<text class="label" x="560" y="60" text-anchor="middle">Polling dello stato</text>
+
+<!-- Note -->
+<text class="label" x="30" y="612">Solo le Functions scrivono su code e database; i job leggono solo la propria coda e scrivono solo su Blob Storage.</text>
+<text class="label" x="30" y="632">Record di testo: la Function HTTP salva il testo in Azure SQL e scrive l'ID sulla coda indexing.</text>
+
+<!-- Legenda -->
+<g class="compute"><rect x="30" y="666" width="14" height="14" rx="3" stroke-width="0.5"/></g><text class="label" x="52" y="673" dominant-baseline="central">Calcolo</text>
+<g class="storage"><rect x="130" y="666" width="14" height="14" rx="3" stroke-width="0.5"/></g><text class="label" x="152" y="673" dominant-baseline="central">Blob, code, database</text>
+<g class="external"><rect x="296" y="666" width="14" height="14" rx="3" stroke-width="0.5"/></g><text class="label" x="318" y="673" dominant-baseline="central">Servizio esterno</text>
+<line class="event" x1="440" y1="673" x2="470" y2="673" marker-end="url(#arrow)"/><text class="label" x="478" y="673" dominant-baseline="central">Evento Event Grid "blob creato"</text>
+</svg>

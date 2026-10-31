@@ -1,0 +1,63 @@
+# --- Segreti e configurazione locale ---
+.env
+.env.*
+!.env.example
+*.pfx
+*.pem
+*.key
+*.publishsettings
+# Impostazioni locali delle Azure Functions (connection string, chiavi)
+local.settings.json
+# User secrets e profili di pubblicazione .NET
+secrets.json
+*.pubxml
+*.pubxml.user
+
+# --- Azure / Bicep ---
+.azure/
+# Output di "az bicep build" (i template sorgente sono i .bicep)
+infra/**/*.json
+# Dati dell'emulatore Azurite
+__azurite_db_*.json
+__blobstorage__/
+__queuestorage__/
+
+# --- .NET ---
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+*.user
+*.suo
+*.rsuser
+.vs/
+TestResults/
+*.trx
+coverage*/
+*.coverage
+*.coveragexml
+
+# Modelli Whisper scaricati in locale (inclusi nell'immagine dalla pipeline)
+*.bin
+*.ggml
+
+# --- Angular / Node ---
+node_modules/
+dist/
+.angular/
+out-tsc/
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.npm/
+
+# --- Editor e sistema ---
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/launch.json
+!.vscode/tasks.json
+.idea/
+*.swp
+.DS_Store
+Thumbs.db

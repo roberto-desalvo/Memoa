@@ -1,0 +1,336 @@
+// Storage account dedicato ai dati utente: blob (audio, immagini, trascrizioni) e code di elaborazione.
+// Separato da quello di sistema delle Functions per isolare accessi, lifecycle e cancellazioni GDPR.
+// Emette gli eventi "blob creato" tramite un system topic Event Grid (sottoscrizioni in event-subscriptions.bicep).
+param location string
+param tags object
+param name string
+
+@description('Origini autorizzate a caricare file direttamente con token SAS.')
+param allowedOrigins array
+
+@description('Giorni dopo i quali i file audio (originali e normalizzati) passano al tier Cool.')
+param audioCoolAfterDays int
+
+@description('Nome dell\'identità user-assigned delle Functions (stesso resource group).')
+param functionIdentityName string
+
+@description('Nome dell\'identità user-assigned del job di normalizzazione (stesso resource group).')
+param normalizerIdentityName string
+
+@description('Nome dell\'identità user-assigned del job di trascrizione (stesso resource group).')
+param transcriberIdentityName string
+
+var uploadsContainerName = 'uploads'
+var audioContainerName = 'audio'
+var transcriptsContainerName = 'transcripts'
+var normalizationQueueName = 'normalization'
+var transcriptionQueueName = 'transcription'
+var indexingQueueName = 'indexing'
+
+var roles = {
+  blobDataContributor: 'ba92f5b4-2d11-453d-a403-e96b0029c9fe'
+  blobDataReader: '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1'
+  blobDelegator: 'db58b8e5-c6ad-4a2a-8342-4190687cbf4a'
+  queueDataContributor: '974c5e8b-45b9-4653-ba55-5f855dd0fb88'
+  queueMessageProcessor: '8a0f0c08-91a1-4084-bc3d-661d67233fed'
+  // Necessario allo scaler KEDA del job per leggere la lunghezza della coda.
+  queueDataReader: '19e7f393-937e-4f77-808e-94535e297925'
+}
+
+resource storage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
+  name: name
+  location: location
+  tags: tags
+  kind: 'StorageV2'
+  sku: {
+    name: 'Standard_GRS'
+  }
+  properties: {
+    accessTier: 'Hot'
+    minimumTlsVersion: 'TLS1_2'
+    supportsHttpsTrafficOnly: true
+    allowBlobPublicAccess: false
+    // Solo Entra ID: i SAS per l'upload sono user delegation SAS.
+    allowSharedKeyAccess: false
+    defaultToOAuthAuthentication: true
+  }
+}
+
+resource lock 'Microsoft.Authorization/locks@2020-05-01' = {
+  name: 'lock-${name}'
+  scope: storage
+  properties: {
+    level: 'CanNotDelete'
+    notes: 'Contiene i file degli utenti: rimuovere il blocco solo intenzionalmente.'
+  }
+}
+
+resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2023-05-01' = {
+  parent: storage
+  name: 'default'
+  properties: {
+    isVersioningEnabled: true
+    deleteRetentionPolicy: {
+      enabled: true
+      days: 14
+    }
+    containerDeleteRetentionPolicy: {
+      enabled: true
+      days: 14
+    }
+    cors: {
+      corsRules: [
+        {
+          allowedOrigins: allowedOrigins
+          allowedMethods: [
+            'PUT'
+            'GET'
+            'HEAD'
+            'OPTIONS'
+          ]
+          allowedHeaders: [
+            '*'
+          ]
+          exposedHeaders: [
+            'ETag'
+            'Content-Length'
+            'Content-Range'
+            'Accept-Ranges'
+          ]
+          maxAgeInSeconds: 3600
+        }
+      ]
+    }
+  }
+}
+
+// Originali caricati o registrati dal client: mai cancellati né sovrascritti, tranne i file
+// scartati dalla Function di validazione. Evento "blob creato" → Function di validazione.
+resource uploadsContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
+  parent: blobService
+  name: uploadsContainerName
+  properties: {
+    publicAccess: 'None'
+  }
+}
+
+// Copie normalizzate in Opus scritte dal job di normalizzazione.
+// Evento "blob creato" → Function che scrive sulla coda di trascrizione.
+resource audioContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
+  parent: blobService
+  name: audioContainerName
+  properties: {
+    publicAccess: 'None'
+  }
+}
+
+// Trascrizioni scritte dal job e lette dalla Function di indicizzazione, che le salva nel database.
+// Evento "blob creato" → Function che scrive sulla coda di indicizzazione.
+// Il job non accede ad Azure SQL; se l'embedding fallisce la trascrizione resta qui.
+// Conservazione dopo il salvataggio nel database da definire (nessuna regola di lifecycle per ora).
+resource transcriptsContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
+  parent: blobService
+  name: transcriptsContainerName
+  properties: {
+    publicAccess: 'None'
+  }
+}
+
+resource lifecycle 'Microsoft.Storage/storageAccounts/managementPolicies@2023-05-01' = {
+  parent: storage
+  name: 'default'
+  properties: {
+    policy: {
+      rules: [
+        {
+          name: 'delete-previous-versions'
+          enabled: true
+          type: 'Lifecycle'
+          definition: {
+            filters: {
+              blobTypes: [
+                'blockBlob'
+              ]
+            }
+            actions: {
+              version: {
+                delete: {
+                  daysAfterCreationGreaterThan: 30
+                }
+              }
+            }
+          }
+        }
+        {
+          name: 'audio-to-cool'
+          enabled: true
+          type: 'Lifecycle'
+          definition: {
+            filters: {
+              blobTypes: [
+                'blockBlob'
+              ]
+              prefixMatch: [
+                '${uploadsContainerName}/'
+                '${audioContainerName}/'
+              ]
+            }
+            actions: {
+              baseBlob: {
+                tierToCool: {
+                  daysAfterModificationGreaterThan: audioCoolAfterDays
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+
+resource queueService 'Microsoft.Storage/storageAccounts/queueServices@2023-05-01' = {
+  parent: storage
+  name: 'default'
+}
+
+resource normalizationQueue 'Microsoft.Storage/storageAccounts/queueServices/queues@2023-05-01' = {
+  parent: queueService
+  name: normalizationQueueName
+}
+
+resource transcriptionQueue 'Microsoft.Storage/storageAccounts/queueServices/queues@2023-05-01' = {
+  parent: queueService
+  name: transcriptionQueueName
+}
+
+resource indexingQueue 'Microsoft.Storage/storageAccounts/queueServices/queues@2023-05-01' = {
+  parent: queueService
+  name: indexingQueueName
+}
+
+// Sorgente degli eventi "blob creato"; ogni sottoscrizione filtra sul proprio contenitore.
+resource eventTopic 'Microsoft.EventGrid/systemTopics@2025-02-15' = {
+  name: 'evgt-${name}'
+  location: location
+  tags: tags
+  properties: {
+    source: storage.id
+    topicType: 'Microsoft.Storage.StorageAccounts'
+  }
+}
+
+resource functionIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' existing = {
+  name: functionIdentityName
+}
+
+resource normalizerIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' existing = {
+  name: normalizerIdentityName
+}
+
+resource transcriberIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' existing = {
+  name: transcriberIdentityName
+}
+
+// Functions: unico componente che scrive sulle code (e nel database); valida ed eventualmente
+// elimina gli originali, legge le trascrizioni e firma i SAS per l'upload.
+var functionRoles = [
+  roles.blobDataContributor
+  roles.blobDelegator
+  roles.queueDataContributor
+]
+
+resource functionDataRoles 'Microsoft.Authorization/roleAssignments@2022-04-01' = [
+  for roleId in functionRoles: {
+    // Nome calcolabile prima del deploy, così what-if può analizzare l'assegnazione.
+    name: guid(storage.id, functionIdentityName, roleId)
+    scope: storage
+    properties: {
+      roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', roleId)
+      principalId: functionIdentity.properties.principalId
+      principalType: 'ServicePrincipal'
+    }
+  }
+]
+
+// Job: ruoli limitati ai contenitori e alla coda che usano. Leggono e consumano solo la propria coda
+// (nessuna scrittura sulle code) e scrivono solo nel contenitore di destinazione.
+var queueRoles = [
+  roles.queueDataReader
+  roles.queueMessageProcessor
+]
+
+resource normalizerQueueRoles 'Microsoft.Authorization/roleAssignments@2022-04-01' = [
+  for roleId in queueRoles: {
+    name: guid(normalizationQueue.id, normalizerIdentityName, roleId)
+    scope: normalizationQueue
+    properties: {
+      roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', roleId)
+      principalId: normalizerIdentity.properties.principalId
+      principalType: 'ServicePrincipal'
+    }
+  }
+]
+
+resource normalizerReadRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(uploadsContainer.id, normalizerIdentityName, roles.blobDataReader)
+  scope: uploadsContainer
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', roles.blobDataReader)
+    principalId: normalizerIdentity.properties.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource normalizerWriteRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(audioContainer.id, normalizerIdentityName, roles.blobDataContributor)
+  scope: audioContainer
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', roles.blobDataContributor)
+    principalId: normalizerIdentity.properties.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource transcriberQueueRoles 'Microsoft.Authorization/roleAssignments@2022-04-01' = [
+  for roleId in queueRoles: {
+    name: guid(transcriptionQueue.id, transcriberIdentityName, roleId)
+    scope: transcriptionQueue
+    properties: {
+      roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', roleId)
+      principalId: transcriberIdentity.properties.principalId
+      principalType: 'ServicePrincipal'
+    }
+  }
+]
+
+resource transcriberReadRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(audioContainer.id, transcriberIdentityName, roles.blobDataReader)
+  scope: audioContainer
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', roles.blobDataReader)
+    principalId: transcriberIdentity.properties.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource transcriberWriteRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(transcriptsContainer.id, transcriberIdentityName, roles.blobDataContributor)
+  scope: transcriptsContainer
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', roles.blobDataContributor)
+    principalId: transcriberIdentity.properties.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+output name string = storage.name
+output blobEndpoint string = storage.properties.primaryEndpoints.blob
+output queueEndpoint string = storage.properties.primaryEndpoints.queue
+output eventTopicName string = eventTopic.name
+output uploadsContainerName string = uploadsContainer.name
+output audioContainerName string = audioContainer.name
+output transcriptsContainerName string = transcriptsContainer.name
+output normalizationQueueName string = normalizationQueue.name
+output transcriptionQueueName string = transcriptionQueue.name
+output indexingQueueName string = indexingQueue.name
