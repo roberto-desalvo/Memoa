@@ -42,6 +42,11 @@ $tenantId = $Matches[1]
 $previousSubscription = az account show --query id -o tsv
 if ($LASTEXITCODE -ne 0) { throw 'az non risulta collegato: eseguire az login sulla sottoscrizione Azure.' }
 
+# Si deve partire dalla sottoscrizione: è l'account che viene ripristinato alla fine.
+if ($previousSubscription -eq $tenantId) {
+    throw "az risulta sul tenant esterno: tornare sulla sottoscrizione (az account set -s <sottoscrizione>) e riprovare."
+}
+
 # Hostname della Static Web App dal deploy dell'infrastruttura, se esiste già.
 $webHostname = az deployment sub show -n "memoa-$Environment" --query properties.outputs.staticWebAppHostname.value -o tsv 2>$null
 if ($LASTEXITCODE -ne 0 -or -not $webHostname) {

@@ -76,6 +76,7 @@ Prerequisiti, una volta per tenant esterno:
    az role assignment create --assignee <object-id-del-proprio-utente> --role Owner --scope /
    ```
    L'elevazione dell'accesso si può poi disattivare: l'assegnazione Owner su `/` resta.
+3. riportare az sulla sottoscrizione (`az account set -s <sottoscrizione>`): il login sul tenant esterno lo rende l'account predefinito, e con quello `az deployment sub` fallisce con `SubscriptionNotFound`.
 
 Primo deploy di un ambiente (le registrazioni servono a `main.bicep` e l'hostname della Static Web App alle registrazioni):
 
