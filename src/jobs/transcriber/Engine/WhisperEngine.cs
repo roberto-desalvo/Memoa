@@ -1,6 +1,7 @@
 using System.Text;
 using Memoa.Shared.Pipeline;
 using Memoa.Transcriber.Audio;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Whisper.net;
 
@@ -11,7 +12,8 @@ namespace Memoa.Transcriber.Engine;
 /// La lingua viene rilevata tra quelle supportate; se la probabilità è sotto la soglia si usa quella
 /// dell'account.
 /// </summary>
-public sealed class WhisperEngine(Ffmpeg ffmpeg, IOptions<WhisperOptions> options) : ITranscriptionEngine, IDisposable
+public sealed class WhisperEngine(Ffmpeg ffmpeg, IOptions<WhisperOptions> options, ILogger<WhisperEngine> logger)
+    : ITranscriptionEngine, IDisposable
 {
     /// <summary>Whisper lavora su campioni mono a 16 kHz.</summary>
     private const int SampleRate = 16_000;
@@ -43,20 +45,7 @@ public sealed class WhisperEngine(Ffmpeg ffmpeg, IOptions<WhisperOptions> option
             return new TranscriptionResult(string.Empty, fallbackLanguage, null, null);
         }
 
-        WhisperFactory whisper;
-        try
-        {
-            whisper = factory.Value;
-        }
-        catch (Exception ex)
-        {
-            throw new TranscriptionException(Transcript.ModelLoadFailed, "Caricamento del modello Whisper non riuscito.", ex);
-        }
-
-        // In un container Environment.ProcessorCount rispetta il limite di vCPU del job.
-        await using var processor = whisper.CreateBuilder()
-            .WithThreads(Environment.ProcessorCount)
-            .Build();
+        await using var processor = CreateProcessor();
 
         var (detected, probability) = processor.DetectLanguageWithProbability(
             samples.AsSpan(0, Math.Min(samples.Length, DetectionSamples)),
@@ -74,6 +63,37 @@ public sealed class WhisperEngine(Ffmpeg ffmpeg, IOptions<WhisperOptions> option
         }
 
         return new TranscriptionResult(text.ToString().Trim(), language, detected, probability);
+    }
+
+    /// <summary>
+    /// Whisper.net legge il modello alla creazione del primo processore, non in FromPath: gli errori di
+    /// caricamento (WhisperModelLoadException) arrivano da Build.
+    /// </summary>
+    private WhisperProcessor CreateProcessor()
+    {
+        var modelPath = options.Value.ModelPath;
+        var model = new FileInfo(modelPath);
+        if (!model.Exists)
+        {
+            throw new TranscriptionException(Transcript.ModelLoadFailed, $"Modello non trovato in {modelPath}.");
+        }
+
+        // Valori tecnici per distinguere un file troncato o non GGML da memoria insufficiente.
+        logger.LogInformation(
+            "Caricamento del modello {ModelPath}: {ModelBytes} byte, memoria disponibile {AvailableMemoryBytes} byte, {ProcessorCount} vCPU",
+            modelPath, model.Length, GC.GetGCMemoryInfo().TotalAvailableMemoryBytes, Environment.ProcessorCount);
+
+        try
+        {
+            // In un container Environment.ProcessorCount rispetta il limite di vCPU del job.
+            return factory.Value.CreateBuilder()
+                .WithThreads(Environment.ProcessorCount)
+                .Build();
+        }
+        catch (Exception ex)
+        {
+            throw new TranscriptionException(Transcript.ModelLoadFailed, $"Caricamento del modello {modelPath} non riuscito.", ex);
+        }
     }
 
     public void Dispose()
