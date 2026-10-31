@@ -39,6 +39,13 @@ resource api 'Microsoft.Graph/applications@v1.0' = {
   signInAudience: 'AzureADMyOrg'
   // api://<appId> richiederebbe un riferimento a sé stessa: si usa il formato api://<tenant-id>/<nome>.
   identifierUris: [ 'api://${tenant().tenantId}/${baseName}-api' ]
+  // Email nel token di accesso: le Functions la copiano nell'utente applicativo. Il claim è presente
+  // solo se l'account ha un'email.
+  optionalClaims: {
+    accessToken: [
+      { name: 'email', essential: false }
+    ]
+  }
   api: {
     // Token v2: il claim "aud" è il client ID dell'API, come si aspetta Auth__Audience.
     requestedAccessTokenVersion: 2

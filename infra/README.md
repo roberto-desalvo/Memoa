@@ -100,7 +100,7 @@ Le sottoscrizioni "blob creato" puntano direttamente alle funzioni (endpoint `Az
 2. deploy del codice delle Functions (con le funzioni Event Grid `ValidateUpload`, `EnqueueTranscription`, `EnqueueIndexing`; se i nomi cambiano, aggiornare `functionNames` in `modules/event-subscriptions.bicep`);
 3. impostare `deployEventSubscriptions = true` nel `.bicepparam` e ripetere il deploy dell'infrastruttura.
 
-Nessun dead-letter: gli eventi non consegnati dopo i retry automatici di Event Grid vanno persi. In locale Azurite non emette eventi: vanno simulati con una POST a `http://localhost:7071/runtime/webhooks/EventGrid?functionName=<Nome>` con header `aeg-event-type: Notification` e un evento `Microsoft.Storage.BlobCreated` nel corpo.
+Nessun dead-letter: gli eventi non consegnati dopo i retry automatici di Event Grid vanno persi. In locale Azurite non emette eventi: vanno simulati, vedi [docs/sviluppo-locale.md](../docs/sviluppo-locale.md#simulare-gli-eventi-event-grid).
 
 ## Verifiche prima del primo deploy
 
@@ -120,9 +120,3 @@ Nessun dead-letter: gli eventi non consegnati dopo i retry automatici di Event G
 3. **Entra External ID**: creare un tenant esterno per ambiente (dev e prod, residenza dati in Europa), i flussi utente e il branding; compilare `AUTH_AUTHORITY_<ENV>` in `infra/.env`. Le registrazioni delle app (frontend e API) si distribuiscono con `identity/deploy.ps1` (vedi [Registrazioni delle app in Entra External ID](#registrazioni-delle-app-in-entra-external-id)); il collegamento dell'app del frontend al flusso utente resta manuale.
 4. **GHCR**: quando le immagini dei job sono pubblicate, impostare `normalizerImage`, `transcriberImage` e `ghcrUsername`, e passare `GHCR_TOKEN` (PAT con scope `read:packages`).
 5. **GitHub**: secret e variabili del repository (credenziali OIDC per Azure, token di deployment di Static Web Apps, `GHCR_TOKEN`), da configurare a mano.
-6. **Ruoli dei job** (solo per ambienti distribuiti prima dell'architettura event-driven): l'identità `id-memoa-<env>-transcriber` aveva i ruoli Storage Blob Data Contributor, Storage Queue Data Contributor e Storage Queue Data Reader sull'intero storage account dati. Il deploy incrementale non li rimuove: eliminarli a mano, perché ora i ruoli dei job sono limitati ai propri contenitori e alla propria coda.
-   ```powershell
-   $id = az identity show -g rg-memoa-<env> -n id-memoa-<env>-transcriber --query principalId -o tsv
-   $st = az storage account list -g rg-memoa-<env> --query "[?ends_with(name, 'data')].id" -o tsv
-   az role assignment delete --assignee $id --scope $st
-   ```

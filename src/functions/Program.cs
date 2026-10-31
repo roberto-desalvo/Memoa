@@ -21,6 +21,8 @@ builder.Services.AddOptions<AuthOptions>()
     .ValidateOnStart();
 builder.Services.AddSingleton<TokenValidator>();
 builder.UseMiddleware<AuthenticationMiddleware>();
+// Dopo l'autenticazione: usa l'utente validato.
+builder.UseMiddleware<UserProvisioningMiddleware>();
 
 builder.Services.AddOptions<DataStorageOptions>()
     .Bind(builder.Configuration.GetSection(DataStorageOptions.SectionName))

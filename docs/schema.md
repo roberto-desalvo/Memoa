@@ -8,13 +8,13 @@ Convenzioni: chiavi primarie GUID (uniqueidentifier, generate nel codice; EF Cor
 
 ## Users
 
-Utente applicativo, collegato all'account di Entra External ID.
+Utente applicativo, collegato all'account di Entra External ID. Creato just in time alla prima richiesta autenticata (middleware delle Functions, dopo la validazione del token).
 
 | Colonna | Tipo | Note |
 |---|---|---|
 | Id | uniqueidentifier, PK | |
 | EntraObjectId | uniqueidentifier, univoco | Claim `oid` del token. I tenant sono due (dev e prod), ma ogni ambiente ha il proprio database |
-| Email | nvarchar(320) | Copia dell'email dell'account Entra External ID; la sincronizzazione con Entra in caso di modifica sarà definita in futuro. Dato personale da includere in esportazione e cancellazione; mai nei log |
+| Email | nvarchar(320) | Copia dell'email dell'account Entra External ID, letta dal claim opzionale `email` del token di accesso. Scritta alla creazione dell'utente e aggiornata a ogni richiesta autenticata se il token ne porta una diversa; vuota se il claim manca, e mai cancellata per l'assenza del claim. Dato personale da includere in esportazione e cancellazione; mai nei log |
 | PreferredLanguage | varchar(5) | `it` / `en` |
 | CreatedAt | datetime2 | |
 
@@ -46,7 +46,7 @@ File collegati a un record (audio, in futuro immagini). Tabella unica per tutti 
 | Id | uniqueidentifier, PK | |
 | RecordId | uniqueidentifier, FK → Records | |
 | Kind | varchar(20) | `Audio` / `Image` |
-| OriginalBlobPath | nvarchar(1024) | File caricato o registrato, mai cancellato né sovrascritto |
+| OriginalBlobPath | nvarchar(1024) | File caricato o registrato, mai cancellato né sovrascritto. Percorso relativo al contenitore degli originali (`<oid>/<recordId>`, senza estensione) |
 | OriginalContentType | varchar(100) | |
 | OriginalSizeBytes | bigint | |
 | NormalizedBlobPath | nvarchar(1024), null | Copia normalizzata in Opus (solo audio) |
