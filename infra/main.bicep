@@ -64,6 +64,9 @@ param authAudience string
 @description('Origini aggiuntive consentite da CORS (es. http://localhost:4200 in dev).')
 param extraAllowedOrigins array = []
 
+@description('Object ID degli utenti sviluppatori che eseguono le Functions in locale contro questo ambiente (solo dev).')
+param developerPrincipalIds array = []
+
 var tags = {
   project: projectName
   environment: environmentName
@@ -140,6 +143,7 @@ module dataStorage 'modules/data-storage.bicep' = {
     functionIdentityName: functionIdentityName
     normalizerIdentityName: normalizerIdentityName
     transcriberIdentityName: transcriberIdentityName
+    developerPrincipalIds: developerPrincipalIds
   }
   dependsOn: [
     identities

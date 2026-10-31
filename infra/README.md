@@ -37,6 +37,7 @@ I file `.bicepparam` leggono dall'ambiente i valori da non pubblicare nella repo
 | `AUTH_AUDIENCE_DEV`, `AUTH_AUDIENCE_PROD` | sì | Client ID della registrazione dell'API nel tenant dell'ambiente. Scritta da `identity/deploy.ps1` |
 | `AUTH_WEB_CLIENT_ID_DEV`, `AUTH_WEB_CLIENT_ID_PROD` | no (per il frontend) | Client ID della registrazione del frontend. Scritta da `identity/deploy.ps1` |
 | `AUTH_API_SCOPE_DEV`, `AUTH_API_SCOPE_PROD` | no (per il frontend) | Scope da richiedere nel frontend (`api://<tenant-id>/memoa-<env>-api/access_as_user`). Scritta da `identity/deploy.ps1` |
+| `DEVELOPER_PRINCIPAL_IDS_DEV` | no (per le Functions in locale) | Object ID, separati da virgola, degli utenti che eseguono le Functions in locale contro dev (`az ad signed-in-user show --query id -o tsv`). Ricevono sullo storage dei dati gli stessi ruoli delle Functions: un user delegation SAS firmato in locale non può concedere più dei ruoli dati di chi lo firma, e Owner non ne dà |
 
 In locale stanno in `infra/.env`, escluso da git: copiare `infra/.env.example` in `infra/.env`, compilarlo e caricarlo nella sessione con `load-env.ps1`. In GitHub Actions vanno impostate come secret o variabili del repository.
 
@@ -99,7 +100,7 @@ Le sottoscrizioni "blob creato" puntano direttamente alle funzioni (endpoint `Az
 2. deploy del codice delle Functions (con le funzioni Event Grid `ValidateUpload`, `EnqueueTranscription`, `EnqueueIndexing`; se i nomi cambiano, aggiornare `functionNames` in `modules/event-subscriptions.bicep`);
 3. impostare `deployEventSubscriptions = true` nel `.bicepparam` e ripetere il deploy dell'infrastruttura.
 
-Nessun dead-letter: gli eventi non consegnati dopo i retry automatici di Event Grid vanno persi. In locale Azurite non emette eventi: vanno simulati.
+Nessun dead-letter: gli eventi non consegnati dopo i retry automatici di Event Grid vanno persi. In locale Azurite non emette eventi: vanno simulati con una POST a `http://localhost:7071/runtime/webhooks/EventGrid?functionName=<Nome>` con header `aeg-event-type: Notification` e un evento `Microsoft.Storage.BlobCreated` nel corpo.
 
 ## Verifiche prima del primo deploy
 

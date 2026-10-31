@@ -7,7 +7,8 @@
     "Auth__Audience": "<client-id-registrazione-api>",
     "Auth__RequiredScope": "access_as_user",
     "DataStorage__blobServiceUri": "https://<storage-dati-dev>.blob.core.windows.net/",
-    "Containers__Uploads": "uploads"
+    "Containers__Uploads": "uploads",
+    "AZURE_TOKEN_CREDENTIALS": "AzureCliCredential"
   },
   "Host": {
     "CORS": "http://localhost:4200"

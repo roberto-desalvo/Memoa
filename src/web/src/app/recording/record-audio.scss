@@ -52,6 +52,37 @@
   }
 }
 
+.file {
+  padding: 0.5rem 1rem;
+  border: 1px solid #d4d4d8;
+  border-radius: 0.5rem;
+  cursor: pointer;
+
+  // Input nascosto ma raggiungibile da tastiera e lettori di schermo tramite la label.
+  input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+  }
+
+  &:focus-within {
+    outline: 3px solid #93c5fd;
+    outline-offset: 2px;
+  }
+
+  &.disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+}
+
+.hint {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #52525b;
+}
+
 .timer {
   font-variant-numeric: tabular-nums;
 }

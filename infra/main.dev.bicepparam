@@ -29,5 +29,8 @@ param extraAllowedOrigins = [
   'http://localhost:4200'
 ]
 
+// Utenti che eseguono le Functions in locale contro dev: ricevono gli stessi ruoli dati delle Functions.
+param developerPrincipalIds = filter(split(readEnvironmentVariable('DEVELOPER_PRINCIPAL_IDS_DEV', ''), ','), id => !empty(trim(id)))
+
 // Impostare a true dopo il primo deploy del codice delle Functions (vedi infra/README.md).
 param deployEventSubscriptions = false

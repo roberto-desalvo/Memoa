@@ -20,6 +20,9 @@ param normalizerIdentityName string
 @description('Nome dell\'identità user-assigned del job di trascrizione (stesso resource group).')
 param transcriberIdentityName string
 
+@description('Object ID degli utenti sviluppatori che eseguono le Functions in locale (solo dev).')
+param developerPrincipalIds array = []
+
 var uploadsContainerName = 'uploads'
 var audioContainerName = 'audio'
 var transcriptsContainerName = 'transcripts'
@@ -249,6 +252,27 @@ resource functionDataRoles 'Microsoft.Authorization/roleAssignments@2022-04-01' 
       roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', roleId)
       principalId: functionIdentity.properties.principalId
       principalType: 'ServicePrincipal'
+    }
+  }
+]
+
+// Sviluppatori: le Functions in locale firmano i SAS con l'utente di Azure CLI, e un user delegation
+// SAS non concede più di quanto possa fare chi lo firma. Owner non basta: non dà accesso ai dati.
+var developerRoleAssignments = [
+  for pair in flatten(map(developerPrincipalIds, principalId => map(functionRoles, roleId => {
+    principalId: principalId
+    roleId: roleId
+  }))): pair
+]
+
+resource developerDataRoles 'Microsoft.Authorization/roleAssignments@2022-04-01' = [
+  for assignment in developerRoleAssignments: {
+    name: guid(storage.id, assignment.principalId, assignment.roleId)
+    scope: storage
+    properties: {
+      roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', assignment.roleId)
+      principalId: assignment.principalId
+      principalType: 'User'
     }
   }
 ]

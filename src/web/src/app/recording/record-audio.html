@@ -1,18 +1,17 @@
-@if (!supported) {
-  <p class="message error">Il browser non supporta la registrazione audio.</p>
-} @else {
-  @let current = status();
-  @let busy = current.kind === 'uploading';
+@let current = status();
+@let recording = current.kind === 'recording';
+@let busy = current.kind === 'uploading';
 
+@if (supported) {
   <button
     type="button"
     class="record"
-    [class.active]="current.kind === 'recording'"
+    [class.active]="recording"
     [disabled]="busy"
-    [attr.aria-label]="current.kind === 'recording' ? 'Ferma la registrazione' : 'Registra'"
+    [attr.aria-label]="recording ? 'Ferma la registrazione' : 'Registra'"
     (click)="toggle()"
   >
-    @if (current.kind === 'recording') {
+    @if (recording) {
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <rect x="6" y="6" width="12" height="12" rx="2" />
       </svg>
@@ -29,28 +28,44 @@
       </svg>
     }
   </button>
+} @else {
+  <p class="error">Il browser non supporta la registrazione audio.</p>
+}
 
-  <div class="message" aria-live="polite">
-    @switch (current.kind) {
-      @case ('idle') {
+<div class="message" aria-live="polite">
+  @switch (current.kind) {
+    @case ('idle') {
+      @if (supported) {
         <p>Tocca per registrare (massimo {{ maxDuration }}).</p>
       }
-      @case ('recording') {
-        <p class="timer">{{ elapsed() }} / {{ maxDuration }}</p>
-      }
-      @case ('uploading') {
-        <p>Caricamento…</p>
-        <progress [value]="current.fraction" max="1"></progress>
-      }
-      @case ('done') {
-        <p>Registrazione salvata.</p>
-      }
-      @case ('error') {
-        <p class="error">{{ current.message }}</p>
-        @if (current.audio; as audio) {
-          <button type="button" (click)="upload(audio)">Riprova il caricamento</button>
-        }
+    }
+    @case ('recording') {
+      <p class="timer">{{ elapsed() }} / {{ maxDuration }}</p>
+    }
+    @case ('uploading') {
+      <p>Caricamento…</p>
+      <progress [value]="current.fraction" max="1"></progress>
+    }
+    @case ('done') {
+      <p>Audio salvato.</p>
+    }
+    @case ('error') {
+      <p class="error">{{ current.message }}</p>
+      @if (current.retry; as retry) {
+        <button type="button" (click)="upload(retry)">Riprova il caricamento</button>
       }
     }
-  </div>
-}
+  }
+</div>
+
+<label class="file" [class.disabled]="busy || recording">
+  <input
+    #fileInput
+    type="file"
+    [accept]="accept"
+    [disabled]="busy || recording"
+    (change)="selectFile(fileInput)"
+  />
+  Carica un file audio
+</label>
+<p class="hint">{{ formats }} · massimo 350 MB</p>
