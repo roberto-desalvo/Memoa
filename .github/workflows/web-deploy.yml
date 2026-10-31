@@ -30,9 +30,11 @@ jobs:
       - name: Lettura di Function App e Static Web App
         id: azure
         run: |
-          func_name=$(az functionapp list -g "$RESOURCE_GROUP" --query "[0].name" -o tsv)
-          func_host=$(az functionapp show -g "$RESOURCE_GROUP" -n "$func_name" --query defaultHostName -o tsv)
+          # Su Flex Consumption "az functionapp show" ha l'hostname in properties.defaultHostName: si usa list.
+          func_host=$(az functionapp list -g "$RESOURCE_GROUP" --query "[0].defaultHostName" -o tsv)
+          if [ -z "$func_host" ]; then echo "::error::Nessuna Function App con hostname in $RESOURCE_GROUP"; exit 1; fi
           swa_name=$(az staticwebapp list -g "$RESOURCE_GROUP" --query "[0].name" -o tsv)
+          if [ -z "$swa_name" ]; then echo "::error::Nessuna Static Web App in $RESOURCE_GROUP"; exit 1; fi
           swa_token=$(az staticwebapp secrets list -g "$RESOURCE_GROUP" -n "$swa_name" --query properties.apiKey -o tsv)
           echo "::add-mask::$swa_token"
           echo "api_base_url=https://$func_host/api" >> "$GITHUB_OUTPUT"
