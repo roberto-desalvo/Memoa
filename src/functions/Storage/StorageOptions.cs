@@ -24,4 +24,8 @@ public sealed class ContainerOptions
     /// <summary>Originali caricati o registrati dal client.</summary>
     [Required]
     public string Uploads { get; set; } = string.Empty;
+
+    /// <summary>Copie normalizzate ed esiti di errore scritti dal job di normalizzazione.</summary>
+    [Required]
+    public string Audio { get; set; } = string.Empty;
 }

@@ -166,10 +166,12 @@ con un array di eventi `Microsoft.Storage.BlobCreated` nel corpo.
 
 Se la Function App dev su Azure è distribuita, con le sottoscrizioni attive, riceve anch'essa l'evento reale dello stesso upload. Le funzioni sono idempotenti, quindi il doppio passaggio non crea duplicati, ma il record può risultare già creato dalla funzione su Azure.
 
+Gli script in `docs/scripts/` leggono i valori da `docs/scripts/.env`, escluso da git: copiare [docs/scripts/.env.example](scripts/.env.example) in `docs/scripts/.env` e compilare almeno `DATA_STORAGE_ACCOUNT`, `USER_OID` e `RECORD_ID`. Le altre variabili sono facoltative (valori predefiniti nel file di esempio) e servono a provare i diversi casi. Ogni script carica `.env` da sé (`load-env.ps1`): basta modificare il file e rilanciarlo.
+
 ### ValidateUpload (file caricato nel contenitore degli originali)
 
 1. Dal frontend in locale (`http://localhost:4200`) fare login e registrare o caricare un audio.
-2. Recuperare i due identificativi del percorso del blob `uploads/<oid>/<recordUid>`:
+2. Recuperare i due identificativi del percorso del blob `uploads/<oid>/<recordUid>` e scriverli in `docs/scripts/.env` (`USER_OID`, `RECORD_ID`):
    - `recordUid` è nella risposta di `POST /api/uploads/audio` (scheda Network del browser);
    - `oid` è la prima parte del percorso del blob: si trova nel portale o con
      ```powershell
@@ -182,38 +184,11 @@ Se la Function App dev su Azure è distribuita, con le sottoscrizioni attive, ri
      --container-name uploads --name "<oid>/<recordUid>" `
      --query "{size: properties.contentLength, type: properties.contentSettings.contentType}"
    ```
-4. Inviare l'evento:
+4. Inviare l'evento con [scripts/send-blob-created-event.ps1](scripts/send-blob-created-event.ps1), dopo aver impostato in `.env` dimensione e tipo letti al passo 3 (`UPLOAD_SIZE`, `UPLOAD_CONTENT_TYPE`):
    ```powershell
-   $account = "<storage-dati-dev>"
-   $oid = "<oid>"
-   $recordUid = "<recordUid>"
-   $size = 12345
-   $contentType = "audio/webm;codecs=opus"
-
-   $event = @(
-     @{
-       id          = [guid]::NewGuid().ToString()
-       eventType   = "Microsoft.Storage.BlobCreated"
-       subject     = "/blobServices/default/containers/uploads/blobs/$oid/$recordUid"
-       eventTime   = (Get-Date).ToUniversalTime().ToString("o")
-       dataVersion = "1"
-       data        = @{
-         api           = "PutBlob"
-         url           = "https://$account.blob.core.windows.net/uploads/$oid/$recordUid"
-         contentType   = $contentType
-         contentLength = $size
-         blobType      = "BlockBlob"
-       }
-     }
-   )
-
-   Invoke-RestMethod -Method Post `
-     -Uri "http://localhost:7071/runtime/webhooks/EventGrid?functionName=ValidateUpload" `
-     -Headers @{ "aeg-event-type" = "Notification" } `
-     -ContentType "application/json" `
-     -Body (ConvertTo-Json -InputObject $event -Depth 5)
+   .\docs\scripts\send-blob-created-event.ps1
    ```
-   `-InputObject` mantiene l'array anche con un solo evento: l'endpoint si aspetta un array.
+   Lo script usa `ConvertTo-Json -InputObject`, che mantiene l'array anche con un solo evento: l'endpoint si aspetta un array.
 
 5. Verificare il risultato:
    - nel database, il record in stato `Processing` con il relativo allegato:
@@ -233,10 +208,48 @@ Casi da provare:
 | Caso | Come | Risultato atteso |
 |---|---|---|
 | Duplicato | Reinviare lo stesso evento | Nessun nuovo record; nuovo messaggio solo se il record è ancora `Processing` e non normalizzato |
-| File vuoto | `$size = 0` | Record `Error` con `ErrorCode = file_empty`, nessun messaggio, file conservato |
-| File troppo grande | `$size = 400MB` | Record `Error` con `ErrorCode = file_too_large`, nessun messaggio, file conservato |
-| Percorso non valido | `$recordUid = "abc"` | Evento ignorato (warning nel log), nessuna scrittura |
-| Utente inesistente | `$oid` = GUID casuale | Eccezione: in Azure Event Grid riprova la consegna |
+| File vuoto | `UPLOAD_SIZE=0` | Record `Error` con `ErrorCode = file_empty`, nessun messaggio, file conservato |
+| File troppo grande | `UPLOAD_SIZE=419430400` (400 MB) | Record `Error` con `ErrorCode = file_too_large`, nessun messaggio, file conservato |
+| Percorso non valido | `RECORD_ID=abc` | Evento ignorato (warning nel log), nessuna scrittura |
+| Utente inesistente | `USER_OID` = GUID casuale | Eccezione: in Azure Event Grid riprova la consegna |
+
+### EnqueueTranscription (esito della normalizzazione nel contenitore dell'audio normalizzato)
+
+Il job di normalizzazione scrive in `audio` la copia `<oid>/<recordUid>.opus` oppure l'esito `<oid>/<recordUid>.error.json` (vedi [src/jobs/normalizer/README.md](../src/jobs/normalizer/README.md)). La Function legge i metadati dal blob, quindi il blob deve esistere davvero: eseguire il job in locale, oppure caricarlo a mano partendo da un record `Processing` creato con `ValidateUpload`.
+
+1. Caricare il blob con i metadati che scriverebbe il job, con [scripts/upload-normalized-blob.ps1](scripts/upload-normalized-blob.ps1). In `.env`, `NORMALIZED_IS_ERROR` sceglie tra la copia normalizzata (file `NORMALIZED_OPUS_FILE`, durata `NORMALIZED_DURATION_SECONDS`) e l'esito di errore (`NORMALIZED_ERROR_CODE`):
+   ```powershell
+   .\docs\scripts\upload-normalized-blob.ps1
+   ```
+2. Inviare l'evento con [scripts/send-normalized-event.ps1](scripts/send-normalized-event.ps1): con lo stesso `.env` l'evento riguarda il blob appena caricato (`<recordId>.opus` oppure `<recordId>.error.json`, secondo `NORMALIZED_IS_ERROR`):
+   ```powershell
+   .\docs\scripts\send-normalized-event.ps1
+   ```
+3. Verificare il risultato:
+   - nel database:
+     ```sql
+     SELECT r.RecordUid, r.Status, r.ErrorCode, a.NormalizedBlobPath, a.DurationSeconds
+     FROM Records r JOIN Attachments a ON a.RecordId = r.Id
+     WHERE r.RecordUid = '<recordUid>';
+     ```
+   - sulla coda di trascrizione, il messaggio con l'URL della copia, in base64:
+     ```powershell
+     az storage message peek --auth-mode login --account-name <storage-dati-dev> `
+       --queue-name transcription --num-messages 5
+     ```
+
+Casi da provare:
+
+| Caso | Come | Risultato atteso |
+|---|---|---|
+| Copia normalizzata | `NORMALIZED_IS_ERROR=false` | `NormalizedBlobPath = <oid>/<recordUid>.opus`, `DurationSeconds` dai metadati, record ancora `Processing`, messaggio sulla coda di trascrizione |
+| Duplicato della copia | Reinviare lo stesso evento | Allegato invariato, nuovo messaggio finché il record è `Processing` (il job di trascrizione deve essere idempotente) |
+| Esito di errore | `NORMALIZED_IS_ERROR=true` | Record `Error` con `ErrorCode` dai metadati, nessun messaggio |
+| Codice non valido | `NORMALIZED_IS_ERROR=true`, `NORMALIZED_ERROR_CODE=ABC` | Record `Error` con `ErrorCode = processing_failed` |
+| Errore dopo la copia | Blob `.error.json` su un record già normalizzato | Esito ignorato (warning), record invariato |
+| Record non in elaborazione | Evento su un record `Error` o `Ready` | Evento ignorato, nessuna scrittura |
+| Blob inesistente | Evento senza caricare il blob | Evento ignorato (warning), nessuna scrittura |
+| Nome non valido | `NORMALIZED_BLOB_NAME=abc.opus` (solo l'evento) | Evento ignorato (warning nel log), nessuna scrittura |
 
 ## Deploy dell'infrastruttura con Bicep
 

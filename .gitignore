@@ -64,4 +64,4 @@ pnpm-debug.log*
 Thumbs.db
 
 # --- Altro ---
-docs/tools/*
+--docs/tools/*

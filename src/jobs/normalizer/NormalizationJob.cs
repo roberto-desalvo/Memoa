@@ -5,6 +5,7 @@ using Azure.Storage.Blobs.Models;
 using Azure.Storage.Queues;
 using Azure.Storage.Queues.Models;
 using Memoa.Normalizer.Audio;
+using Memoa.Shared.Pipeline;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -13,10 +14,8 @@ namespace Memoa.Normalizer;
 /// <summary>
 /// Quarto passo del flusso audio: legge un messaggio dalla coda di normalizzazione (l'URL del file
 /// originale), verifica il formato reale con ffprobe e scrive nel contenitore dell'audio normalizzato:
-/// <list type="bullet">
-/// <item>la copia Ogg Opus "&lt;oid&gt;/&lt;RecordUid&gt;.opus", con la durata nei metadati;</item>
-/// <item>oppure, se il file va scartato, l'esito "&lt;oid&gt;/&lt;RecordUid&gt;.error.json" con il solo codice d'errore.</item>
-/// </list>
+/// la copia Ogg Opus oppure, se il file va scartato, l'esito con il solo codice d'errore (vedi
+/// <see cref="NormalizedAudio"/>).
 /// L'evento "blob creato" su quel contenitore fa proseguire il flusso: il job non scrive né nel
 /// database né sulle code. L'originale viene solo letto.
 /// Idempotente: se uno dei due blob esiste già il messaggio viene solo eliminato.
@@ -29,14 +28,6 @@ public sealed class NormalizationJob(
     IOptions<JobOptions> options,
     ILogger<NormalizationJob> logger)
 {
-    public const string NormalizedExtension = ".opus";
-    public const string ErrorExtension = ".error.json";
-
-    // Chiavi dei metadati letti dalla Function (solo identificativi e valori tecnici).
-    public const string DurationMetadata = "durationseconds";
-    public const string SourceFormatMetadata = "sourceformat";
-    public const string ErrorCodeMetadata = "errorcode";
-
     /// <summary>
     /// Elabora al più un messaggio: ogni esecuzione del job viene avviata dallo scaler KEDA per un
     /// messaggio in coda. Un'eccezione lascia il messaggio in coda, che torna visibile dopo il
@@ -63,8 +54,8 @@ public sealed class NormalizationJob(
         }
 
         var output = blobService.GetBlobContainerClient(job.OutputContainer);
-        var normalized = output.GetBlobClient($"{entraObjectId:D}/{recordUid:D}{NormalizedExtension}");
-        var error = output.GetBlobClient($"{entraObjectId:D}/{recordUid:D}{ErrorExtension}");
+        var normalized = output.GetBlobClient(NormalizedAudio.AudioBlobName(entraObjectId, recordUid));
+        var error = output.GetBlobClient(NormalizedAudio.ErrorBlobName(entraObjectId, recordUid));
 
         if (await normalized.ExistsAsync(cancellationToken) || await error.ExistsAsync(cancellationToken))
         {
@@ -151,8 +142,8 @@ public sealed class NormalizationJob(
             HttpHeaders = new BlobHttpHeaders { ContentType = "audio/ogg; codecs=opus" },
             Metadata = new Dictionary<string, string>
             {
-                [DurationMetadata] = duration.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                [SourceFormatMetadata] = sourceProbe.FormatName,
+                [NormalizedAudio.DurationMetadata] = duration.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                [NormalizedAudio.SourceFormatMetadata] = sourceProbe.FormatName,
             },
         }, cancellationToken);
 
@@ -168,7 +159,7 @@ public sealed class NormalizationJob(
         return UploadIfMissingAsync(error, content.ToStream(), new BlobUploadOptions
         {
             HttpHeaders = new BlobHttpHeaders { ContentType = "application/json" },
-            Metadata = new Dictionary<string, string> { [ErrorCodeMetadata] = errorCode },
+            Metadata = new Dictionary<string, string> { [NormalizedAudio.ErrorCodeMetadata] = errorCode },
         }, cancellationToken);
     }
 

@@ -13,7 +13,7 @@ public static class AudioValidation
     public const string NoAudio = "no_audio";
     public const string AudioEmpty = "audio_empty";
     public const string AudioTooLong = "audio_too_long";
-    public const string ProcessingFailed = "processing_failed";
+    public const string ProcessingFailed = Memoa.Shared.Pipeline.NormalizedAudio.ProcessingFailed;
 
     /// <summary>
     /// Valori di format_name di ffprobe per MP3, M4A/AAC, WAV, FLAC, Ogg/Opus, WebM e AMR/3GP.
