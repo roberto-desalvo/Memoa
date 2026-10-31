@@ -13,8 +13,7 @@ param transcriptsContainerName string
 param functionNames object = {
   validateUpload: 'ValidateUpload'
   enqueueTranscription: 'EnqueueTranscription'
-  // Da impostare a 'EnqueueIndexing' quando la funzione esiste nel codice distribuito.
-  enqueueIndexing: ''
+  enqueueIndexing: 'EnqueueIndexing'
 }
 
 resource eventTopic 'Microsoft.EventGrid/systemTopics@2025-02-15' existing = {

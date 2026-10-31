@@ -10,8 +10,10 @@
     "DataStorage__queueServiceUri": "https://<storage-dati-dev>.queue.core.windows.net/",
     "Containers__Uploads": "uploads",
     "Containers__Audio": "audio",
+    "Containers__Transcripts": "transcripts",
     "Queues__Normalization": "normalization",
     "Queues__Transcription": "transcription",
+    "Queues__Indexing": "indexing",
     "Sql__ConnectionString": "Server=tcp:<server-sql>.database.windows.net,1433;Database=sqldb-memoa-dev;Encrypt=True;Authentication=Active Directory Default",
     "AZURE_TOKEN_CREDENTIALS": "AzureCliCredential"
   },

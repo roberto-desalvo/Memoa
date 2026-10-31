@@ -52,8 +52,8 @@ Il documento delle decisioni (`project.md`) è la fonte di verità per funzional
 4. **Job di normalizzazione** (avviato dalla coda tramite scaler KEDA): `ffprobe` verifica formato reale e durata, `ffmpeg` crea la copia Ogg Opus nel contenitore dell'**audio normalizzato** (`<oid>/<RecordUid>.opus`, durata nei metadati del blob). Se il file va scartato scrive invece nello stesso contenitore l'esito `<oid>/<RecordUid>.error.json`, con il solo codice d'errore.
 5. Evento "blob creato" → Function: per la copia `.opus` salva durata e percorso nel database e scrive sulla **coda di trascrizione**; per l'esito `.error.json` porta il record a "in errore".
 6. **Job di trascrizione**: trascrive la copia normalizzata → file di testo nel contenitore delle **trascrizioni**.
-7. Evento "blob creato" → Function → **coda di indicizzazione** (scrive l'identificativo).
-8. **Function di indicizzazione**: legge la trascrizione dal blob, calcola l'embedding, salva trascrizione, embedding e stato "pronto" nel database.
+7. Evento "blob creato" → Function: per la trascrizione `<oid>/<RecordUid>.txt` salva testo (in `Text` e `OriginalTranscript`) e lingua nel database e scrive l'identificativo sulla **coda di indicizzazione**; per l'esito `<oid>/<RecordUid>.error.json` porta il record a "in errore".
+8. **Function di indicizzazione**: legge il testo dal database, calcola l'embedding, salva embedding e stato "pronto".
 
 ### Flusso testo
 
@@ -71,7 +71,7 @@ La Function HTTP salva il testo nel database e, parallelamente, scrive sulla cod
 - I Container Apps Jobs si avviano dalle code (KEDA), non direttamente da Event Grid.
 - Nessuna orchestrazione (niente Durable Functions): code e Functions separate.
 - Retry tramite i meccanismi delle code (coda dei messaggi non elaborabili). I job non possono scrivere su quella coda: dopo il numero massimo di tentativi scrivono l'esito di errore (`processing_failed`). Eventi Event Grid: solo retry automatici, nessun dead-letter per ora.
-- Se il calcolo dell'embedding fallisce, la trascrizione resta nel blob: il record non va perso.
+- Se il calcolo dell'embedding fallisce, la trascrizione è già salvata nel database (e resta nel blob): il record non va perso.
 - Stati del record: "in elaborazione", "pronto", "in errore"; l'utente può riprovare in caso di errore. Il frontend aggiorna lo stato con **polling** solo finché ci sono record in elaborazione e l'app è visibile.
 
 ## Database e migration

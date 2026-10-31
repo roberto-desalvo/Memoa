@@ -251,6 +251,45 @@ Casi da provare:
 | Blob inesistente | Evento senza caricare il blob | Evento ignorato (warning), nessuna scrittura |
 | Nome non valido | `NORMALIZED_BLOB_NAME=abc.opus` (solo l'evento) | Evento ignorato (warning nel log), nessuna scrittura |
 
+### EnqueueIndexing (esito della trascrizione nel contenitore delle trascrizioni)
+
+Il job di trascrizione scrive in `transcripts` la trascrizione `<oid>/<recordUid>.txt` oppure l'esito `<oid>/<recordUid>.error.json` (vedi [src/jobs/transcriber/README.md](../src/jobs/transcriber/README.md)). Come per `EnqueueTranscription` il blob deve esistere davvero: eseguire il job in locale, oppure caricarlo a mano partendo da un record `Processing`.
+
+1. Caricare il blob con i metadati che scriverebbe il job, con [scripts/upload-transcript-blob.ps1](scripts/upload-transcript-blob.ps1). In `.env`, `TRANSCRIPT_IS_ERROR` sceglie tra la trascrizione (testo fittizio, lingua `TRANSCRIPT_LANGUAGE`) e l'esito di errore (`TRANSCRIPT_ERROR_CODE`):
+   ```powershell
+   .\docs\scripts\upload-transcript-blob.ps1
+   ```
+2. Inviare l'evento con [scripts/send-transcript-event.ps1](scripts/send-transcript-event.ps1):
+   ```powershell
+   .\docs\scripts\send-transcript-event.ps1
+   ```
+3. Verificare il risultato:
+   - nel database:
+     ```sql
+     SELECT RecordUid, Status, ErrorCode, Language, Text, OriginalTranscript
+     FROM Records WHERE RecordUid = '<recordUid>';
+     ```
+   - sulla coda di indicizzazione, il messaggio con il `recordUid`, in base64:
+     ```powershell
+     az storage message peek --auth-mode login --account-name <storage-dati-dev> `
+       --queue-name indexing --num-messages 5
+     ```
+
+Casi da provare:
+
+| Caso | Come | Risultato atteso |
+|---|---|---|
+| Trascrizione | `TRANSCRIPT_IS_ERROR=false` | `Text` e `OriginalTranscript` uguali al contenuto del blob, `Language` dai metadati, record ancora `Processing`, messaggio sulla coda di indicizzazione |
+| Duplicato della trascrizione | Reinviare lo stesso evento | Record invariato, nuovo messaggio finché il record è `Processing` (l'indicizzazione deve essere idempotente) |
+| Trascrizione vuota | Caricare a mano un `.txt` vuoto con `az storage blob upload` | Record `Error` con `ErrorCode = no_speech`, nessun messaggio |
+| Lingua non valida | `TRANSCRIPT_LANGUAGE=fr` | `Language` = lingua dell'account (warning), messaggio sulla coda |
+| Esito di errore | `TRANSCRIPT_IS_ERROR=true` | Record `Error` con `ErrorCode = no_speech` (o quello in `.env`), nessun messaggio |
+| Codice non valido | `TRANSCRIPT_IS_ERROR=true`, `TRANSCRIPT_ERROR_CODE=ABC` | Record `Error` con `ErrorCode = processing_failed` |
+| Errore dopo la trascrizione | Blob `.error.json` su un record con `OriginalTranscript` già salvata | Esito ignorato (warning), record invariato |
+| Record non in elaborazione | Evento su un record `Error` o `Ready` | Evento ignorato, nessuna scrittura |
+| Blob inesistente | Evento senza caricare il blob | Evento ignorato (warning), nessuna scrittura |
+| Nome non valido | `TRANSCRIPT_BLOB_NAME=abc.txt` (solo l'evento) | Evento ignorato (warning nel log), nessuna scrittura |
+
 ## Deploy dell'infrastruttura con Bicep
 
 Raccolta dei comandi. Struttura dei file, prerequisiti dei tenant esterni e passi manuali sono in [infra/README.md](../infra/README.md). I comandi sono per dev; per prod sostituire `dev` con `prod` nel nome del deploy (`-n memoa-prod`) e nel file dei parametri.

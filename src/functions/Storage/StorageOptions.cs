@@ -28,4 +28,8 @@ public sealed class ContainerOptions
     /// <summary>Copie normalizzate ed esiti di errore scritti dal job di normalizzazione.</summary>
     [Required]
     public string Audio { get; set; } = string.Empty;
+
+    /// <summary>Trascrizioni ed esiti di errore scritti dal job di trascrizione.</summary>
+    [Required]
+    public string Transcripts { get; set; } = string.Empty;
 }
