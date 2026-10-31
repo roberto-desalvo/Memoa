@@ -19,7 +19,8 @@ namespace Memoa.Functions.Functions;
 /// Quinto passo del flusso audio, attivato dall'evento "blob creato" sul contenitore dell'audio
 /// normalizzato, dove il job di normalizzazione scrive uno dei due blob di <see cref="NormalizedAudio"/>:
 /// <list type="bullet">
-/// <item>copia Opus: salva percorso e durata nell'allegato e scrive l'URL del blob sulla coda di trascrizione;</item>
+/// <item>copia Opus: salva percorso e durata nell'allegato e scrive sulla coda di trascrizione l'URL del blob
+/// e la lingua dell'account (<see cref="TranscriptionRequest"/>);</item>
 /// <item>esito di errore: porta il record a "in errore" con il codice scritto dal job.</item>
 /// </list>
 /// Idempotente: Event Grid consegna almeno una volta, anche in parallelo.
@@ -31,8 +32,8 @@ public sealed partial class EnqueueTranscriptionFunction(
     ILogger<EnqueueTranscriptionFunction> logger)
 {
     /// <summary>
-    /// Restituisce il messaggio per la coda di trascrizione (l'URL della copia Opus, senza SAS), oppure
-    /// null se non c'è nulla da accodare.
+    /// Restituisce il messaggio per la coda di trascrizione (<see cref="TranscriptionRequest"/> in JSON),
+    /// oppure null se non c'è nulla da accodare.
     /// </summary>
     [Function("EnqueueTranscription")]
     [QueueOutput("%Queues:Transcription%", Connection = "DataStorage")]
@@ -63,6 +64,7 @@ public sealed partial class EnqueueTranscriptionFunction(
 
         var record = await db.Records
             .IgnoreQueryFilters([MemoaDbContext.CurrentUserFilter])
+            .Include(r => r.User)
             .Include(r => r.Attachments.Where(a => a.Kind == AttachmentKind.Audio))
             .Where(r => r.RecordUid == recordUid && r.User.EntraObjectId == entraObjectId)
             .SingleOrDefaultAsync(cancellationToken);
@@ -124,8 +126,10 @@ public sealed partial class EnqueueTranscriptionFunction(
 
         // Si accoda anche alle consegne successive finché il record è in elaborazione: la prima può aver
         // salvato l'allegato senza riuscire a scrivere sulla coda. Il job di trascrizione è idempotente.
+        // La lingua dell'account serve al job come ripiego se il rilevamento automatico è incerto: il job
+        // non legge il database.
         logger.LogInformation("Record {RecordUid} accodato per la trascrizione", record.RecordUid);
-        return blobUri.ToUri().ToString();
+        return new TranscriptionRequest(blobUri.ToUri().ToString(), record.User.PreferredLanguage).Serialize();
     }
 
     private async Task<string?> SaveErrorAsync(

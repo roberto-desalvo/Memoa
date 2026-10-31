@@ -40,6 +40,7 @@ I file `.bicepparam` leggono dall'ambiente i valori da non pubblicare nella repo
 | `AUTH_API_SCOPE_DEV`, `AUTH_API_SCOPE_PROD` | no (per il frontend) | Scope da richiedere nel frontend (`api://<tenant-id>/memoa-<env>-api/access_as_user`). Scritta da `identity/deploy.ps1` |
 | `DEVELOPER_PRINCIPAL_IDS_DEV` | no (per le Functions in locale) | Object ID, separati da virgola, degli utenti che eseguono le Functions in locale contro dev (`az ad signed-in-user show --query id -o tsv`). Ricevono sullo storage dei dati gli stessi ruoli delle Functions: un user delegation SAS firmato in locale non può concedere più dei ruoli dati di chi lo firma, e Owner non ne dà |
 | `NORMALIZER_IMAGE_DEV`, `NORMALIZER_IMAGE_PROD` | no (dopo la prima pubblicazione) | Immagine del job di normalizzazione da usare nel deploy dell'infrastruttura: `ghcr.io/<owner>/memoa-normalizer:main` per dev, `:prod` per prod. Senza, il deploy rimette l'immagine segnaposto al posto di quella impostata dalla pipeline |
+| `TRANSCRIBER_IMAGE_DEV`, `TRANSCRIBER_IMAGE_PROD` | no (dopo la prima pubblicazione) | Come sopra, per il job di trascrizione: `ghcr.io/<owner>/memoa-transcriber:main` per dev, `:prod` per prod |
 
 In locale stanno in `infra/.env`, escluso da git: copiare `infra/.env.example` in `infra/.env`, compilarlo e caricarlo nella sessione con `load-env.ps1`. In GitHub Actions vanno impostate come secret o variabili del repository.
 
@@ -128,7 +129,7 @@ Nessun dead-letter: gli eventi non consegnati dopo i retry automatici di Event G
    ALTER ROLE db_datawriter ADD MEMBER [id-memoa-<env>-deploy];
    ```
 3. **Entra External ID**: creare un tenant esterno per ambiente (dev e prod, residenza dati in Europa), i flussi utente e il branding; compilare `AUTH_AUTHORITY_<ENV>` in `infra/.env`. Le registrazioni delle app (frontend e API) si distribuiscono con `identity/deploy.ps1` (vedi [Registrazioni delle app in Entra External ID](#registrazioni-delle-app-in-entra-external-id)); il collegamento dell'app del frontend al flusso utente resta manuale.
-4. **GHCR**: prima della prima esecuzione di `normalizer.yml`, impostare `ghcrUsername` nei `.bicepparam`, passare `GHCR_TOKEN` (PAT con scope `read:packages`) e ripetere il deploy dell'infrastruttura, così il job può scaricare le immagini private. Dopo la prima pubblicazione impostare `NORMALIZER_IMAGE_<ENV>` (vedi [Deploy](#deploy)). Per il job di trascrizione, `transcriberImage`.
+4. **GHCR**: prima della prima esecuzione di `normalizer.yml` e `transcriber.yml`, impostare `ghcrUsername` nei `.bicepparam`, passare `GHCR_TOKEN` (PAT con scope `read:packages`) e ripetere il deploy dell'infrastruttura, così i job possono scaricare le immagini private. Dopo la prima pubblicazione impostare `NORMALIZER_IMAGE_<ENV>` e `TRANSCRIBER_IMAGE_<ENV>` (vedi [Deploy](#deploy)). La pipeline di trascrizione richiede anche un deploy dell'infrastruttura dopo questa modifica, che assegna all'identità della pipeline il ruolo sul job di trascrizione.
 5. **GitHub**: environment e variabili delle pipeline, da configurare a mano (vedi [Pipeline GitHub Actions](#pipeline-github-actions)).
 
 ## Pipeline GitHub Actions
@@ -139,6 +140,7 @@ Nessun dead-letter: gli eventi non consegnati dopo i retry automatici di Event G
 | `functions.yml` | `src/functions/**` tranne `Data/Migrations/**`, `src/shared/**` | `dotnet publish`, poi deploy del pacchetto sulla Function App |
 | `schema.yml` | `src/functions/Data/Migrations/**` | Genera lo script idempotente delle migration (scaricabile tra gli artifact) e lo applica con `sqlcmd` |
 | `normalizer.yml` | `src/jobs/normalizer/**`, `src/shared/**` | Build dell'immagine del job di normalizzazione e push su GHCR (`memoa-normalizer:<sha>` e `:<branch>`), poi su ogni ambiente aggiorna l'immagine del job con il tag `<sha>` (`container-job-deploy.yml`) |
+| `transcriber.yml` | `src/jobs/transcriber/**`, `src/shared/**` | Come `normalizer.yml`, per l'immagine del job di trascrizione (`memoa-transcriber`, con i pesi del modello Whisper) |
 
 L'ambiente dipende dal branch: un push su `main` distribuisce su **dev**, un push su `prod` distribuisce su **prod** (il job prod attende l'approvazione dell'environment GitHub `prod`). Assetto temporaneo, in attesa del primo rilascio in produzione. Tutti si possono avviare anche a mano (**Run workflow**), scegliendo il branch dell'ambiente. I file `*-deploy.yml` sono i passi di deploy per un ambiente, richiamati dai workflow principali.
 

@@ -1,0 +1,6 @@
+# Usato da BuildKit al posto di .dockerignore per questo Dockerfile; percorsi relativi al contesto (src/).
+*
+!shared/
+!jobs/transcriber/
+**/bin/
+**/obj/

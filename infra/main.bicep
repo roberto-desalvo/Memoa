@@ -253,9 +253,10 @@ module deployIdentity 'modules/deploy-identity.bicep' = {
     githubEnvironment: environmentName
     functionAppName: functionApp.outputs.name
     staticWebAppName: staticWebApp.outputs.name
-    // Pipeline delle immagini: per ora solo il job di normalizzazione.
+    // Pipeline delle immagini dei job.
     containerAppJobNames: [
       normalizer.outputs.jobName
+      transcriber.outputs.jobName
     ]
   }
 }

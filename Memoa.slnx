@@ -7,6 +7,9 @@
   <Folder Name="/src/jobs/normalizer/">
     <Project Path="src/jobs/normalizer/Memoa.Normalizer.csproj" />
   </Folder>
+  <Folder Name="/src/jobs/transcriber/">
+    <Project Path="src/jobs/transcriber/Memoa.Transcriber.csproj" />
+  </Folder>
   <Folder Name="/src/shared/">
     <Project Path="src/shared/Memoa.Shared.csproj" />
   </Folder>

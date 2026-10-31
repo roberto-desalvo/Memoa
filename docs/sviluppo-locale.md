@@ -232,7 +232,7 @@ Il job di normalizzazione scrive in `audio` la copia `<oid>/<recordUid>.opus` op
      FROM Records r JOIN Attachments a ON a.RecordId = r.Id
      WHERE r.RecordUid = '<recordUid>';
      ```
-   - sulla coda di trascrizione, il messaggio con l'URL della copia, in base64:
+   - sulla coda di trascrizione, il messaggio JSON `{"blobUrl": "<URL della copia>", "fallbackLanguage": "it"}`, in base64:
      ```powershell
      az storage message peek --auth-mode login --account-name <storage-dati-dev> `
        --queue-name transcription --num-messages 5

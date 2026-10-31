@@ -10,10 +10,10 @@ param sqlServerName = readEnvironmentVariable('SQL_SERVER_NAME')
 param logDailyCapGb = '0.1'
 
 // Immagini segnaposto finché le pipeline dei job non pubblicano su GHCR. Dopo la prima pubblicazione
-// impostare NORMALIZER_IMAGE_PROD (es. ghcr.io/<owner>/memoa-normalizer:prod): il deploy dell'infrastruttura
-// sostituisce l'immagine impostata dalla pipeline con questa.
+// impostare NORMALIZER_IMAGE_PROD e TRANSCRIBER_IMAGE_PROD (es. ghcr.io/<owner>/memoa-normalizer:prod): il
+// deploy dell'infrastruttura sostituisce l'immagine impostata dalla pipeline con questa.
 param normalizerImage = readEnvironmentVariable('NORMALIZER_IMAGE_PROD', 'mcr.microsoft.com/k8se/quickstart-jobs:latest')
-param transcriberImage = 'mcr.microsoft.com/k8se/quickstart-jobs:latest'
+param transcriberImage = readEnvironmentVariable('TRANSCRIBER_IMAGE_PROD', 'mcr.microsoft.com/k8se/quickstart-jobs:latest')
 param ghcrUsername = 'roberto-desalvo'
 param ghcrToken = readEnvironmentVariable('GHCR_TOKEN', '')
 
