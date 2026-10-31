@@ -1,0 +1,51 @@
+# Aggiorna l'immagine di un Container Apps Job su un ambiente. Chiamato dalle pipeline delle immagini dei job.
+# Le esecuzioni già avviate finiscono con l'immagine precedente; le successive usano la nuova.
+name: Container Apps Job (deploy)
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        type: string
+        required: true
+      job:
+        description: Nome breve del job (es. normalizer), come in infra/modules/queue-job.bicep.
+        type: string
+        required: true
+      image:
+        description: Immagine completa di tag (es. ghcr.io/<owner>/memoa-normalizer:<sha>).
+        type: string
+        required: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    env:
+      RESOURCE_GROUP: rg-memoa-${{ inputs.environment }}
+      JOB_NAME: caj-memoa-${{ inputs.environment }}-${{ inputs.job }}
+      IMAGE: ${{ inputs.image }}
+    steps:
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      # PATCH del solo template, con l'immagine sostituita: l'identità della pipeline ha il ruolo
+      # Container Apps Jobs Contributor sul job, ma nessun permesso di assegnare le identità gestite,
+      # che "az containerapp job update" rimanderebbe nel corpo della richiesta.
+      - name: Aggiornamento dell'immagine
+        run: |
+          job_url="https://management.azure.com/subscriptions/$(az account show --query id -o tsv)/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.App/jobs/$JOB_NAME?api-version=2025-01-01"
+          body=$(az rest --method get --url "$job_url" --query properties.template -o json \
+            | jq -c --arg image "$IMAGE" '{properties: {template: (.containers[0].image = $image)}}')
+          az rest --method patch --url "$job_url" --body "$body" --output none
+
+      - name: Attesa del completamento
+        run: |
+          job_id="/subscriptions/$(az account show --query id -o tsv)/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.App/jobs/$JOB_NAME"
+          az resource wait --ids "$job_id" --api-version 2025-01-01 --timeout 600 \
+            --custom "properties.provisioningState=='Succeeded'"
+          az resource show --ids "$job_id" --api-version 2025-01-01 \
+            --query "properties.template.containers[0].image" -o tsv

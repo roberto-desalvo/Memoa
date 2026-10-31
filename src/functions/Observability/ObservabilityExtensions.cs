@@ -1,5 +1,6 @@
 using Azure.Identity;
 using Azure.Monitor.OpenTelemetry.Exporter;
+using Memoa.Shared.Observability;
 using Microsoft.Azure.Functions.Worker.OpenTelemetry;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;

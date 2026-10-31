@@ -9,10 +9,12 @@ param sqlServerName = readEnvironmentVariable('SQL_SERVER_NAME')
 // dev + prod = 0,16 GB al giorno, cioè circa i 5 GB gratuiti al mese.
 param logDailyCapGb = '0.1'
 
-// Immagini segnaposto finché le pipeline dei job non pubblicano su GHCR.
-param normalizerImage = 'mcr.microsoft.com/k8se/quickstart-jobs:latest'
+// Immagini segnaposto finché le pipeline dei job non pubblicano su GHCR. Dopo la prima pubblicazione
+// impostare NORMALIZER_IMAGE_PROD (es. ghcr.io/<owner>/memoa-normalizer:prod): il deploy dell'infrastruttura
+// sostituisce l'immagine impostata dalla pipeline con questa.
+param normalizerImage = readEnvironmentVariable('NORMALIZER_IMAGE_PROD', 'mcr.microsoft.com/k8se/quickstart-jobs:latest')
 param transcriberImage = 'mcr.microsoft.com/k8se/quickstart-jobs:latest'
-param ghcrUsername = ''
+param ghcrUsername = 'roberto-desalvo'
 param ghcrToken = readEnvironmentVariable('GHCR_TOKEN', '')
 
 // Entra External ID: tenant esterno e registrazione dell'API distinti per ambiente.

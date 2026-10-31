@@ -8,6 +8,7 @@ on:
     paths:
       - src/functions/**
       - '!src/functions/Data/Migrations/**'
+      - src/shared/**
       - .github/workflows/functions.yml
       - .github/workflows/functions-deploy.yml
   workflow_dispatch:

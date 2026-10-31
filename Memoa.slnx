@@ -3,4 +3,11 @@
   <Folder Name="/src/functions/">
     <Project Path="src/functions/Memoa.Functions.csproj" />
   </Folder>
+  <Folder Name="/src/jobs/" />
+  <Folder Name="/src/jobs/normalizer/">
+    <Project Path="src/jobs/normalizer/Memoa.Normalizer.csproj" />
+  </Folder>
+  <Folder Name="/src/shared/">
+    <Project Path="src/shared/Memoa.Shared.csproj" />
+  </Folder>
 </Solution>

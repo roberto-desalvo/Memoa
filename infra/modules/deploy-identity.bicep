@@ -1,5 +1,6 @@
 // Identità usata dalle pipeline GitHub Actions dell'ambiente (OIDC, nessun segreto):
-// federated credential sull'environment GitHub omonimo e ruoli limitati a Functions e Static Web App.
+// federated credential sull'environment GitHub omonimo e ruoli limitati a Functions, Static Web App e
+// Container Apps Jobs (aggiornamento dell'immagine).
 // L'utente del database per le migration si crea con T-SQL dopo il deploy (vedi infra/README.md).
 param location string
 param tags object
@@ -14,11 +15,16 @@ param githubEnvironment string
 param functionAppName string
 param staticWebAppName string
 
+@description('Container Apps Jobs di cui la pipeline aggiorna l\'immagine.')
+param containerAppJobNames array
+
 var roles = {
   // Deploy del pacchetto (OneDeploy) e lettura dell'hostname.
   websiteContributor: 'de139f84-1756-47ae-9be6-808fbbe84772'
   // Lettura del token di deployment: nessun ruolo predefinito più ristretto lo consente.
   contributor: 'b24988ac-6180-42a0-ab88-20f7382dd24c'
+  // Aggiornamento dell'immagine del job, senza accesso alle altre risorse del resource group.
+  containerAppsJobsContributor: '4e3d2b60-56ae-4dc6-a233-09c8e5a82e68'
 }
 
 resource identity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
@@ -66,6 +72,20 @@ resource staticWebAppRole 'Microsoft.Authorization/roleAssignments@2022-04-01' =
     principalType: 'ServicePrincipal'
   }
 }
+
+resource jobs 'Microsoft.App/jobs@2025-01-01' existing = [for jobName in containerAppJobNames: {
+  name: jobName
+}]
+
+resource jobRoles 'Microsoft.Authorization/roleAssignments@2022-04-01' = [for (jobName, i) in containerAppJobNames: {
+  name: guid(jobs[i].id, identityName, roles.containerAppsJobsContributor)
+  scope: jobs[i]
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', roles.containerAppsJobsContributor)
+    principalId: identity.properties.principalId
+    principalType: 'ServicePrincipal'
+  }
+}]
 
 output name string = identity.name
 output clientId string = identity.properties.clientId

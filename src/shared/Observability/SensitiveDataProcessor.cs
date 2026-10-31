@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using OpenTelemetry;
 
-namespace Memoa.Functions.Observability;
+namespace Memoa.Shared.Observability;
 
 /// <summary>
 /// Toglie dagli span gli attributi che possono contenere dati personali o segreti: indirizzi IP,

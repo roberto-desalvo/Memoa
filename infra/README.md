@@ -22,8 +22,8 @@ Bicep per tutto ciò che lo supporta; qui sotto i passi manuali per il resto.
 | `modules/openai.bicep` | RG | Azure OpenAI con `text-embedding-3-small` Data Zone Standard |
 | `modules/function-app.bicep` | RG | Flex Consumption, storage di sistema dedicato, app settings |
 | `modules/container-apps-env.bicep` | RG | Container Apps environment (profilo Consumption) condiviso dai due job |
-| `modules/deploy-identity.bicep` | RG | Identità delle pipeline GitHub Actions: federated credential sull'environment GitHub dell'ambiente, Website Contributor sulla Function App, Contributor sulla Static Web App |
-| `modules/queue-job.bicep` | RG | Container Apps Job attivato dalla propria coda, usato due volte: normalizzazione (`uploads` → `audio`, solo ffmpeg) e trascrizione (`audio` → `transcripts`, Whisper). Nessuna scrittura sulle code, nessun accesso ad Azure SQL |
+| `modules/deploy-identity.bicep` | RG | Identità delle pipeline GitHub Actions: federated credential sull'environment GitHub dell'ambiente, Website Contributor sulla Function App, Contributor sulla Static Web App, Container Apps Jobs Contributor sul job di normalizzazione |
+| `modules/queue-job.bicep` | RG | Container Apps Job attivato dalla propria coda, usato due volte: normalizzazione (`uploads` → `audio`, worker .NET e ffmpeg) e trascrizione (`audio` → `transcripts`, Whisper). Nessuna scrittura sulle code, nessun accesso ad Azure SQL |
 
 ## Deploy
 
@@ -39,6 +39,7 @@ I file `.bicepparam` leggono dall'ambiente i valori da non pubblicare nella repo
 | `AUTH_WEB_CLIENT_ID_DEV`, `AUTH_WEB_CLIENT_ID_PROD` | no (per il frontend) | Client ID della registrazione del frontend. Scritta da `identity/deploy.ps1` |
 | `AUTH_API_SCOPE_DEV`, `AUTH_API_SCOPE_PROD` | no (per il frontend) | Scope da richiedere nel frontend (`api://<tenant-id>/memoa-<env>-api/access_as_user`). Scritta da `identity/deploy.ps1` |
 | `DEVELOPER_PRINCIPAL_IDS_DEV` | no (per le Functions in locale) | Object ID, separati da virgola, degli utenti che eseguono le Functions in locale contro dev (`az ad signed-in-user show --query id -o tsv`). Ricevono sullo storage dei dati gli stessi ruoli delle Functions: un user delegation SAS firmato in locale non può concedere più dei ruoli dati di chi lo firma, e Owner non ne dà |
+| `NORMALIZER_IMAGE_DEV`, `NORMALIZER_IMAGE_PROD` | no (dopo la prima pubblicazione) | Immagine del job di normalizzazione da usare nel deploy dell'infrastruttura: `ghcr.io/<owner>/memoa-normalizer:main` per dev, `:prod` per prod. Senza, il deploy rimette l'immagine segnaposto al posto di quella impostata dalla pipeline |
 
 In locale stanno in `infra/.env`, escluso da git: copiare `infra/.env.example` in `infra/.env`, compilarlo e caricarlo nella sessione con `load-env.ps1`. In GitHub Actions vanno impostate come secret o variabili del repository.
 
@@ -127,7 +128,7 @@ Nessun dead-letter: gli eventi non consegnati dopo i retry automatici di Event G
    ALTER ROLE db_datawriter ADD MEMBER [id-memoa-<env>-deploy];
    ```
 3. **Entra External ID**: creare un tenant esterno per ambiente (dev e prod, residenza dati in Europa), i flussi utente e il branding; compilare `AUTH_AUTHORITY_<ENV>` in `infra/.env`. Le registrazioni delle app (frontend e API) si distribuiscono con `identity/deploy.ps1` (vedi [Registrazioni delle app in Entra External ID](#registrazioni-delle-app-in-entra-external-id)); il collegamento dell'app del frontend al flusso utente resta manuale.
-4. **GHCR**: quando le immagini dei job sono pubblicate, impostare `normalizerImage`, `transcriberImage` e `ghcrUsername`, e passare `GHCR_TOKEN` (PAT con scope `read:packages`).
+4. **GHCR**: prima della prima esecuzione di `normalizer.yml`, impostare `ghcrUsername` nei `.bicepparam`, passare `GHCR_TOKEN` (PAT con scope `read:packages`) e ripetere il deploy dell'infrastruttura, così il job può scaricare le immagini private. Dopo la prima pubblicazione impostare `NORMALIZER_IMAGE_<ENV>` (vedi [Deploy](#deploy)). Per il job di trascrizione, `transcriberImage`.
 5. **GitHub**: environment e variabili delle pipeline, da configurare a mano (vedi [Pipeline GitHub Actions](#pipeline-github-actions)).
 
 ## Pipeline GitHub Actions
@@ -135,14 +136,15 @@ Nessun dead-letter: gli eventi non consegnati dopo i retry automatici di Event G
 | Workflow | Si avvia su push su `main` o `prod` se cambia | Cosa fa |
 |---|---|---|
 | `web.yml` | `src/web/**` | Build Angular, poi su ogni ambiente genera `config.json` e carica su Static Web Apps |
-| `functions.yml` | `src/functions/**` tranne `Data/Migrations/**` | `dotnet publish`, poi deploy del pacchetto sulla Function App |
+| `functions.yml` | `src/functions/**` tranne `Data/Migrations/**`, `src/shared/**` | `dotnet publish`, poi deploy del pacchetto sulla Function App |
 | `schema.yml` | `src/functions/Data/Migrations/**` | Genera lo script idempotente delle migration (scaricabile tra gli artifact) e lo applica con `sqlcmd` |
+| `normalizer.yml` | `src/jobs/normalizer/**`, `src/shared/**` | Build dell'immagine del job di normalizzazione e push su GHCR (`memoa-normalizer:<sha>` e `:<branch>`), poi su ogni ambiente aggiorna l'immagine del job con il tag `<sha>` (`container-job-deploy.yml`) |
 
 L'ambiente dipende dal branch: un push su `main` distribuisce su **dev**, un push su `prod` distribuisce su **prod** (il job prod attende l'approvazione dell'environment GitHub `prod`). Assetto temporaneo, in attesa del primo rilascio in produzione. Tutti si possono avviare anche a mano (**Run workflow**), scegliendo il branch dell'ambiente. I file `*-deploy.yml` sono i passi di deploy per un ambiente, richiamati dai workflow principali.
 
 Lo schema e le Functions si distribuiscono separatamente e in ordine non garantito: le modifiche allo schema vanno fatte in due tempi (vedi [docs/sviluppo-locale.md](../docs/sviluppo-locale.md#database-e-migration)).
 
-Autenticazione su Azure con OIDC, senza segreti: ogni ambiente ha l'identità `id-memoa-<env>-deploy` (`modules/deploy-identity.bicep`) con una federated credential sull'environment GitHub omonimo e i ruoli Website Contributor sulla Function App e Contributor sulla Static Web App (per leggerne il token di deployment). Sul database serve l'utente SQL del passo manuale 2. La connessione al server SQL dai runner GitHub passa dalla regola firewall `AllowAllWindowsAzureIps`.
+Autenticazione su Azure con OIDC, senza segreti: ogni ambiente ha l'identità `id-memoa-<env>-deploy` (`modules/deploy-identity.bicep`) con una federated credential sull'environment GitHub omonimo e i ruoli Website Contributor sulla Function App, Contributor sulla Static Web App (per leggerne il token di deployment) e Container Apps Jobs Contributor sul job di normalizzazione (per aggiornarne l'immagine con un PATCH del solo template, senza permessi sulle identità gestite). Sul database serve l'utente SQL del passo manuale 2. La connessione al server SQL dai runner GitHub passa dalla regola firewall `AllowAllWindowsAzureIps`.
 
 Configurazione, una volta per ambiente, dopo il deploy dell'infrastruttura:
 
