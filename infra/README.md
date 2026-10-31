@@ -30,6 +30,8 @@ I file `.bicepparam` leggono dall'ambiente i valori da non pubblicare nella repo
 | `SQL_SERVER_RESOURCE_GROUP` | sì | Resource group del server SQL condiviso |
 | `SQL_SERVER_NAME` | sì | Nome del server SQL condiviso |
 | `GHCR_TOKEN` | solo con immagini private | PAT GitHub con scope `read:packages` |
+| `AUTH_AUTHORITY_DEV`, `AUTH_AUTHORITY_PROD` | sì | Authority del tenant Entra External ID dell'ambiente (`https://<sottodominio>.ciamlogin.com/<tenant-id>/v2.0`) |
+| `AUTH_AUDIENCE_DEV`, `AUTH_AUDIENCE_PROD` | sì | Client ID della registrazione dell'API nel tenant dell'ambiente |
 
 In locale stanno in `infra/.env`, escluso da git: copiare `infra/.env.example` in `infra/.env`, compilarlo e caricarlo nella sessione con `load-env.ps1`. In GitHub Actions vanno impostate come secret o variabili del repository.
 
@@ -75,7 +77,7 @@ Nessun dead-letter: gli eventi non consegnati dopo i retry automatici di Event G
    ALTER ROLE db_datawriter ADD MEMBER [id-memoa-<env>-func];
    ```
    Se l'utente `id-memoa-<env>-transcriber` era già stato creato, rimuoverlo con `DROP USER [id-memoa-<env>-transcriber];`.
-3. **Entra External ID**: creare il tenant esterno (residenza dati in Europa), i flussi utente e il branding. Le registrazioni delle app (frontend e API) andranno in un deploy separato con l'estensione Microsoft Graph per Bicep, a livello di tenant.
+3. **Entra External ID**: creare un tenant esterno per ambiente (dev e prod, residenza dati in Europa), i flussi utente e il branding. Le registrazioni delle app (frontend e API) andranno in un deploy separato con l'estensione Microsoft Graph per Bicep, uno per ogni tenant.
 4. **GHCR**: quando le immagini dei job sono pubblicate, impostare `normalizerImage`, `transcriberImage` e `ghcrUsername`, e passare `GHCR_TOKEN` (PAT con scope `read:packages`).
 5. **GitHub**: secret e variabili del repository (credenziali OIDC per Azure, token di deployment di Static Web Apps, `GHCR_TOKEN`), da configurare a mano.
 6. **Ruoli dei job** (solo per ambienti distribuiti prima dell'architettura event-driven): l'identità `id-memoa-<env>-transcriber` aveva i ruoli Storage Blob Data Contributor, Storage Queue Data Contributor e Storage Queue Data Reader sull'intero storage account dati. Il deploy incrementale non li rimuove: eliminarli a mano, perché ora i ruoli dei job sono limitati ai propri contenitori e alla propria coda.
