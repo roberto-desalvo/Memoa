@@ -62,7 +62,22 @@ h1 {
   }
 }
 
-// Strato trasparente sopra la pagina mentre una nota è selezionata; sopra c'è solo il cestino.
+// Con la selezione attiva le note restano sopra lo strato, per aggiungerle o toglierle con un tocco.
+.selecting .note-link {
+  position: relative;
+  z-index: 31;
+}
+
+// Intestazione della selezione multipla: sopra lo strato, con il numero delle note e il cestino.
+.page-header.selection-header {
+  z-index: 31;
+}
+
+.selection-count {
+  font-family: inherit;
+}
+
+// Strato trasparente sopra la pagina mentre la selezione è attiva; sopra ci sono le note e il cestino.
 .selection-scrim {
   position: fixed;
   inset: 0;

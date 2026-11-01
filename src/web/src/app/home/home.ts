@@ -16,7 +16,7 @@ import { RecordsApi, RecordSummary } from '../records/records-api';
 import { RecordsStore } from '../records/records-store';
 import { NoteSearch } from '../search/note-search';
 import { AppLogo } from '../shared/app-logo';
-import { DELETE_NOTE_DIALOG, openConfirmDialog } from '../shared/confirm-dialog';
+import { deleteNotesDialog, openConfirmDialog } from '../shared/confirm-dialog';
 import { LongPress } from '../shared/long-press';
 import { NoteRow } from '../shared/note-row';
 import { AUDIO_ACCEPT } from '../uploads/audio-formats';
@@ -40,7 +40,11 @@ import { TEXT_ACCEPT } from '../uploads/text-file';
   ],
   templateUrl: './home.html',
   styleUrl: './home.scss',
-  host: { class: 'page', '(document:keydown.escape)': 'clearSelection()' },
+  host: {
+    class: 'page',
+    '[class.selecting]': 'selecting()',
+    '(document:keydown.escape)': 'clearSelection()',
+  },
 })
 export class Home implements OnInit, OnDestroy {
   private readonly msal = inject(MsalService);
@@ -68,11 +72,17 @@ export class Home implements OnInit, OnDestroy {
   /** Record raggruppati (oggi, ieri, poi per mese), nell'ordine della lista (dal più recente). */
   protected readonly groups = computed(() => groupRecords(this.store.records() ?? []));
 
-  /** Record selezionato con la pressione prolungata; sparisce se il record non è più nella lista. */
-  private readonly selectedUid = signal<string | null>(null);
+  /**
+   * Record selezionati: il primo con la pressione prolungata, gli altri con un tocco (o un'altra
+   * pressione prolungata). Un record che non è più nella lista sparisce dalla selezione.
+   */
+  private readonly selectedUids = signal<ReadonlySet<string>>(new Set());
   protected readonly selected = computed(() =>
-    this.store.records()?.find((r) => r.recordUid === this.selectedUid()),
+    (this.store.records() ?? []).filter((r) => this.selectedUids().has(r.recordUid)),
   );
+  protected readonly selecting = computed(() => this.selected().length > 0);
+  /** Con una sola nota selezionata il cestino sta sulla riga; con più note nell'intestazione. */
+  protected readonly single = computed(() => this.selected().length === 1);
 
   ngOnInit(): void {
     this.store.start();
@@ -85,19 +95,35 @@ export class Home implements OnInit, OnDestroy {
   /** Lo strato sopra la pagina chiude la selezione solo con un tocco iniziato su di esso. */
   protected scrimArmed = false;
 
+  protected isSelected(record: RecordSummary): boolean {
+    return this.selectedUids().has(record.recordUid);
+  }
+
+  /** Aggiunge il record alla selezione (pressione prolungata). */
   protected select(record: RecordSummary): void {
     this.scrimArmed = false;
-    this.selectedUid.set(record.recordUid);
+    this.selectedUids.update((uids) => new Set(uids).add(record.recordUid));
+  }
+
+  /** Tocco su un record mentre la selezione è attiva: lo aggiunge o lo toglie. */
+  protected toggle(record: RecordSummary): void {
+    this.selectedUids.update((uids) => {
+      const next = new Set(uids);
+      if (!next.delete(record.recordUid)) {
+        next.add(record.recordUid);
+      }
+      return next;
+    });
   }
 
   protected clearSelection(): void {
-    this.selectedUid.set(null);
+    this.selectedUids.set(new Set());
   }
 
   protected async deleteSelected(): Promise<void> {
-    const record = this.selected();
-    if (record && (await this.delete(record))) {
-      this.clearSelection();
+    const records = this.selected();
+    if (records.length > 0) {
+      await this.delete(records);
     }
   }
 
@@ -128,7 +154,7 @@ export class Home implements OnInit, OnDestroy {
     if (result === 'confirm') {
       await this.retry(record);
     } else if (result === 'secondary') {
-      await this.delete(record);
+      await this.delete([record]);
     }
   }
 
@@ -141,19 +167,29 @@ export class Home implements OnInit, OnDestroy {
     }
   }
 
-  /** True se la nota è stata eliminata. */
-  private async delete(record: RecordSummary): Promise<boolean> {
-    if ((await openConfirmDialog(this.dialog, DELETE_NOTE_DIALOG)) !== 'confirm') {
-      return false;
+  /** Le note eliminate escono dalla lista e quindi dalla selezione; restano selezionate quelle non riuscite. */
+  private async delete(records: RecordSummary[]): Promise<void> {
+    if ((await openConfirmDialog(this.dialog, deleteNotesDialog(records.length))) !== 'confirm') {
+      return;
     }
-    try {
-      await firstValueFrom(this.api.delete(record.recordUid));
-      this.store.remove(record.recordUid);
-      return true;
-    } catch (err) {
-      console.error('Eliminazione non riuscita', err);
-      this.snackBar.open('Eliminazione non riuscita. Riprova più tardi.');
-      return false;
+    const results = await Promise.allSettled(
+      records.map((r) => firstValueFrom(this.api.delete(r.recordUid))),
+    );
+    let failed = 0;
+    results.forEach((result, i) => {
+      if (result.status === 'fulfilled') {
+        this.store.remove(records[i].recordUid);
+      } else {
+        failed++;
+        console.error('Eliminazione non riuscita', result.reason);
+      }
+    });
+    if (failed > 0) {
+      this.snackBar.open(
+        failed === records.length
+          ? 'Eliminazione non riuscita. Riprova più tardi.'
+          : `Non è stato possibile eliminare ${failed === 1 ? '1 nota' : `${failed} note`} su ${records.length}. Riprova più tardi.`,
+      );
     }
   }
 }

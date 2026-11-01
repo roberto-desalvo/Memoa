@@ -1,19 +1,32 @@
-<mat-toolbar class="page-header">
-  <app-logo class="logo" />
-  <h1>Memoa</h1>
-  <button
-    mat-icon-button
-    class="user-button"
-    aria-label="Menu utente"
-    [matMenuTriggerFor]="userMenu"
-  >
-    @if (initials) {
-      <span class="avatar" aria-hidden="true">{{ initials }}</span>
-    } @else {
-      <mat-icon svgIcon="account" />
-    }
-  </button>
-</mat-toolbar>
+<!-- Con più note selezionate l'intestazione mostra quante sono e il cestino, sopra lo strato di selezione. -->
+@if (selecting() && !single()) {
+  <mat-toolbar class="page-header selection-header">
+    <button mat-icon-button aria-label="Annulla la selezione" (click)="clearSelection()">
+      <mat-icon svgIcon="close" />
+    </button>
+    <h1 class="selection-count" aria-live="polite">{{ selected().length }} note selezionate</h1>
+    <button mat-icon-button aria-label="Elimina le note selezionate" (click)="deleteSelected()">
+      <mat-icon svgIcon="delete" />
+    </button>
+  </mat-toolbar>
+} @else {
+  <mat-toolbar class="page-header">
+    <app-logo class="logo" />
+    <h1>Memoa</h1>
+    <button
+      mat-icon-button
+      class="user-button"
+      aria-label="Menu utente"
+      [matMenuTriggerFor]="userMenu"
+    >
+      @if (initials) {
+        <span class="avatar" aria-hidden="true">{{ initials }}</span>
+      } @else {
+        <mat-icon svgIcon="account" />
+      }
+    </button>
+  </mat-toolbar>
+}
 
 <mat-menu #userMenu xPosition="before">
   @if (accountName) {
@@ -53,15 +66,18 @@
             <ul class="note-list">
               @for (record of group.records; track record.recordUid) {
                 <li>
-                  <!-- I record in errore non si aprono: il tap mostra la finestra con "Riprova". -->
+                  <!--
+                    I record in errore non si aprono: il tap mostra la finestra con "Riprova". Con la
+                    selezione attiva il tap aggiunge o toglie la nota dalla selezione e non la apre.
+                  -->
                   @if (record.status === 'Error') {
                     <button
                       type="button"
                       class="note-link"
-                      [class.selected]="record.recordUid === selected()?.recordUid"
+                      [class.selected]="isSelected(record)"
                       appLongPress
                       (longPress)="select(record)"
-                      (click)="openError(record)"
+                      (click)="selecting() ? toggle(record) : openError(record)"
                     >
                       <app-note-row
                         [sourceType]="record.sourceType"
@@ -71,16 +87,17 @@
                           record.occurredAt | noteDate: (group.recent ? 'time' : 'dayMonth')
                         "
                         [text]="record.excerpt"
-                        [hideSide]="record.recordUid === selected()?.recordUid"
+                        [hideSide]="single() && isSelected(record)"
                       />
                     </button>
                   } @else {
                     <a
                       class="note-link"
-                      [class.selected]="record.recordUid === selected()?.recordUid"
+                      [class.selected]="isSelected(record)"
                       appLongPress
                       (longPress)="select(record)"
-                      [routerLink]="['/records', record.recordUid]"
+                      [routerLink]="selecting() ? null : ['/records', record.recordUid]"
+                      (click)="selecting() && toggle(record)"
                     >
                       <app-note-row
                         [sourceType]="record.sourceType"
@@ -90,11 +107,11 @@
                           record.occurredAt | noteDate: (group.recent ? 'time' : 'dayMonth')
                         "
                         [text]="record.excerpt"
-                        [hideSide]="record.recordUid === selected()?.recordUid"
+                        [hideSide]="single() && isSelected(record)"
                       />
                     </a>
                   }
-                  @if (record.recordUid === selected()?.recordUid) {
+                  @if (single() && isSelected(record)) {
                     <button
                       mat-icon-button
                       class="row-delete"
@@ -124,11 +141,12 @@
 </main>
 
 <!--
-  Con una nota selezionata uno strato trasparente copre la pagina (ricerca, intestazione, pulsante di
-  aggiunta): toccando ovunque tranne il cestino si chiude la selezione. Conta solo un tocco iniziato
-  sullo strato, non il rilascio della pressione che ha selezionato la nota.
+  Con la selezione attiva uno strato trasparente copre la pagina (ricerca, intestazione, pulsante di
+  aggiunta): sopra restano solo le note, che si aggiungono o tolgono dalla selezione, e il cestino
+  (sulla riga o nell'intestazione). Toccando altrove si chiude la selezione. Conta solo un tocco
+  iniziato sullo strato, non il rilascio della pressione che ha selezionato la nota.
 -->
-@if (selected()) {
+@if (selecting()) {
   <div
     class="selection-scrim"
     aria-hidden="true"

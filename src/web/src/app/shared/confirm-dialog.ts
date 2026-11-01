@@ -64,3 +64,8 @@ export const DELETE_NOTE_DIALOG: ConfirmDialogData = {
     'I file eliminati restano recuperabili per 14 giorni, poi vengono cancellati definitivamente.',
   confirm: 'Elimina',
 };
+
+/** Conferma dell'eliminazione di più note insieme dalla homepage, con il numero nel titolo. */
+export function deleteNotesDialog(count: number): ConfirmDialogData {
+  return count === 1 ? DELETE_NOTE_DIALOG : { ...DELETE_NOTE_DIALOG, title: `Eliminare ${count} note?` };
+}
