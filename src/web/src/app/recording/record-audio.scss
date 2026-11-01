@@ -2,36 +2,55 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1rem;
-  padding: 2rem 0;
+  gap: 1.5rem;
+  margin-top: 1rem;
+  padding: 3.5rem 1rem 2.5rem;
+  background:
+    radial-gradient(
+      circle at 50% 35%,
+      color-mix(in srgb, var(--record) 10%, transparent),
+      transparent 60%
+    ),
+    var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
 }
 
 .record {
   display: grid;
   place-items: center;
-  width: 5rem;
-  height: 5rem;
+  width: 6.5rem;
+  height: 6.5rem;
   padding: 0;
   color: #fff;
-  background: var(--record);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--record) 85%, #fff), var(--record));
   border: none;
   border-radius: 50%;
+  box-shadow:
+    0 0 0 0.5rem color-mix(in srgb, var(--record) 12%, transparent),
+    0 14px 30px -10px var(--record);
+
+  &:hover:not(:disabled) {
+    background: linear-gradient(145deg, color-mix(in srgb, var(--record) 85%, #fff), var(--record));
+    filter: brightness(1.05);
+  }
 
   svg {
-    width: 2.25rem;
-    height: 2.25rem;
+    width: 2.5rem;
+    height: 2.5rem;
     fill: currentColor;
     stroke: none;
   }
 
   &.active {
-    animation: pulse 1.5s ease-in-out infinite;
+    animation: pulse 1.6s ease-in-out infinite;
   }
 }
 
 .message {
   min-height: 3rem;
   text-align: center;
+  color: var(--muted);
 
   p {
     margin: 0;
@@ -39,18 +58,17 @@
 }
 
 .timer {
+  font-size: 2rem;
+  font-weight: 300;
   font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  color: var(--text);
 }
 
 @keyframes pulse {
   50% {
-    box-shadow: 0 0 0 0.75rem rgb(220 38 38 / 0.2);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .record.active {
-    animation: none;
-    box-shadow: 0 0 0 0.5rem rgb(220 38 38 / 0.2);
+    box-shadow:
+      0 0 0 1.25rem color-mix(in srgb, var(--record) 8%, transparent),
+      0 14px 30px -10px var(--record);
   }
 }

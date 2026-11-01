@@ -1,4 +1,5 @@
 import { Component, ElementRef, inject, OnDestroy, OnInit, signal, viewChild } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { MsalService } from '@azure/msal-angular';
 import { firstValueFrom } from 'rxjs';
@@ -14,7 +15,7 @@ type ErrorDialogState = 'idle' | 'busy' | 'confirmDelete' | 'failed';
 
 @Component({
   selector: 'app-home',
-  imports: [RouterLink, NoteDatePipe],
+  imports: [RouterLink, NgTemplateOutlet, NoteDatePipe],
   templateUrl: './home.html',
   styleUrl: './home.scss',
   host: { class: 'page' },
@@ -29,6 +30,14 @@ export class Home implements OnInit, OnDestroy {
   protected readonly accountName = (
     this.msal.instance.getActiveAccount() ?? this.msal.instance.getAllAccounts()[0]
   )?.name;
+
+  /** Iniziali del nome visualizzato, mostrate nel pulsante del menu utente. */
+  protected readonly initials = (this.accountName ?? '')
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0].toUpperCase())
+    .join('');
 
   protected readonly uploadAccept = `${AUDIO_ACCEPT},${TEXT_ACCEPT}`;
   protected readonly menuOpen = signal(false);

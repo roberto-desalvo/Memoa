@@ -5,42 +5,44 @@
   <h1>Impostazioni</h1>
 </header>
 
-<div class="field">
-  <label for="language">Lingua preferita</label>
-  <select
-    id="language"
-    [disabled]="language() === null || status() === 'saving'"
-    (change)="setLanguage($any($event.target).value)"
-  >
-    <option value="it" [selected]="language() === 'it'">Italiano</option>
-    <option value="en" [selected]="language() === 'en'">English</option>
-  </select>
-  <p class="hint" aria-live="polite">
-    @switch (status()) {
-      @case ('saving') {
-        Salvataggio…
+<section class="card settings">
+  <div class="field">
+    <label for="language">Lingua preferita</label>
+    <select
+      id="language"
+      [disabled]="language() === null || status() === 'saving'"
+      (change)="setLanguage($any($event.target).value)"
+    >
+      <option value="it" [selected]="language() === 'it'">Italiano</option>
+      <option value="en" [selected]="language() === 'en'">English</option>
+    </select>
+    <p class="hint" aria-live="polite">
+      @switch (status()) {
+        @case ('saving') {
+          Salvataggio…
+        }
+        @case ('saved') {
+          Salvata.
+        }
+        @case ('failed') {
+          <span class="error">Impossibile caricare o salvare la lingua.</span>
+        }
+        @default {
+          Usata quando la lingua di una registrazione non viene riconosciuta con certezza.
+        }
       }
-      @case ('saved') {
-        Salvata.
-      }
-      @case ('failed') {
-        <span class="error">Impossibile caricare o salvare la lingua.</span>
-      }
-      @default {
-        Usata quando la lingua di una registrazione non viene riconosciuta con certezza.
-      }
-    }
-  </p>
-</div>
+    </p>
+  </div>
 
-<div class="field">
-  <label for="theme">Aspetto</label>
-  <select id="theme" (change)="theme.set($any($event.target).value)">
-    @for (option of themes; track option.value) {
-      <option [value]="option.value" [selected]="option.value === theme.preference()">
-        {{ option.label }}
-      </option>
-    }
-  </select>
-  <p class="hint">Vale solo per questo dispositivo.</p>
-</div>
+  <div class="field">
+    <label for="theme">Aspetto</label>
+    <select id="theme" (change)="theme.set($any($event.target).value)">
+      @for (option of themes; track option.value) {
+        <option [value]="option.value" [selected]="option.value === theme.preference()">
+          {{ option.label }}
+        </option>
+      }
+    </select>
+    <p class="hint">Vale solo per questo dispositivo.</p>
+  </div>
+</section>

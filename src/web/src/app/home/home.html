@@ -1,56 +1,123 @@
 <header class="page-header">
-  <h1>Memoa</h1>
+  <div class="brand">
+    <span class="logo" aria-hidden="true">
+      <svg viewBox="0 0 24 24">
+        <path d="M6 4h9a3 3 0 0 1 3 3v13l-4-2-4 2-4-2V4Z" />
+        <path d="M9 9h6M9 13h4" />
+      </svg>
+    </span>
+    <h1>Memoa</h1>
+  </div>
   <div class="menu">
     <button
       type="button"
-      class="icon"
+      class="avatar"
       aria-label="Menu utente"
       aria-haspopup="menu"
       [attr.aria-expanded]="menuOpen()"
       (click)="menuOpen.set(!menuOpen())"
     >
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <circle cx="12" cy="8" r="4" />
-        <path d="M4 21a8 8 0 0 1 16 0" />
-      </svg>
+      @if (initials) {
+        <span aria-hidden="true">{{ initials }}</span>
+      } @else {
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="8" r="4" />
+          <path d="M4 21a8 8 0 0 1 16 0" />
+        </svg>
+      }
     </button>
     @if (menuOpen()) {
       <div class="menu-panel" role="menu">
         @if (accountName) {
-          <p class="hint">{{ accountName }}</p>
+          <p class="account">{{ accountName }}</p>
         }
-        <a class="button" role="menuitem" routerLink="/settings">Impostazioni</a>
-        <button type="button" role="menuitem" (click)="logout()">Esci</button>
+        <a class="menu-item" role="menuitem" routerLink="/settings">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0" />
+            <circle cx="16" cy="6" r="2" />
+            <circle cx="10" cy="12" r="2" />
+            <circle cx="18" cy="18" r="2" />
+          </svg>
+          Impostazioni
+        </a>
+        <button type="button" class="menu-item" role="menuitem" (click)="logout()">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
+          </svg>
+          Esci
+        </button>
       </div>
     }
   </div>
 </header>
 
+<ng-template #typeIcon let-type>
+  <span class="type" [class.audio]="type === 'Audio'" aria-hidden="true">
+    @if (type === 'Audio') {
+      <svg viewBox="0 0 24 24"><path d="M4 10v4M8 7v10M12 4v16M16 8v8M20 10v4" /></svg>
+    } @else {
+      <svg viewBox="0 0 24 24"><path d="M5 6h14M5 10h14M5 14h10M5 18h7" /></svg>
+    }
+  </span>
+</ng-template>
+
 <main>
   @if (store.records(); as records) {
     @if (records.length === 0) {
-      <p class="empty hint">Nessuna nota. Tocca + per aggiungerne una.</p>
+      <div class="empty">
+        <span class="empty-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24">
+            <path d="M6 4h9a3 3 0 0 1 3 3v13l-4-2-4 2-4-2V4Z" />
+            <path d="M9 9h6M9 13h4" />
+          </svg>
+        </span>
+        <h2>Il tuo diario è vuoto</h2>
+        <p class="hint">
+          Registra un pensiero, scrivi una nota o carica un file. Tocca + per iniziare.
+        </p>
+      </div>
     } @else {
+      <p class="count">{{ records.length }} {{ records.length === 1 ? 'nota' : 'note' }}</p>
       <ul class="records">
         @for (record of records; track record.recordUid) {
           <li>
             @switch (record.status) {
               @case ('Ready') {
                 <a class="record" [routerLink]="['/records', record.recordUid]">
-                  <span class="title">{{ record.title }}</span>
-                  <span class="date">{{ record.occurredAt | noteDate }}</span>
+                  <ng-container
+                    *ngTemplateOutlet="typeIcon; context: { $implicit: record.sourceType }"
+                  />
+                  <span class="body">
+                    <span class="title">{{ record.title }}</span>
+                    <span class="date">{{ record.occurredAt | noteDate }}</span>
+                  </span>
+                  <svg class="chevron" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="m9 6 6 6-6 6" />
+                  </svg>
                 </a>
               }
               @case ('Error') {
                 <button type="button" class="record disabled" (click)="openError(record)">
-                  <span class="title">{{ record.title }}</span>
-                  <span class="date error">Errore</span>
+                  <ng-container
+                    *ngTemplateOutlet="typeIcon; context: { $implicit: record.sourceType }"
+                  />
+                  <span class="body">
+                    <span class="title">{{ record.title }}</span>
+                    <span class="date">{{ record.occurredAt | noteDate }}</span>
+                  </span>
+                  <span class="chip failed">Errore</span>
                 </button>
               }
               @default {
                 <div class="record disabled" aria-disabled="true">
-                  <span class="title">{{ record.title }}</span>
-                  <span class="date">In elaborazione…</span>
+                  <ng-container
+                    *ngTemplateOutlet="typeIcon; context: { $implicit: record.sourceType }"
+                  />
+                  <span class="body">
+                    <span class="title">{{ record.title }}</span>
+                    <span class="date">{{ record.occurredAt | noteDate }}</span>
+                  </span>
+                  <span class="chip processing"><span class="dot"></span>In elaborazione</span>
                 </div>
               }
             }
@@ -60,29 +127,43 @@
     }
   } @else if (store.loadFailed()) {
     <div class="empty">
+      <h2>Qualcosa è andato storto</h2>
       <p class="error">Impossibile caricare le note.</p>
       <button type="button" (click)="store.refresh()">Riprova</button>
     </div>
   } @else {
-    <p class="empty hint">Caricamento…</p>
+    <div class="empty" aria-live="polite">
+      <span class="spinner"></span>
+      <p class="hint">Caricamento…</p>
+    </div>
   }
 </main>
+
+@if (addOpen()) {
+  <div class="scrim" aria-hidden="true" (click)="addOpen.set(false)"></div>
+}
 
 <div class="add">
   @if (addOpen()) {
     <nav class="add-bar" aria-label="Aggiungi una nota">
-      <a class="button icon" routerLink="/new/record" aria-label="Registra">
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <rect x="9" y="3" width="6" height="11" rx="3" />
-          <path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
-        </svg>
+      <a class="add-action" routerLink="/new/record">
+        <span class="add-icon rec" aria-hidden="true">
+          <svg viewBox="0 0 24 24">
+            <rect x="9" y="3" width="6" height="11" rx="3" />
+            <path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
+          </svg>
+        </span>
+        Registra
       </a>
-      <a class="button icon" routerLink="/new/write" aria-label="Scrivi">
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M4 20h4L19 9l-4-4L4 16v4ZM13 7l4 4" />
-        </svg>
+      <a class="add-action" routerLink="/new/write">
+        <span class="add-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24">
+            <path d="M4 20h4L19 9l-4-4L4 16v4ZM13 7l4 4" />
+          </svg>
+        </span>
+        Scrivi
       </a>
-      <label class="button icon" aria-label="Carica file">
+      <label class="add-action">
         <input
           #fileInput
           type="file"
@@ -90,9 +171,12 @@
           [accept]="uploadAccept"
           (change)="selectFile(fileInput)"
         />
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M12 15V4M7 9l5-5 5 5M5 20h14" />
-        </svg>
+        <span class="add-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24">
+            <path d="M12 15V4M7 9l5-5 5 5M5 20h14" />
+          </svg>
+        </span>
+        Carica
       </label>
     </nav>
   }

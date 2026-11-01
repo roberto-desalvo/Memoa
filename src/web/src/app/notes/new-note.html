@@ -37,6 +37,9 @@
       }
       @case ('upload') {
         <div class="pick">
+          <span class="pick-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M12 15V4M7 9l5-5 5 5M5 20h14" /></svg>
+          </span>
           <label class="button primary">
             <input
               #fileInput
@@ -55,7 +58,7 @@
   }
 
   @case ('details') {
-    <form (submit)="$event.preventDefault(); save()">
+    <form class="card" (submit)="$event.preventDefault(); save()">
       <div class="field">
         <label for="title">Titolo</label>
         <input
@@ -87,6 +90,9 @@
 
   @case ('saving') {
     <div class="status" aria-live="polite">
+      @if (current.fraction === null) {
+        <span class="spinner"></span>
+      }
       <p>Salvataggio…</p>
       @if (current.fraction !== null) {
         <progress [value]="current.fraction" max="1"></progress>

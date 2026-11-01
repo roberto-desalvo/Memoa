@@ -7,7 +7,7 @@
 
 @if (record(); as record) {
   @if (editing()) {
-    <form (submit)="$event.preventDefault(); saveEdit(record)">
+    <form class="card" (submit)="$event.preventDefault(); saveEdit(record)">
       <div class="field">
         <label for="title">Titolo</label>
         <input
@@ -50,24 +50,33 @@
       </div>
     </form>
   } @else {
-    <p class="hint">{{ record.occurredAt | noteDate: 'long' }}</p>
-
-    @if (record.status !== 'Ready') {
-      <p class="hint">
-        {{
-          record.status === 'Processing'
-            ? 'La nota è in elaborazione.'
-            : 'Errore nell’elaborazione.'
-        }}
-      </p>
-    }
+    <div class="meta">
+      <span class="date">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="3" y="5" width="18" height="16" rx="2" />
+          <path d="M3 10h18M8 3v4M16 3v4" />
+        </svg>
+        {{ record.occurredAt | noteDate: 'long' }}
+      </span>
+      @if (record.status !== 'Ready') {
+        <span class="state" [class.failed]="record.status === 'Error'">
+          {{
+            record.status === 'Processing'
+              ? 'La nota è in elaborazione.'
+              : 'Errore nell’elaborazione.'
+          }}
+        </span>
+      }
+    </div>
 
     @if (audioUrl(); as url) {
-      <audio controls preload="metadata" [src]="url"></audio>
+      <div class="player">
+        <audio controls preload="metadata" [src]="url"></audio>
+      </div>
     }
 
     @if (record.text) {
-      <p class="text">{{ record.text }}</p>
+      <article class="text">{{ record.text }}</article>
     }
 
     @if (actionError(); as message) {
