@@ -4,7 +4,7 @@
 
 Applicazione client: tipo di app, framework, autenticazione, registrazione e upload, aggiornamento dello stato, hosting. Interfaccia e navigazione sono in [ui.md](ui.md).
 
-Contenuti: [App](#app) · [Struttura](#struttura) · [Registrazione audio](#registrazione-audio) · [Upload](#upload) · [Aggiornamento dello stato](#aggiornamento-dello-stato) · [Hosting](#hosting) · [Da definire](#da-definire) · [Appendice: alternative scartate](#appendice-alternative-scartate)
+Contenuti: [App](#app) · [Installazione e service worker](#installazione-e-service-worker) · [Struttura](#struttura) · [Registrazione audio](#registrazione-audio) · [Upload](#upload) · [Aggiornamento dello stato](#aggiornamento-dello-stato) · [Hosting](#hosting) · [Da definire](#da-definire) · [Appendice: alternative scartate](#appendice-alternative-scartate)
 
 ---
 
@@ -14,8 +14,21 @@ Contenuti: [App](#app) · [Struttura](#struttura) · [Registrazione audio](#regi
 
 - **Perché una PWA**: evita il costo annuale degli store (Apple in particolare). In futuro si può impacchettare per gli store (es. Trusted Web Activity su Android).
 - **Limiti**: la registrazione si interrompe con schermo bloccato o app in background. Su iOS l'installazione è manuale ("Aggiungi alla schermata Home") e le notifiche push funzionano solo con l'app installata.
-- **Stato attuale**: service worker e manifest non ci sono ancora, quindi l'app non è installabile.
 - **Perché Angular**: pacchetto ufficiale per la PWA, struttura vicina a quella di .NET.
+
+---
+
+## Installazione e service worker
+
+**Decisione**: app installabile con manifest e service worker di Angular (`@angular/service-worker`). La cache contiene solo i file dell'app, nessun dato dell'utente e nessun uso offline dei dati.
+
+- **Manifest**: `public/manifest.webmanifest`, aperta su `/`, finestra `standalone`, orientamento verticale, colore di fondo e della barra di stato uguale al fondo pagina chiaro (`#f4f2ef`). In `index.html` il `theme-color` segue chiaro e scuro del sistema, non la scelta fatta nelle impostazioni dell'app.
+- **Icone**: in `public/icons/`, generate una volta da `favicon.svg`: 192 e 512 px con angoli arrotondati, 512 px maskable (fondo pieno, foglio dentro l'area sicura) e 180 px per iOS (`apple-touch-icon`).
+- **Cosa va in cache** (`ngsw-config.json`): `index.html`, JS, CSS, favicon e manifest scaricati all'installazione, le icone al primo uso. `config.json`, le chiamate alle Functions e i blob passano sempre dalla rete: nella cache del dispositivo non restano dati personali, quindi logout ed eliminazione dell'account non devono svuotarla.
+- **Aggiornamenti**: quando il service worker ha scaricato una nuova versione compare uno snackbar con il pulsante "Aggiorna". La pagina non si ricarica da sola, per non interrompere una registrazione o una nota in scrittura. Fa eccezione la cache non più coerente con il server (`unrecoverable`): lì l'app si ricarica subito.
+- **Registrazione**: solo nella build di produzione, quando l'app è stabile (al massimo dopo 30 secondi), per non rallentare l'avvio. Con `ng serve` il service worker è disattivato.
+- **Hosting**: `staticwebapp.config.json` serve `ngsw-worker.js`, `ngsw.json`, `index.html` e il manifest con `cache-control: no-cache` e il manifest con il tipo `application/manifest+json`.
+- **Costo**: nessuno. I file sono pochi KB in più sul piano Free di Static Web Apps.
 
 ---
 
@@ -78,7 +91,7 @@ Contenuti: [App](#app) · [Struttura](#struttura) · [Registrazione audio](#regi
 
 ## Da definire
 
-- Best practice e architettura interna della PWA (service worker, manifest, cache offline).
+- Best practice e architettura interna della PWA, oltre a installazione e service worker.
 - Estrazione del testo da DOCX e PDF: [funzionalita.md](funzionalita.md) li prevede, ma oggi non sono accettati.
 
 ---
@@ -88,6 +101,8 @@ Contenuti: [App](#app) · [Struttura](#struttura) · [Registrazione audio](#regi
 **Tipo di app**: cross-platform (React Native, Flutter) o nativa, per il costo degli store.
 
 **Framework**: React, Vue, Svelte, Blazor WebAssembly.
+
+**Installazione**: solo manifest, senza service worker (nessuna cache dell'app, prompt di installazione non garantito su tutti i browser, e Web Push richiede comunque un service worker); cache anche dei dati per la lettura offline (titoli e trascrizioni salvati sul dispositivo, da cancellare a logout ed eliminazione dell'account, molto più complessa).
 
 **Formato di registrazione**: solo il formato nativo senza normalizzazione (file non navigabili, bitrate diversi tra browser); codifica uniforme nel browser con un encoder WebAssembly (più codice, dipendenze e consumo di batteria).
 

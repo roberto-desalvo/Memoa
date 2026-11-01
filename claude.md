@@ -24,7 +24,7 @@ Il documento delle decisioni (`docs/project.md`, indice dei file in `docs/projec
 
 | Area | Scelta |
 |---|---|
-| Frontend | Angular (TypeScript), PWA, su Azure Static Web Apps (piano Free) |
+| Frontend | Angular (TypeScript), PWA installabile (`@angular/service-worker`, cache solo dei file dell'app, mai dei dati), su Azure Static Web Apps (piano Free) |
 | Autenticazione | Microsoft Entra External ID, MSAL nel frontend, token inviato alle Functions (CORS abilitato sulle Functions) |
 | Backend | C# .NET su Azure Functions, piano Flex Consumption |
 | Database | Azure SQL Database (offerta gratuita, serverless) |
@@ -120,7 +120,7 @@ La Function HTTP salva il testo, con titolo e data della nota, nel database e, p
 ## Ancora da definire (non decidere al posto dell'utente)
 
 - Struttura del repository, versioni di .NET e Angular, framework di test, convenzioni di codice.
-- Best practice e architettura interna della PWA.
+- Best practice e architettura interna della PWA, oltre a installazione e service worker (decisi in `docs/project/frontend.md`).
 - Conservazione dei file di trascrizione dopo il salvataggio nel database.
 - Gestione degli eventi Event Grid non consegnati.
 - Eliminazione dell'utente da Entra External ID quando l'utente elimina l'account (autenticazione delle Functions su Microsoft Graph nel tenant esterno).

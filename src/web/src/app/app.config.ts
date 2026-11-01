@@ -1,6 +1,7 @@
 import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
 import {
   ApplicationConfig,
+  isDevMode,
   provideAppInitializer,
   provideBrowserGlobalErrorListeners,
 } from '@angular/core';
@@ -9,6 +10,7 @@ import { MAT_DIALOG_DEFAULT_OPTIONS, MatDialogConfig } from '@angular/material/d
 import { MAT_FORM_FIELD_DEFAULT_OPTIONS } from '@angular/material/form-field';
 import { MAT_SNACK_BAR_DEFAULT_OPTIONS, MatSnackBarConfig } from '@angular/material/snack-bar';
 import { provideRouter, withComponentInputBinding } from '@angular/router';
+import { provideServiceWorker } from '@angular/service-worker';
 import { IPublicClientApplication } from '@azure/msal-browser';
 import { routes } from './app.routes';
 import { provideMsal } from './auth/msal';
@@ -29,6 +31,12 @@ export function appConfig(
       { provide: APP_CONFIG, useValue: config },
       provideMsal(config, msalInstance),
       provideAppInitializer(registerIcons),
+      // PWA installabile: il service worker mette in cache solo l'app (ngsw-config.json), mai i dati
+      // delle Functions né config.json. Registrato quando l'app è stabile, per non rallentare l'avvio.
+      provideServiceWorker('ngsw-worker.js', {
+        enabled: !isDevMode(),
+        registrationStrategy: 'registerWhenStable:30000',
+      }),
       // Un solo stile per componente (docs/project/ui.md, Regole visive).
       { provide: MAT_CARD_CONFIG, useValue: { appearance: 'outlined' } },
       { provide: MAT_FORM_FIELD_DEFAULT_OPTIONS, useValue: { appearance: 'fill' } },
