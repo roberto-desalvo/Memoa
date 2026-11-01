@@ -268,7 +268,8 @@
     }
 
     @if (record.text) {
-      @if (record.isTranscript) {
+      <!-- Durante una nuova trascrizione resta solo l'avviso qui sopra. -->
+      @if (record.isTranscript && record.processingStep !== 'Transcribing') {
         <p class="label text-secondary muted">
           <mat-icon svgIcon="mic" />
           {{
