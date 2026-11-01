@@ -98,6 +98,24 @@ mark {
   padding: 0 2px;
 }
 
+// Ricerca nel testo: tutte le occorrenze con la tinta tenue, quella corrente piena nel colore d'accento.
+.finding mark.current {
+  color: var(--mat-sys-on-primary);
+  background: var(--mat-sys-primary);
+}
+
+// Campo della ricerca nel testo nell'intestazione: occupa lo spazio del titolo.
+.find-field {
+  flex: 1;
+  min-width: 0;
+  font: var(--mat-sys-body-large);
+}
+
+.find-count {
+  padding-inline: var(--space-3);
+  white-space: nowrap;
+}
+
 // Segnaposto del testo mentre la trascrizione è in corso.
 .placeholder {
   display: flex;

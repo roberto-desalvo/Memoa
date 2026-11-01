@@ -1,16 +1,63 @@
-<mat-toolbar class="page-header">
-  <a mat-icon-button routerLink="/" aria-label="Torna alle note">
-    <mat-icon svgIcon="back" />
-  </a>
-  <h1>{{ record()?.title }}</h1>
-  @if (record() && !editing()) {
-    <button mat-icon-button aria-label="Altre azioni" [matMenuTriggerFor]="moreMenu">
-      <mat-icon svgIcon="more" />
+<mat-toolbar #header class="page-header">
+  @if (finding()) {
+    <!-- Ricerca nel testo: prende il posto dell'intestazione, così resta visibile mentre si scorre. -->
+    <mat-form-field class="find-field" subscriptSizing="dynamic">
+      <input
+        #findInput
+        matInput
+        type="text"
+        aria-label="Cerca nel testo"
+        placeholder="Cerca nel testo"
+        enterkeyhint="search"
+        [value]="findQuery()"
+        (input)="onFindInput($any($event.target).value)"
+        (keydown)="onFindKeydown($event)"
+      />
+      @if (findQuery()) {
+        <span matSuffix class="find-count text-secondary muted" aria-live="polite">
+          {{ findMatches().length ? findCurrent() + 1 : 0 }}/{{ findMatches().length }}
+        </span>
+      }
+    </mat-form-field>
+    <button
+      mat-icon-button
+      aria-label="Occorrenza precedente"
+      [disabled]="!findMatches().length"
+      (click)="moveFind(-1)"
+    >
+      <mat-icon svgIcon="up" />
     </button>
+    <button
+      mat-icon-button
+      aria-label="Occorrenza successiva"
+      [disabled]="!findMatches().length"
+      (click)="moveFind(1)"
+    >
+      <mat-icon svgIcon="down" />
+    </button>
+    <button mat-icon-button aria-label="Chiudi la ricerca" (click)="closeFind()">
+      <mat-icon svgIcon="close" />
+    </button>
+  } @else {
+    <a mat-icon-button routerLink="/" aria-label="Torna alle note">
+      <mat-icon svgIcon="back" />
+    </a>
+    <h1>{{ record()?.title }}</h1>
+    @if (record() && !editing()) {
+      <button mat-icon-button aria-label="Altre azioni" [matMenuTriggerFor]="moreMenu">
+        <mat-icon svgIcon="more" />
+      </button>
+    }
   }
 </mat-toolbar>
 
 <mat-menu #moreMenu xPosition="before">
+  @if (record()?.text) {
+    <button mat-menu-item (click)="openFind()">
+      <mat-icon svgIcon="search" />
+      <span>Cerca nel testo</span>
+    </button>
+  }
   @if (record(); as record) {
     @if (record.status === 'Ready') {
       <button mat-menu-item (click)="startEdit(record)">
@@ -213,8 +260,9 @@
         <mat-card-content>
           <!-- Su una riga sola: con white-space: pre-wrap gli spazi tra i nodi sarebbero visibili. -->
           @let parts = textParts();
+          <!-- Parti evidenziate: frammento della ricerca semantica oppure occorrenze della ricerca nel testo. -->
           <!-- prettier-ignore -->
-          <article class="text text-body">{{ parts.before }}@if (parts.match) {<mark #match>{{ parts.match }}</mark>}{{ parts.after }}</article>
+          <article class="text text-body" [class.finding]="finding()">@for (part of parts; track $index) {@switch (part.mark) {@case ('current') {<mark #currentMatch class="current">{{ part.text }}</mark>}@case ('match') {<mark>{{ part.text }}</mark>}@default {<ng-container>{{ part.text }}</ng-container>}}}</article>
         </mat-card-content>
       </mat-card>
     }

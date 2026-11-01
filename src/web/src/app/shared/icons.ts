@@ -25,6 +25,8 @@ const ICONS: Record<string, string> = {
   write: '<path d="M4 20h4L19 9l-4-4L4 16v4ZM13 7l4 4" />',
   upload: '<path d="M12 15V4M7 9l5-5 5 5M5 20h14" />',
   back: '<path d="M15 5l-7 7 7 7" />',
+  up: '<path d="m6 15 6-6 6 6" />',
+  down: '<path d="m6 9 6 6 6-6" />',
   close: '<path d="M6 6l12 12M18 6 6 18" />',
   add: '<path d="M12 5v14M5 12h14" />',
   more:

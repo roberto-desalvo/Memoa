@@ -1,9 +1,12 @@
 import {
+  afterNextRender,
+  afterRenderEffect,
   Component,
   computed,
   effect,
   ElementRef,
   inject,
+  Injector,
   input,
   OnDestroy,
   OnInit,
@@ -44,6 +47,49 @@ const POLL_INTERVAL_MS = 1_000;
 /** Passi dell'elaborazione mostrati nella pagina, nell'ordine in cui avvengono. */
 const AUDIO_STEPS: readonly ProcessingStep[] = ['Preparing', 'Transcribing', 'Indexing'];
 const TEXT_STEPS: readonly ProcessingStep[] = ['Indexing'];
+
+/** Porzione del testo della nota: semplice, occorrenza trovata o occorrenza corrente. */
+interface TextPart {
+  text: string;
+  mark: 'none' | 'match' | 'current';
+}
+
+interface TextRange {
+  start: number;
+  end: number;
+}
+
+/** Testo ridotto per la ricerca, con la posizione nel testo originale di ogni suo carattere. */
+interface FoldedText {
+  text: string;
+  /** Per ogni carattere di `text`, l'indice del carattere da cui deriva nel testo originale. */
+  origins: number[];
+}
+
+/**
+ * Riduce il testo per una ricerca che ignora maiuscole, accenti (in qualunque verso: "perche",
+ * "perché" e "perchè" si trovano a vicenda) e la differenza tra apostrofo dritto e tipografico.
+ * Ogni carattere si riduce da solo, così le posizioni trovate si riportano sul testo originale.
+ */
+function foldText(text: string): FoldedText {
+  let folded = '';
+  const origins: number[] = [];
+  let index = 0;
+  for (const char of text) {
+    // Prima le minuscole: alcune (come "İ") producono a loro volta un segno diacritico da togliere.
+    const reduced = char
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/\p{M}/gu, '')
+      .replace(/[‘’ʼ]/g, "'");
+    folded += reduced;
+    for (let i = 0; i < reduced.length; i++) {
+      origins.push(index);
+    }
+    index += char.length;
+  }
+  return { text: folded, origins };
+}
 
 /**
  * Pagina di un record: audio normalizzato riproducibile, testo, modifica ed eliminazione.
@@ -97,30 +143,114 @@ export class RecordPage implements OnInit, OnDestroy {
   /** Frammento trovato dalla ricerca semantica, se la nota è stata aperta dai risultati. */
   private readonly highlight = signal<string | null>(null);
 
-  /**
-   * Testo diviso attorno al frammento da evidenziare. I frammenti sono porzioni esatte del testo
-   * indicizzato: se il testo è cambiato nel frattempo e il frammento non c'è più, nessuna evidenziazione.
-   */
-  protected readonly textParts = computed(() => {
-    const text = this.record()?.text ?? '';
-    const highlight = this.highlight();
-    const start = highlight ? text.indexOf(highlight) : -1;
-    if (!highlight || start < 0) {
-      return { before: text, match: '', after: '' };
+  /** Ricerca nel testo della nota: mentre è aperta l'evidenziazione è la sua, non quella semantica. */
+  protected readonly finding = signal(false);
+  protected readonly findQuery = signal('');
+  private readonly findIndex = signal(0);
+
+  /** Occorrenze della ricerca nel testo, senza distinguere maiuscole e minuscole. */
+  protected readonly findMatches = computed((): TextRange[] => {
+    const query = this.findQuery();
+    if (!this.finding() || !query) {
+      return [];
     }
-    const end = start + highlight.length;
-    return { before: text.slice(0, start), match: text.slice(start, end), after: text.slice(end) };
+    const needle = foldText(query).text;
+    const text = this.record()?.text ?? '';
+    const { text: haystack, origins } = this.foldedText();
+    const matches: TextRange[] = [];
+    if (!needle) {
+      return matches;
+    }
+    for (
+      let at = haystack.indexOf(needle);
+      at >= 0;
+      at = haystack.indexOf(needle, at + needle.length)
+    ) {
+      // La fine è il carattere originale successivo all'ultimo trovato (o la fine del testo), anche se
+      // l'occorrenza finisce a metà di un carattere che si è ridotto in più caratteri.
+      let next = at + needle.length;
+      while (next < origins.length && origins[next] === origins[next - 1]) {
+        next++;
+      }
+      matches.push({
+        start: origins[at],
+        end: next < origins.length ? origins[next] : text.length,
+      });
+    }
+    return matches;
   });
 
-  private readonly match = viewChild<ElementRef<HTMLElement>>('match');
+  /** Testo della nota ridotto per la ricerca: si ricalcola solo quando cambia il testo. */
+  private readonly foldedText = computed(() => foldText(this.record()?.text ?? ''));
+
+  /** Posizione dell'occorrenza corrente; il testo può cambiare con il polling, quindi resta nei limiti. */
+  protected readonly findCurrent = computed(() =>
+    Math.min(this.findIndex(), this.findMatches().length - 1),
+  );
+
+  /**
+   * Testo diviso attorno alle parti da evidenziare: le occorrenze della ricerca nel testo, se è aperta,
+   * altrimenti il frammento della ricerca semantica. I frammenti sono porzioni esatte del testo
+   * indicizzato: se il testo è cambiato nel frattempo e il frammento non c'è più, nessuna evidenziazione.
+   */
+  protected readonly textParts = computed((): TextPart[] => {
+    const text = this.record()?.text ?? '';
+    let ranges: TextRange[] = [];
+    let current = 0;
+    if (this.finding()) {
+      ranges = this.findMatches();
+      current = this.findCurrent();
+    } else {
+      const highlight = this.highlight();
+      const start = highlight ? text.indexOf(highlight) : -1;
+      if (highlight && start >= 0) {
+        ranges = [{ start, end: start + highlight.length }];
+      }
+    }
+
+    const parts: TextPart[] = [];
+    let last = 0;
+    ranges.forEach(({ start, end }, i) => {
+      if (start > last) {
+        parts.push({ text: text.slice(last, start), mark: 'none' });
+      }
+      parts.push({ text: text.slice(start, end), mark: i === current ? 'current' : 'match' });
+      last = end;
+    });
+    if (last < text.length) {
+      parts.push({ text: text.slice(last), mark: 'none' });
+    }
+    return parts;
+  });
+
+  private readonly injector = inject(Injector);
+  private readonly header = viewChild('header', { read: ElementRef<HTMLElement> });
+  private readonly findInput = viewChild<ElementRef<HTMLInputElement>>('findInput');
+  private readonly currentMatch = viewChild<ElementRef<HTMLElement>>('currentMatch');
   private scrolledToMatch = false;
 
-  /** Alla prima comparsa il frammento evidenziato viene portato al centro dello schermo. */
-  private readonly scrollToMatch = effect(() => {
-    const match = this.match();
-    if (match && !this.scrolledToMatch) {
+  /**
+   * Il frammento della ricerca semantica, alla prima comparsa, viene portato al centro dello schermo.
+   * L'occorrenza corrente della ricerca nel testo ci viene portata a ogni cambio, ma solo se è fuori
+   * dalla parte visibile (sotto l'intestazione, che resta fissa in alto).
+   */
+  private readonly scrollToMatch = afterRenderEffect(() => {
+    const match = this.currentMatch()?.nativeElement;
+    // Dipendenza esplicita: a ogni carattere digitato o cambio di occorrenza si ricontrolla.
+    this.textParts();
+    if (!match) {
+      return;
+    }
+    if (this.finding()) {
+      const rect = match.getBoundingClientRect();
+      const top = this.header()?.nativeElement.getBoundingClientRect().bottom ?? 0;
+      const bottom = window.visualViewport?.height ?? window.innerHeight;
+      if (rect.top < top || rect.bottom > bottom) {
+        match.scrollIntoView({ block: 'center' });
+      }
+    } else if (!this.scrolledToMatch) {
       this.scrolledToMatch = true;
-      match.nativeElement.scrollIntoView({ block: 'center' });
+      match.scrollIntoView({ block: 'center' });
     }
   });
 
@@ -233,7 +363,43 @@ export class RecordPage implements OnInit, OnDestroy {
     }
   }
 
+  protected openFind(): void {
+    this.finding.set(true);
+    afterNextRender(() => this.findInput()?.nativeElement.focus(), { injector: this.injector });
+  }
+
+  /** Chiudendo la ricerca torna l'eventuale evidenziazione della ricerca semantica. */
+  protected closeFind(): void {
+    this.finding.set(false);
+    this.findQuery.set('');
+    this.findIndex.set(0);
+  }
+
+  protected onFindInput(query: string): void {
+    this.findQuery.set(query);
+    this.findIndex.set(0);
+  }
+
+  /** Occorrenza successiva o precedente, ricominciando dall'altro capo. */
+  protected moveFind(step: 1 | -1): void {
+    const count = this.findMatches().length;
+    if (count > 0) {
+      this.findIndex.set((this.findCurrent() + step + count) % count);
+    }
+  }
+
+  /** Invio: occorrenza successiva (con Maiusc la precedente); Esc chiude la ricerca. */
+  protected onFindKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      this.moveFind(event.shiftKey ? -1 : 1);
+    } else if (event.key === 'Escape') {
+      this.closeFind();
+    }
+  }
+
   protected startEdit(record: RecordDetail): void {
+    this.closeFind();
     this.editTitle.set(record.title);
     this.editDate.set(inputValueOf(record.occurredAt));
     this.editText.set(record.text ?? '');
