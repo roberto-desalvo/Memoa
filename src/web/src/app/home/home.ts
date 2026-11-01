@@ -10,7 +10,7 @@ import { MatToolbarModule } from '@angular/material/toolbar';
 import { Router, RouterLink } from '@angular/router';
 import { MsalService } from '@azure/msal-angular';
 import { firstValueFrom } from 'rxjs';
-import { formatDuration, ListGroup, listGroup, NoteDatePipe } from '../notes/note-date';
+import { ListGroup, listGroup, NoteDatePipe } from '../notes/note-date';
 import { NoteDraft } from '../notes/note-draft';
 import { RecordsApi, RecordSummary } from '../records/records-api';
 import { RecordsStore } from '../records/records-store';
@@ -70,10 +70,6 @@ export class Home implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.store.stop();
-  }
-
-  protected durationOf(record: RecordSummary): string | null {
-    return record.durationSeconds != null ? formatDuration(record.durationSeconds) : null;
   }
 
   protected logout(): void {

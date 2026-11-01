@@ -162,6 +162,10 @@ body {
   background: var(--mat-sys-surface);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  // Evita lo scorrimento orizzontale per gli arrotondamenti dell'intestazione a tutta larghezza (clip,
+  // non hidden, per non rompere la posizione sticky).
+  overflow-x: clip;
 }
 
 // Testo: 4 dimensioni in tutto. La gerarchia si dà con peso (.strong) e colore (.muted).
@@ -217,6 +221,15 @@ p {
   padding: env(safe-area-inset-top) var(--space-1) 0;
   color: var(--mat-sys-on-surface);
   background: var(--mat-sys-surface);
+
+  // Su telefono e tablet (anche in orizzontale) l'intestazione occupa tutta la larghezza dello schermo,
+  // fuori dalla colonna della pagina. Solo sui dispositivi touch, dove la barra di scorrimento non
+  // occupa spazio e 100vw coincide con la larghezza visibile.
+  @media (hover: none) and (pointer: coarse) {
+    margin-inline: calc(50% - 50vw);
+    padding-inline: calc(var(--space-1) + env(safe-area-inset-left))
+      calc(var(--space-1) + env(safe-area-inset-right));
+  }
 
   h1 {
     flex: 1;
