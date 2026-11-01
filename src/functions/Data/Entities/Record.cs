@@ -44,6 +44,13 @@ public sealed class Record
 
     public DateTime UpdatedAt { get; set; }
 
+    /// <summary>
+    /// Da quando il record attende il confronto con i tag: impostato quando entra in elaborazione, azzerato
+    /// da TagRecordsFunction dopo il confronto. Finché è recente (<see cref="Tagging.TagStatus"/>) i tag attivi
+    /// dell'utente risultano "in assegnazione".
+    /// </summary>
+    public DateTime? TagsPendingSince { get; set; }
+
     /// <summary>Concorrenza ottimistica tra modifiche dell'utente e Function di indicizzazione.</summary>
     public byte[] RowVersion { get; set; } = [];
 

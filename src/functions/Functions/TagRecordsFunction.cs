@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using Azure.Storage.Queues.Models;
 using Memoa.Functions.Data;
 using Memoa.Functions.Data.Entities;
@@ -17,7 +18,8 @@ namespace Memoa.Functions.Functions;
 /// nel database: nessuna chiamata ad Azure OpenAI.
 /// Si ricalcolano solo le assegnazioni automatiche: quelle manuali e le esclusioni scelte dall'utente non
 /// cambiano, e un tag escluso non viene riassegnato. Idempotente: le assegnazioni automatiche coinvolte
-/// vengono sostituite in una transazione.
+/// vengono sostituite in una transazione, insieme alla fine dell'attesa del record o del tag
+/// (<see cref="TagStatus"/>).
 /// </summary>
 public sealed class TagRecordsFunction(
     MemoaDbContext db,
@@ -25,6 +27,9 @@ public sealed class TagRecordsFunction(
     ILogger<TagRecordsFunction> logger)
 {
     private const string CosineMetric = "cosine";
+
+    /// <summary>Uguale a extensions.queues.maxDequeueCount in host.json.</summary>
+    private const int MaxDequeueCount = 5;
 
     [Function("TagRecords")]
     public async Task Run(
@@ -38,13 +43,24 @@ public sealed class TagRecordsFunction(
             return;
         }
 
-        if (request.RecordUid is { } recordUid)
+        try
         {
-            await TagRecordAsync(recordUid, cancellationToken);
+            if (request.RecordUid is { } recordUid)
+            {
+                await TagRecordAsync(recordUid, cancellationToken);
+            }
+            else
+            {
+                await ApplyTagAsync(request.TagUid!.Value, cancellationToken);
+            }
         }
-        else
+        catch (Exception ex) when (message.DequeueCount >= MaxDequeueCount && ex is not OperationCanceledException)
         {
-            await ApplyTagAsync(request.TagUid!.Value, cancellationToken);
+            // Ultimo tentativo: senza questo i tag resterebbero "in assegnazione" fino al timeout. Il
+            // messaggio va comunque nella coda dei messaggi non elaborabili.
+            logger.LogError(ex, "Assegnazione dei tag non riuscita dopo {DequeueCount} tentativi", message.DequeueCount);
+            await ClearPendingAsync(request, cancellationToken);
+            throw;
         }
     }
 
@@ -54,7 +70,7 @@ public sealed class TagRecordsFunction(
         var record = await db.Records
             .IgnoreQueryFilters([MemoaDbContext.CurrentUserFilter])
             .Where(r => r.RecordUid == recordUid)
-            .Select(r => new { r.Id, r.UserId, r.Status })
+            .Select(r => new { r.Id, r.UserId, r.Status, r.TagsPendingSince })
             .SingleOrDefaultAsync(cancellationToken);
 
         if (record is null)
@@ -63,7 +79,8 @@ public sealed class TagRecordsFunction(
             return;
         }
 
-        // Testo modificato nel frattempo: la nuova indicizzazione accoderà di nuovo il record.
+        // Testo modificato nel frattempo: la nuova indicizzazione accoderà di nuovo il record, e l'attesa
+        // resta finché non arriva.
         if (record.Status != RecordStatus.Ready)
         {
             logger.LogInformation("Record {RecordUid} non pronto: messaggio ignorato", recordUid);
@@ -94,10 +111,12 @@ public sealed class TagRecordsFunction(
             .Select(s => (RecordId: record.Id, TagId: s.Id, Distance: s.Distance!.Value))
             .ToList();
 
-        // Le assegnazioni automatiche dei tag disattivati restano com'erano.
+        // Le assegnazioni automatiche dei tag disattivati restano com'erano. L'attesa si chiude solo se è
+        // ancora quella letta: una modifica successiva del record ne ha aperta una nuova.
         var assigned = await ReplaceAutoAsync(
             db.RecordTags.Where(rt => rt.RecordId == record.Id && activeTagIds.Contains(rt.TagId)),
             matches,
+            ct => EndRecordPendingAsync(r => r.Id == record.Id && r.TagsPendingSince == record.TagsPendingSince, ct),
             cancellationToken);
 
         logger.LogInformation("Record {RecordUid}: {TagCount} tag assegnati in automatico", recordUid, assigned);
@@ -109,7 +128,7 @@ public sealed class TagRecordsFunction(
         var tag = await db.Tags
             .IgnoreQueryFilters([MemoaDbContext.CurrentUserFilter])
             .Where(t => t.TagUid == tagUid)
-            .Select(t => new { t.Id, t.UserId, t.IsActive, t.Embedding, t.EmbeddingModel })
+            .Select(t => new { t.Id, t.UserId, t.IsActive, t.Embedding, t.EmbeddingModel, t.AssignmentPendingSince })
             .SingleOrDefaultAsync(cancellationToken);
 
         if (tag is null)
@@ -118,10 +137,16 @@ public sealed class TagRecordsFunction(
             return;
         }
 
+        // L'attesa si chiude solo se è ancora quella letta: una modifica successiva del tag ne ha aperta una
+        // nuova, con il proprio messaggio.
+        Func<CancellationToken, Task> endPending = ct =>
+            EndTagPendingAsync(t => t.Id == tag.Id && t.AssignmentPendingSince == tag.AssignmentPendingSince, ct);
+
         // Disattivato dopo l'accodamento: riattivandolo verrà accodato di nuovo.
         if (!tag.IsActive)
         {
             logger.LogInformation("Tag {TagUid} disattivato: messaggio ignorato", tagUid);
+            await endPending(cancellationToken);
             return;
         }
 
@@ -147,18 +172,21 @@ public sealed class TagRecordsFunction(
         var assigned = await ReplaceAutoAsync(
             db.RecordTags.Where(rt => rt.TagId == tag.Id),
             matches,
+            endPending,
             cancellationToken);
 
         logger.LogInformation("Tag {TagUid}: assegnato in automatico a {RecordCount} record", tagUid, assigned);
     }
 
     /// <summary>
-    /// In una transazione elimina le assegnazioni automatiche nell'ambito indicato e inserisce quelle nuove,
-    /// tranne dove l'utente ha già scelto (assegnazione manuale o esclusione). Restituisce quante ne inserisce.
+    /// In una transazione elimina le assegnazioni automatiche nell'ambito indicato, inserisce quelle nuove
+    /// (tranne dove l'utente ha già scelto: assegnazione manuale o esclusione) e chiude l'attesa con
+    /// <paramref name="endPending"/>. Restituisce quante assegnazioni inserisce.
     /// </summary>
     private async Task<int> ReplaceAutoAsync(
         IQueryable<RecordTag> scope,
         IReadOnlyList<(int RecordId, int TagId, double Distance)> matches,
+        Func<CancellationToken, Task> endPending,
         CancellationToken cancellationToken)
     {
         scope = scope.IgnoreQueryFilters([MemoaDbContext.CurrentUserFilter]);
@@ -195,8 +223,48 @@ public sealed class TagRecordsFunction(
             // Un'esecuzione concorrente che ha già inserito la stessa coppia viola la chiave primaria: la
             // coda riprova sui dati aggiornati.
             await db.SaveChangesAsync(ct);
+            await endPending(ct);
             await transaction.CommitAsync(ct);
             return added.Count;
         }, cancellationToken);
     }
+
+    /// <summary>
+    /// Tentativi esauriti: chiude comunque l'attesa del record o del tag, così lo stato torna quello finale.
+    /// Aggiornamento diretto, indipendente dalle entità tracciate dal tentativo fallito.
+    /// </summary>
+    private async Task ClearPendingAsync(TaggingRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (request.RecordUid is { } recordUid)
+            {
+                await EndRecordPendingAsync(r => r.RecordUid == recordUid, cancellationToken);
+            }
+            else
+            {
+                await EndTagPendingAsync(t => t.TagUid == request.TagUid, cancellationToken);
+            }
+        }
+        catch (Exception ex)
+        {
+            // Es. database non raggiungibile: resta il timeout. Si propaga l'errore originale.
+            logger.LogError(ex, "Impossibile chiudere l'attesa dell'assegnazione dei tag");
+        }
+    }
+
+    private Task EndRecordPendingAsync(Expression<Func<Record, bool>> predicate, CancellationToken cancellationToken) =>
+        db.Records
+            .IgnoreQueryFilters([MemoaDbContext.CurrentUserFilter])
+            .Where(predicate)
+            .Where(r => r.TagsPendingSince != null)
+            // Non è una modifica dell'utente: UpdatedAt resta quello (ExecuteUpdate non passa da SaveChanges).
+            .ExecuteUpdateAsync(s => s.SetProperty(r => r.TagsPendingSince, (DateTime?)null), cancellationToken);
+
+    private Task EndTagPendingAsync(Expression<Func<Tag, bool>> predicate, CancellationToken cancellationToken) =>
+        db.Tags
+            .IgnoreQueryFilters([MemoaDbContext.CurrentUserFilter])
+            .Where(predicate)
+            .Where(t => t.AssignmentPendingSince != null)
+            .ExecuteUpdateAsync(s => s.SetProperty(t => t.AssignmentPendingSince, (DateTime?)null), cancellationToken);
 }

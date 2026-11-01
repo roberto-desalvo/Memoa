@@ -28,8 +28,13 @@
             @if (tag.description) {
               <span class="description text-secondary muted">{{ tag.description }}</span>
             }
-            <span class="text-label muted">
-              {{ countLabel(tag.recordCount) }}{{ tag.isActive ? '' : ' · Disattivato' }}
+            <span class="meta">
+              <span class="text-label muted">
+                {{ countLabel(tag.recordCount) }}{{ tag.isActive ? '' : ' · Disattivato' }}
+              </span>
+              @if (tag.status === 'Assigning') {
+                <span class="status"><mat-icon svgIcon="pending" />Assegnazione in corso</span>
+              }
             </span>
           </a>
           <mat-slide-toggle

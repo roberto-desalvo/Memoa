@@ -55,6 +55,11 @@
   </form>
 
   @if (tag(); as tag) {
+    @if (tag.status === 'Assigning') {
+      <p class="status assigning" aria-live="polite">
+        <mat-icon svgIcon="pending" />Assegnazione alle note in corso
+      </p>
+    }
     <section class="records">
       <h2 class="group-label text-secondary strong muted">
         {{

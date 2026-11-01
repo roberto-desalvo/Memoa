@@ -56,6 +56,7 @@ public sealed class RegenerateTranscriptFunction(
         record.OriginalTranscript = null;
         record.Status = RecordStatus.Processing;
         record.ErrorCode = null;
+        record.TagsPendingSince = DateTime.UtcNow;
 
         try
         {

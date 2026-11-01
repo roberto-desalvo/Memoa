@@ -1,12 +1,14 @@
 using Memoa.Functions.Authentication;
 using Memoa.Functions.Data;
 using Memoa.Functions.Data.Entities;
+using Memoa.Functions.Embeddings;
 using Memoa.Functions.Tagging;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using OpenAI.Embeddings;
 
 namespace Memoa.Functions.Functions;
@@ -14,12 +16,14 @@ namespace Memoa.Functions.Functions;
 /// <summary>
 /// Gestione dei tag dell'utente. L'embedding di nome e descrizione si calcola subito, alla creazione e a
 /// ogni modifica di nome o descrizione; poi il tag va sulla coda dei tag (<see cref="TagRecordsFunction"/>),
-/// che lo applica ai record già esistenti. Nomi e descrizioni non finiscono mai nei log.
+/// che lo applica ai record già esistenti. Ogni risposta riporta lo stato di assegnazione del tag
+/// (<see cref="TagStatus"/>). Nomi e descrizioni non finiscono mai nei log.
 /// </summary>
 public sealed class TagFunctions(
     MemoaDbContext db,
     CurrentUser currentUser,
     EmbeddingClient embeddingClient,
+    IOptions<TaggingOptions> options,
     ILogger<TagFunctions> logger)
 {
     [Function("ListTags")]
@@ -27,17 +31,31 @@ public sealed class TagFunctions(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "tags")] HttpRequest req,
         CancellationToken cancellationToken)
     {
+        var pendingAfter = TagStatus.PendingAfter(options.Value.PendingTimeout);
+        var recordsPending = await TagStatus.AnyRecordPendingAsync(db, pendingAfter, cancellationToken);
+
         // Il filtro globale limita la query ai tag dell'utente autenticato.
-        var tags = await db.Tags
+        var rows = await db.Tags
             .AsNoTracking()
             .OrderBy(t => t.Name)
-            .Select(t => new TagSummary(
+            .Select(t => new
+            {
                 t.TagUid,
                 t.Name,
                 t.Description,
                 t.IsActive,
-                t.RecordTags.Count(rt => rt.Source != RecordTagSource.Excluded)))
+                t.AssignmentPendingSince,
+                RecordCount = t.RecordTags.Count(rt => rt.Source != RecordTagSource.Excluded),
+            })
             .ToListAsync(cancellationToken);
+
+        var tags = rows.Select(t => new TagSummary(
+            t.TagUid,
+            t.Name,
+            t.Description,
+            t.IsActive,
+            t.RecordCount,
+            TagStatus.Of(t.IsActive, t.AssignmentPendingSince, recordsPending, pendingAfter)));
 
         return new OkObjectResult(tags);
     }
@@ -61,7 +79,13 @@ public sealed class TagFunctions(
             .Where(r => r.Tags.Any(rt => rt.TagId == tag.Id && rt.Source != RecordTagSource.Excluded))
             .ToSummariesAsync(cancellationToken);
 
-        return new OkObjectResult(new TagDetail(tag.TagUid, tag.Name, tag.Description, tag.IsActive, records));
+        return new OkObjectResult(new TagDetail(
+            tag.TagUid,
+            tag.Name,
+            tag.Description,
+            tag.IsActive,
+            await StatusOfAsync(tag, cancellationToken),
+            records));
     }
 
     [Function("CreateTag")]
@@ -99,6 +123,8 @@ public sealed class TagFunctions(
             UserId = userId,
             Name = name,
             Description = description,
+            // Da applicare a tutti i record: "in assegnazione" finché TagRecords non ha finito.
+            AssignmentPendingSince = DateTime.UtcNow,
         };
 
         if (!await TrySetEmbeddingAsync(tag, cancellationToken))
@@ -127,7 +153,7 @@ public sealed class TagFunctions(
 
         return new HttpWithTaggingOutput
         {
-            Result = new ObjectResult(ToSummary(tag, 0)) { StatusCode = StatusCodes.Status201Created },
+            Result = new ObjectResult(ToSummary(tag, 0, TagStatus.Assigning)) { StatusCode = StatusCodes.Status201Created },
             TaggingMessage = TaggingRequest.ForTag(tag.TagUid).Serialize(),
         };
     }
@@ -197,6 +223,13 @@ public sealed class TagFunctions(
             return new HttpWithTaggingOutput { Result = TagInput.EmbeddingUnavailable() };
         }
 
+        // Un tag disattivato non si applica: lo farà la riattivazione.
+        var apply = tag.IsActive && (embeddingChanged || reactivated);
+        if (apply)
+        {
+            tag.AssignmentPendingSince = DateTime.UtcNow;
+        }
+
         try
         {
             await db.SaveChangesAsync(cancellationToken);
@@ -207,8 +240,6 @@ public sealed class TagFunctions(
             return new HttpWithTaggingOutput { Result = new ConflictObjectResult(new { error = "conflict" }) };
         }
 
-        // Un tag disattivato non si applica: lo farà la riattivazione.
-        var apply = tag.IsActive && (embeddingChanged || reactivated);
         if (apply)
         {
             logger.LogInformation("Tag {TagUid} modificato e accodato per l'assegnazione", tagUid);
@@ -219,7 +250,7 @@ public sealed class TagFunctions(
 
         return new HttpWithTaggingOutput
         {
-            Result = new OkObjectResult(ToSummary(tag, recordCount)),
+            Result = new OkObjectResult(ToSummary(tag, recordCount, await StatusOfAsync(tag, cancellationToken))),
             TaggingMessage = apply ? TaggingRequest.ForTag(tag.TagUid).Serialize() : null,
         };
     }
@@ -278,8 +309,15 @@ public sealed class TagFunctions(
         }
     }
 
-    private static TagSummary ToSummary(Tag tag, int recordCount) =>
-        new(tag.TagUid, tag.Name, tag.Description, tag.IsActive, recordCount);
+    private async Task<string> StatusOfAsync(Tag tag, CancellationToken cancellationToken)
+    {
+        var pendingAfter = TagStatus.PendingAfter(options.Value.PendingTimeout);
+        var recordsPending = tag.IsActive && await TagStatus.AnyRecordPendingAsync(db, pendingAfter, cancellationToken);
+        return TagStatus.Of(tag.IsActive, tag.AssignmentPendingSince, recordsPending, pendingAfter);
+    }
+
+    private static TagSummary ToSummary(Tag tag, int recordCount, string status) =>
+        new(tag.TagUid, tag.Name, tag.Description, tag.IsActive, recordCount, status);
 }
 
 public sealed record CreateTagRequest(string? Name, string? Description);
@@ -287,8 +325,17 @@ public sealed record CreateTagRequest(string? Name, string? Description);
 /// <summary>Campi da modificare; quelli null restano invariati.</summary>
 public sealed record UpdateTagRequest(string? Name, string? Description, bool? IsActive);
 
-/// <summary>Tag nella pagina dei tag. <paramref name="RecordCount"/> conta i record a cui è assegnato.</summary>
-public sealed record TagSummary(Guid TagUid, string Name, string? Description, bool IsActive, int RecordCount);
+/// <summary>
+/// Tag nella pagina dei tag. <paramref name="RecordCount"/> conta i record a cui è assegnato;
+/// <paramref name="Status"/> è <see cref="TagStatus.Assigning"/> o <see cref="TagStatus.Ready"/>.
+/// </summary>
+public sealed record TagSummary(
+    Guid TagUid,
+    string Name,
+    string? Description,
+    bool IsActive,
+    int RecordCount,
+    string Status);
 
 /// <summary>Tag nella propria pagina, con i record a cui è assegnato.</summary>
 public sealed record TagDetail(
@@ -296,4 +343,5 @@ public sealed record TagDetail(
     string Name,
     string? Description,
     bool IsActive,
+    string Status,
     IReadOnlyList<RecordSummary> Records);

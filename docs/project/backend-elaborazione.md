@@ -91,6 +91,11 @@ Tag per utente, con nome (massimo 50 caratteri, univoco per utente) e descrizion
 - **Tag disattivato**: escluso dalle assegnazioni automatiche successive; quelle già fatte restano.
 - **Assegnazione manuale** (`SetRecordTags`, `PUT /records/{uid}/tags`): il client invia tutti i tag visibili della nota. Quelli nuovi si creano prima con `CreateTag`.
 - **Idempotenza**: una riga per coppia (RecordId, TagId); un conflitto tra esecuzioni concorrenti fa riprovare la coda.
+- **Stato dell'assegnazione**: `Assigning` o `Ready`, calcolato a ogni lettura (non salvato), per evitare che più note elaborate insieme si scavalchino. Un tag è `Assigning` se:
+  - ha un ricalcolo in attesa (`Tags.AssignmentPendingSince`, impostato da `CreateTag` e da `UpdateTag` quando accoda il tag), oppure
+  - è attivo e almeno una nota dell'utente non in errore attende il confronto (`Records.TagsPendingSince`, impostato quando la nota entra in elaborazione: creazione, modifica del testo, riprova, rigenerazione).
+- **Fine dell'attesa**: `TagRecords` azzera il timestamp nella stessa transazione delle assegnazioni, solo se è ancora quello letto all'inizio (una modifica successiva ne apre uno nuovo). Lo azzera anche quando ignora un tag disattivato e, all'ultimo tentativo fallito, prima che il messaggio vada nella coda dei non elaborabili. Una rigenerazione con testo invariato lo azzera subito (nessun confronto da fare). Una nota in errore non conta.
+- **Timeout**: un'attesa più vecchia di `Tagging__PendingTimeoutMinutes` (15 minuti) non conta più, così un processo fallito senza ripulire non lascia il tag bloccato. Con l'attesa che parte dall'inizio dell'elaborazione, un audio lungo trascritto dal ripiego può superarla: il tag torna `Ready` prima del confronto, che avviene comunque.
 
 ---
 

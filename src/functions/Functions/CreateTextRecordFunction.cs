@@ -50,6 +50,7 @@ public sealed class CreateTextRecordFunction(
             Title = title,
             SourceType = SourceType.Text,
             Status = RecordStatus.Processing,
+            TagsPendingSince = DateTime.UtcNow,
             Text = body.Text,
             OccurredAt = occurredAt,
         };

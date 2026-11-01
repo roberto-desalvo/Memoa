@@ -1,9 +1,7 @@
 import { inject, Injectable, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
+import { LIST_POLL_INTERVAL_MS } from '../config/polling';
 import { EXCERPT_LENGTH, RecordDetail, RecordsApi, RecordSummary } from './records-api';
-
-/** Intervallo del polling della lista, attivo solo mentre almeno un record è in elaborazione. */
-const POLL_INTERVAL_MS = 10_000;
 
 /**
  * Lista dei record della homepage. Il polling resta attivo solo mentre la homepage è aperta, l'app è
@@ -89,7 +87,7 @@ export class RecordsStore {
   private schedule(): void {
     clearTimeout(this.timer);
     if (this.active && document.visibilityState === 'visible' && this.hasProcessing()) {
-      this.timer = setTimeout(() => void this.refresh(), POLL_INTERVAL_MS);
+      this.timer = setTimeout(() => void this.refresh(), LIST_POLL_INTERVAL_MS);
     }
   }
 

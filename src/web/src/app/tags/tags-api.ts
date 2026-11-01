@@ -4,6 +4,12 @@ import { Observable } from 'rxjs';
 import { APP_CONFIG } from '../config/app-config';
 import { RecordSummary } from '../records/records-api';
 
+/**
+ * Stato dell'assegnazione automatica: "Assigning" finché il tag non è stato confrontato con tutte le note
+ * (tag appena creato, modificato o riattivato, oppure una nota in elaborazione), poi "Ready".
+ */
+export type TagStatus = 'Assigning' | 'Ready';
+
 /** Tag nella pagina dei tag. */
 export interface TagSummary {
   tagUid: string;
@@ -13,6 +19,7 @@ export interface TagSummary {
   isActive: boolean;
   /** Note a cui è assegnato. */
   recordCount: number;
+  status: TagStatus;
 }
 
 /** Tag nella propria pagina, con le note a cui è assegnato. */

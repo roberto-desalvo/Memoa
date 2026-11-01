@@ -72,6 +72,7 @@ public sealed class RetryRecordFunction(
 
         record.Status = RecordStatus.Processing;
         record.ErrorCode = null;
+        record.TagsPendingSince = DateTime.UtcNow;
 
         try
         {

@@ -119,6 +119,9 @@ namespace Memoa.Functions.Data.Migrations
                         .IsUnicode(false)
                         .HasColumnType("varchar(20)");
 
+                    b.Property<DateTime?>("TagsPendingSince")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("Text")
                         .HasColumnType("nvarchar(max)");
 
@@ -215,6 +218,9 @@ namespace Memoa.Functions.Data.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("AssignmentPendingSince")
+                        .HasColumnType("datetime2");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");

@@ -77,6 +77,7 @@ public sealed class UpdateRecordFunction(MemoaDbContext db, ILogger<UpdateRecord
             record.Text = body.Text;
             record.Status = RecordStatus.Processing;
             record.ErrorCode = null;
+            record.TagsPendingSince = DateTime.UtcNow;
             reindex = true;
         }
 

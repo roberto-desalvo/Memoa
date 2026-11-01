@@ -53,6 +53,8 @@ public sealed class TranscriptStore(MemoaDbContext db, ILogger<TranscriptStore> 
             {
                 record.Status = RecordStatus.Ready;
                 record.ErrorCode = null;
+                // Stesso testo: i tag assegnati restano validi, nessun confronto da attendere.
+                record.TagsPendingSince = null;
             }
 
             await db.SaveChangesAsync(cancellationToken);

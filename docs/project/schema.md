@@ -50,6 +50,7 @@ Record del diario, comune a tutte le origini.
 | Language | varchar(5), null | Lingua rilevata. |
 | OccurredAt | datetime2 | Data e ora della nota ([funzionalita.md](funzionalita.md#titolo-data-e-ora)). Ordine della lista: `OccurredAt`, poi `Title`. |
 | CreatedAt, UpdatedAt | datetime2 | |
+| TagsPendingSince | datetime2, null | Da quando la nota attende il confronto con i tag ([backend-elaborazione.md](backend-elaborazione.md#tag)); azzerato da `TagRecords`. |
 | RowVersion | rowversion | Concorrenza ottimistica tra modifiche dell'utente e pipeline. |
 
 ---
@@ -104,6 +105,7 @@ Tag dell'utente ([backend-elaborazione.md](backend-elaborazione.md#tag)).
 | IsActive | bit | Se falso il tag non viene più assegnato in automatico. |
 | Embedding | vector(1536) | Embedding di nome e descrizione, ricalcolato quando cambiano. |
 | EmbeddingModel | varchar(100) | Si confronta solo con chunk dello stesso modello. |
+| AssignmentPendingSince | datetime2, null | Da quando il tag attende di essere applicato a tutte le note; azzerato da `TagRecords`. Con `Records.TagsPendingSince` determina lo stato `Assigning` / `Ready`, calcolato e non salvato. |
 | CreatedAt, UpdatedAt | datetime2 | |
 | RowVersion | rowversion | |
 

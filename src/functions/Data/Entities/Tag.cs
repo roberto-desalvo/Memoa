@@ -38,6 +38,12 @@ public sealed class Tag
     /// <summary>Modello che ha prodotto il vettore: si confronta solo con chunk dello stesso modello.</summary>
     public string EmbeddingModel { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Da quando il tag attende di essere applicato a tutti i record (creazione, modifica dell'embedding,
+    /// riattivazione); azzerato da TagRecordsFunction. Vedi <see cref="Tagging.TagStatus"/>.
+    /// </summary>
+    public DateTime? AssignmentPendingSince { get; set; }
+
     public DateTime CreatedAt { get; set; }
 
     public DateTime UpdatedAt { get; set; }

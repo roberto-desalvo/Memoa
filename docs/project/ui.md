@@ -124,9 +124,9 @@ Valgono per ogni schermata. Una nuova schermata o un nuovo componente le rispett
 
 ## Tag
 
-- **Elenco** (`/tags`, dal menu utente): pulsante primario "Nuovo tag", poi un blocco bianco con una riga per tag in ordine di nome: nome, descrizione su una riga, numero di note ed eventuale "Disattivato"; a destra l'interruttore dell'assegnazione automatica. Il tap sulla riga apre il tag. Stati: nessun tag (con invito a crearne uno), caricamento, errore con "Riprova".
-- **Tag** (`/tags/:tagUid`, e `/tags/new` per crearne uno): campi Nome (massimo 50 caratteri) e Descrizione (massimo 2.000, con contatore e un suggerimento su a cosa serve), pulsante primario Salva (o Crea), menu ⋮ con Elimina (con conferma: il tag viene tolto da tutte le note, le note restano). Sotto, le note con il tag, nello stesso stile della lista.
-- Dopo la creazione o una modifica di nome o descrizione un messaggio avvisa che le note vengono aggiornate a breve.
+- **Elenco** (`/tags`, dal menu utente): pulsante primario "Nuovo tag", poi un blocco bianco con una riga per tag in ordine di nome: nome, descrizione su una riga, numero di note ed eventuale "Disattivato", con accanto "Assegnazione in corso" (icona e testo) mentre il tag è in assegnazione; a destra l'interruttore dell'assegnazione automatica. Finché almeno un tag è in assegnazione la lista si aggiorna con il polling. Il tap sulla riga apre il tag. Stati: nessun tag (con invito a crearne uno), caricamento, errore con "Riprova".
+- **Tag** (`/tags/:tagUid`, e `/tags/new` per crearne uno): campi Nome (massimo 50 caratteri) e Descrizione (massimo 2.000, con contatore e un suggerimento su a cosa serve), pulsante primario Salva (o Crea), menu ⋮ con Elimina (con conferma: il tag viene tolto da tutte le note, le note restano). Sotto, mentre il tag è in assegnazione, "Assegnazione alle note in corso" (icona e testo), poi le note con il tag, nello stesso stile della lista. Finché il tag è in assegnazione stato e note si aggiornano con il polling, senza toccare i campi.
+- Dopo la creazione o una modifica un messaggio breve conferma il salvataggio; l'avanzamento lo mostra lo stato del tag.
 
 ---
 

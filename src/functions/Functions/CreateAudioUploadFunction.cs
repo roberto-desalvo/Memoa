@@ -72,6 +72,7 @@ public sealed class CreateAudioUploadFunction(
             Title = title,
             SourceType = SourceType.Audio,
             Status = RecordStatus.Processing,
+            TagsPendingSince = DateTime.UtcNow,
             OccurredAt = occurredAt,
         });
         await db.SaveChangesAsync(cancellationToken);

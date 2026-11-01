@@ -216,7 +216,7 @@ az storage message put --auth-mode login --account-name <storage-dati-dev> `
   --queue-name tagging --content ([Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($message)))
 ```
 
-Verificare il risultato nel database (la soglia è `Tagging__MinSimilarity`, predefinita 0,4):
+Verificare il risultato nel database (la soglia è `Tagging__MinSimilarity`, predefinita 0,4; le attese che rendono il tag `Assigning` sono `Records.TagsPendingSince` e `Tags.AssignmentPendingSince`):
 
 ```sql
 SELECT r.RecordUid, t.TagUid, t.IsActive, rt.Source, rt.Similarity
@@ -237,3 +237,7 @@ Casi da provare:
 | Duplicato | Reinviare lo stesso messaggio | Stesse righe, nessun duplicato |
 | Record non pronto | Record `Processing` | Messaggio ignorato |
 | Messaggio non valido | Contenuto `abc` o `{}` | Messaggio scartato (errore nel log) |
+| Fine dell'attesa | Messaggio per un record con `TagsPendingSince` o un tag con `AssignmentPendingSince` | Timestamp tornato NULL insieme alle assegnazioni; `GET /tags` riporta `status = Ready` |
+| Attesa più recente | Cambiare il timestamp tra lettura e salvataggio (es. due modifiche ravvicinate del tag) | Il timestamp nuovo resta: il tag rimane `Assigning` fino al messaggio successivo |
+| Tentativi esauriti | Eccezione forzata in locale in `TagRecords` (es. `throw` temporaneo prima del salvataggio) | Al quinto tentativo timestamp azzerato, messaggio in `tagging-poison` |
+| Timeout | `TagsPendingSince` più vecchio di 15 minuti | Il tag risulta `Ready` anche senza confronto |

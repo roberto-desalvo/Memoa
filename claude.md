@@ -67,6 +67,7 @@ La Function HTTP salva il testo, con titolo e data della nota, nel database e, p
 - Tag per utente nel database, con nome e descrizione (massimo 2.000 caratteri) e un interruttore attivo/disattivo. L'embedding di nome e descrizione lo calcola subito la Function HTTP, alla creazione e a ogni modifica di nome o descrizione.
 - **Assegnazione automatica** dalla coda `tagging` (messaggio: RecordUid oppure TagUid): un record riceve un tag attivo se almeno un suo frammento ha similarità coseno pari almeno alla soglia globale `Tagging__MinSimilarity`. Solo confronti SQL tra vettori dello stesso modello, nessuna chiamata ad Azure OpenAI. Un tag creato, modificato o riattivato viene accodato e applicato ai record esistenti.
 - **Origine dell'assegnazione**: automatica (ricalcolata), manuale (dalla pagina del record, mai toccata dall'automatica) o esclusa (tolta dall'utente, mai riassegnata). Un tag disattivato conserva le assegnazioni esistenti.
+- **Stato del tag** (`Assigning` / `Ready`): calcolato a ogni lettura, non salvato. `Assigning` se il tag ha un ricalcolo in attesa (`Tags.AssignmentPendingSince`) oppure se è attivo e una nota dell'utente non in errore attende il confronto (`Records.TagsPendingSince`, dall'ingresso in elaborazione). Ogni passaggio azzera solo la propria attesa (anche all'ultimo tentativo fallito); le attese oltre `Tagging__PendingTimeoutMinutes` (15 minuti) non contano. Il frontend fa polling sui tag in assegnazione con gli stessi intervalli delle note (`src/web/src/app/config/polling.ts`).
 
 ### Regole dell'architettura (vincolanti)
 

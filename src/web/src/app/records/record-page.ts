@@ -27,6 +27,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
+import { PAGE_POLL_INTERVAL_MS } from '../config/polling';
 import { inputValueOf, NoteDatePipe, toOccurredAt } from '../notes/note-date';
 import {
   MAX_TEXT_LENGTH,
@@ -39,12 +40,6 @@ import { RecordsStore } from './records-store';
 import { SearchState } from '../search/search-state';
 import { DELETE_NOTE_DIALOG, openConfirmDialog } from '../shared/confirm-dialog';
 import { openRecordTagsDialog } from '../tags/record-tags-dialog';
-
-/**
- * Intervallo del polling di un record in elaborazione: breve, perché l'avanzamento dei passi sembri in
- * tempo reale. Il controllo successivo parte solo dopo la risposta, quindi le richieste non si sovrappongono.
- */
-const POLL_INTERVAL_MS = 1_000;
 
 /**
  * Attesa della ricarica dopo che il record è diventato pronto: i tag automatici si assegnano subito dopo
@@ -379,7 +374,7 @@ export class RecordPage implements OnInit, OnDestroy {
       document.visibilityState === 'visible' &&
       this.record()?.status === 'Processing'
     ) {
-      this.timer = setTimeout(() => void this.poll(), POLL_INTERVAL_MS);
+      this.timer = setTimeout(() => void this.poll(), PAGE_POLL_INTERVAL_MS);
     }
   }
 

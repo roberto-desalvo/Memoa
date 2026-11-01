@@ -14,4 +14,14 @@ public sealed class TaggingOptions
     /// </summary>
     [Range(0.0, 1.0)]
     public double MinSimilarity { get; set; } = 0.4;
+
+    /// <summary>
+    /// Dopo quanti minuti un'attesa di assegnazione non conclusa (processo fallito senza ripulire) non rende
+    /// più "in assegnazione" i tag. Con l'attesa che parte dall'inizio dell'elaborazione, un audio lungo
+    /// trascritto dal ripiego può superarla: i tag tornano allo stato finale prima del confronto.
+    /// </summary>
+    [Range(1, 1_440)]
+    public int PendingTimeoutMinutes { get; set; } = 15;
+
+    public TimeSpan PendingTimeout => TimeSpan.FromMinutes(PendingTimeoutMinutes);
 }

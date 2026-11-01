@@ -71,9 +71,9 @@ Contenuti: [App](#app) · [Installazione e service worker](#installazione-e-serv
 
 ## Aggiornamento dello stato
 
-**Decisione**: polling dal client, ogni 10 secondi.
+**Decisione**: polling dal client, con gli stessi intervalli per note e tag, definiti in un solo punto (`src/web/src/app/config/polling.ts`): 10 secondi per le liste (homepage, elenco dei tag), 1 secondo per la pagina di una nota o di un tag.
 
-- Attivo solo mentre la pagina (elenco o record) è aperta, l'app è visibile e almeno un record è in elaborazione. Tornando visibile, l'app aggiorna subito.
+- Attivo solo mentre la pagina è aperta, l'app è visibile e qualcosa è in corso: una nota in elaborazione (homepage, pagina del record) o un tag in assegnazione (elenco dei tag, pagina del tag). Tornando visibile, l'app aggiorna subito. Il controllo successivo parte solo dopo la risposta.
 - La lista resta in memoria tra le pagine e viene sostituita solo se cambia. Un errore durante il polling lascia la lista com'è.
 - Nessuna risorsa aggiuntiva. Ritardo pari all'intervallo, funziona solo con l'app aperta.
 - Costo: poche decine di migliaia di esecuzioni al mese, dentro il grant di Flex Consumption.
