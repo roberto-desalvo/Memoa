@@ -102,9 +102,10 @@ Valgono per ogni schermata. Una nuova schermata o un nuovo componente le rispett
 ## Nuova nota
 
 - **Registra**: un pulsante primario con icona e testo ("Avvia registrazione", poi "Ferma e salva") avvia e ferma la registrazione (massimo 30 minuti); sopra, il tempo trascorso e la durata massima. Allo stop la nota si salva subito, con data e ora attuali e come titolo data e ora (es. "1 novembre 2026, 14:35"), e si torna alla homepage.
-- **Scrivi**: prima il testo (con il contatore dei caratteri, massimo 50.000), poi "Avanti" porta a titolo, data e ora:
-  - data e ora sono prepopolate e modificabili al minuto;
-  - se il titolo resta vuoto, si usano data e ora della nota.
+- **Scrivi**: titolo, data e ora e testo nella stessa pagina, con "Salva":
+  - il titolo è prepopolato con la proposta da data e ora della nota (es. "TXT_20261101_1435"), che segue la data finché l'utente non lo modifica; se lo svuota si usa la proposta;
+  - data e ora sono prepopolate con quelle attuali e modificabili al minuto;
+  - testo con il contatore dei caratteri (massimo 50.000); "Salva" è attivo solo con del testo.
 - **Carica**: più file insieme, ognuno diventa una nota.
   - Titolo dal nome del file senza estensione; data dall'ultima modifica del file (o attuale se manca).
   - I file si salvano uno alla volta, con lo stato di ciascuno: in attesa, avanzamento, salvato, non valido, non riuscito.

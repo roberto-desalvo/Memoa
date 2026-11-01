@@ -25,22 +25,44 @@
         <app-record-audio (started)="onRecordingStarted()" (recorded)="onRecorded($event)" />
       }
       @case ('write') {
-        <mat-form-field class="full">
-          <mat-label>Testo</mat-label>
-          <textarea
-            matInput
-            rows="12"
-            [maxLength]="maxTextLength"
-            [value]="text()"
-            (input)="text.set($any($event.target).value)"
-          ></textarea>
-          <mat-hint align="end">{{ text().length }} / {{ maxTextLength }}</mat-hint>
-        </mat-form-field>
-        <div class="actions">
-          <button mat-flat-button [disabled]="!text().trim()" (click)="continueWithText()">
-            Avanti
-          </button>
-        </div>
+        <form (submit)="$event.preventDefault(); saveText()">
+          <mat-form-field class="full">
+            <mat-label>Titolo</mat-label>
+            <input
+              matInput
+              type="text"
+              maxlength="200"
+              [placeholder]="titleProposal()"
+              [value]="title() ?? titleProposal()"
+              (input)="title.set($any($event.target).value)"
+            />
+          </mat-form-field>
+          <mat-form-field class="full">
+            <mat-label>Data e ora della nota</mat-label>
+            <input
+              matInput
+              type="datetime-local"
+              required
+              [value]="date()"
+              (input)="date.set($any($event.target).value)"
+            />
+          </mat-form-field>
+          <mat-form-field class="full">
+            <mat-label>Testo</mat-label>
+            <textarea
+              matInput
+              rows="12"
+              [maxLength]="maxTextLength"
+              [value]="text()"
+              (input)="text.set($any($event.target).value)"
+            ></textarea>
+            <mat-hint align="end">{{ text().length }} / {{ maxTextLength }}</mat-hint>
+          </mat-form-field>
+          <div class="actions">
+            <a mat-button routerLink="/">Annulla</a>
+            <button mat-flat-button type="submit" [disabled]="!canSaveText()">Salva</button>
+          </div>
+        </form>
       }
       @case ('upload') {
         <mat-card>
@@ -66,37 +88,6 @@
     }
   }
 
-  @case ('details') {
-    <form (submit)="$event.preventDefault(); save()">
-      <mat-form-field class="full">
-        <mat-label>Titolo</mat-label>
-        <input
-          matInput
-          type="text"
-          maxlength="200"
-          [placeholder]="titlePlaceholder()"
-          [value]="title()"
-          (input)="title.set($any($event.target).value)"
-        />
-        <mat-hint>Se lo lasci vuoto vengono usate data e ora della nota.</mat-hint>
-      </mat-form-field>
-      <mat-form-field class="full">
-        <mat-label>Data e ora della nota</mat-label>
-        <input
-          matInput
-          type="datetime-local"
-          required
-          [value]="date()"
-          (input)="date.set($any($event.target).value)"
-        />
-      </mat-form-field>
-      <div class="actions">
-        <a mat-button routerLink="/">Annulla</a>
-        <button mat-flat-button type="submit">Salva</button>
-      </div>
-    </form>
-  }
-
   @case ('saving') {
     <div class="page-state" aria-live="polite">
       @if (current.fraction === null) {
@@ -117,7 +108,7 @@
       <p class="error"><mat-icon svgIcon="error" />Salvataggio non riuscito.</p>
       <div class="actions">
         @if (mode() === 'write') {
-          <button mat-button (click)="step.set({ kind: 'details' })">Modifica</button>
+          <button mat-button (click)="step.set({ kind: 'capture' })">Modifica</button>
         } @else {
           <a mat-button routerLink="/">Annulla</a>
         }

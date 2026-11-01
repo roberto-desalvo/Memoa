@@ -40,7 +40,6 @@ type Content = { kind: 'audio'; audio: Blob; contentType: string } | { kind: 'te
 
 type Step =
   | { kind: 'capture' }
-  | { kind: 'details' }
   | { kind: 'saving'; fraction: number | null }
   | { kind: 'failed' }
   | { kind: 'files' };
@@ -57,8 +56,8 @@ interface FileItem {
 }
 
 /**
- * Creazione delle note. La scrittura ha due passi: il testo, poi titolo, data e ora. La registrazione
- * e gli upload si salvano subito: la registrazione con data e ora attuali e il titolo scritto sopra il
+ * Creazione delle note. La scrittura ha titolo (proposta TXT_yyyyMMdd_HHmm dalla data della nota),
+ * data e ora (di default adesso) e testo nella stessa pagina. La registrazione e gli upload si salvano subito: la registrazione con data e ora attuali e il titolo scritto sopra il
  * registratore (proposta REC_yyyyMMdd_HHmm dall'avvio della registrazione), gli upload con la data di ultima modifica del file e come titolo il nome del file; titolo e data sono
  * modificabili poi nella pagina del record. Gli upload accettano più
  * file, salvati uno alla volta come note separate. Per gli audio titolo e data vanno con la richiesta
@@ -99,10 +98,15 @@ export class NewNote implements OnInit {
   protected readonly content = signal<Content | null>(null);
 
   protected readonly text = signal('');
-  protected readonly title = signal('');
+  /** Titolo del testo scritto dall'utente; null finché non lo modifica. */
+  protected readonly title = signal<string | null>(null);
   protected readonly date = signal(nowInputValue());
-  protected readonly titlePlaceholder = computed(() =>
+  /** La proposta segue la data della nota, finché l'utente non scrive un titolo. */
+  protected readonly titleProposal = computed(() =>
     textTitle(new Date(this.date() || nowInputValue())),
+  );
+  protected readonly canSaveText = computed(
+    () => this.text().trim().length > 0 && this.text().length <= MAX_TEXT_LENGTH,
   );
 
   /** Titolo della registrazione scritto dall'utente; null finché non lo modifica. */
@@ -156,18 +160,14 @@ export class NewNote implements OnInit {
     void this.submit();
   }
 
-  protected continueWithText(): void {
-    const text = this.text();
-    if (text.trim() && text.length <= MAX_TEXT_LENGTH) {
-      this.content.set({ kind: 'text', text });
-      this.step.set({ kind: 'details' });
+  protected saveText(): void {
+    if (!this.canSaveText()) {
+      return;
     }
-  }
-
-  protected save(): void {
     const occurredAt = toOccurredAt(this.date() || nowInputValue());
+    this.content.set({ kind: 'text', text: this.text() });
     this.note = {
-      title: this.title().trim() || textTitle(new Date(occurredAt)),
+      title: this.title()?.trim() || textTitle(new Date(occurredAt)),
       occurredAt,
     };
     void this.submit();
