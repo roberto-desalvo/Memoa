@@ -6,7 +6,7 @@ Configurazione, avvio in locale e migration del database: vedi [docs/debug/svilu
 
 ## Normalizzazione audio (`NormalizeRecord`)
 
-Attivata dalla coda `normalization`. Stesso contratto del Container Apps Job che sostituisce: scarica l'originale da `uploads`, controlla il formato reale e scrive in `audio` la copia `<oid>/<RecordUid>.opus` (metadati `durationseconds` e `sourceformat`) oppure l'esito `<oid>/<RecordUid>.error.json` (codici in [Normalization/AudioValidation.cs](Normalization/AudioValidation.cs)). Il flusso prosegue dall'evento "blob creato" (`EnqueueTranscription`). Non accede al database.
+Attivata dalla coda `normalization`. Scarica l'originale da `uploads`, controlla il formato reale e scrive in `audio` la copia `<oid>/<RecordUid>.opus` (metadati `durationseconds` e `sourceformat`) oppure l'esito `<oid>/<RecordUid>.error.json` (codici in [Normalization/AudioValidation.cs](Normalization/AudioValidation.cs)). Il flusso prosegue dall'evento "blob creato" (`EnqueueTranscription`). Non accede al database.
 
 - **ffmpeg**: la pipeline `functions.yml` scarica la build statica Linux x64 da [eugeneware/ffmpeg-static](https://github.com/eugeneware/ffmpeg-static) (release e SHA-256 fissati nel workflow) e la copia in `tools/ffmpeg/` nel pacchetto, con la licenza. Non c'è ffprobe: il formato, gli stream e la durata si leggono dal riepilogo che `ffmpeg -i` scrive su stderr. Quel testo può contenere i metadati del file, quindi non va mai nei log.
 - **Permesso di esecuzione**: se il pacchetto lo perde, al primo uso ffmpeg viene copiato nella cartella temporanea e reso eseguibile.

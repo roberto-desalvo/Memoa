@@ -34,11 +34,10 @@ Contenuti: [Autenticazione](#autenticazione) · [Identità gestite](#identità-g
 | Identità | Accessi |
 |---|---|
 | Functions | storage dei dati (Blob Data Contributor, Blob Delegator per i SAS, Queue Data Contributor), storage di sistema, Azure SQL (utente del database), Azure OpenAI, Azure AI Speech, Application Insights |
-| Job di normalizzazione (da rimuovere, sostituito da `NormalizeRecord` con l'identità delle Functions) | coda `normalization` (lettura ed elaborazione), lettura di `uploads`, scrittura di `audio`, token GHCR in Key Vault, Application Insights |
 | Job di trascrizione | coda `transcription-fallback` (lettura ed elaborazione), lettura di `audio`, scrittura di `transcripts`, token GHCR in Key Vault, Application Insights |
-| Deploy (GitHub Actions) | federated credential OIDC sull'environment GitHub, nessun segreto; ruoli solo su Function App, Static Web App e Container Apps Jobs; utente del database per le migration |
+| Deploy (GitHub Actions) | federated credential OIDC sull'environment GitHub, nessun segreto; ruoli solo su Function App, Static Web App e Container Apps Job; utente del database per le migration |
 
-- I job non scrivono su nessuna coda e non accedono ad Azure SQL.
+- Il job non scrive su nessuna coda e non accede ad Azure SQL. `NormalizeRecord` usa l'identità delle Functions.
 - Gli utenti del database si creano con T-SQL dopo il deploy ([infra/README.md](../../infra/README.md)).
 - In dev gli sviluppatori hanno gli stessi ruoli delle Functions sui dati, perché le Functions in locale usano l'utente di Azure CLI.
 - Storage, Azure OpenAI, Azure AI Speech e Application Insights hanno l'autenticazione con chiave disattivata: solo Entra ID.
@@ -47,7 +46,7 @@ Contenuti: [Autenticazione](#autenticazione) · [Identità gestite](#identità-g
 
 ## Segreti
 
-**Decisione**: Azure Key Vault Standard (RBAC, soft delete 90 giorni, purge protection solo in prod) per le sole credenziali non sostituibili da identità gestite. Oggi c'è solo il token GHCR (`read:packages`) per il pull delle immagini private, leggibile solo dalle identità dei job.
+**Decisione**: Azure Key Vault Standard (RBAC, soft delete 90 giorni, purge protection solo in prod) per le sole credenziali non sostituibili da identità gestite. Oggi c'è solo il token GHCR (`read:packages`) per il pull dell'immagine privata, leggibile solo dall'identità del job di trascrizione.
 
 - Costo: nessun costo fisso, solo le operazioni.
 - Mai segreti nel repository, nei file di configurazione versionati o nei log.

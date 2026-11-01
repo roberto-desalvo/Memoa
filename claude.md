@@ -40,7 +40,7 @@ Il documento delle decisioni (`docs/project.md`, indice dei file in `docs/projec
 | IaC | Bicep |
 | CI/CD | GitHub Actions |
 | Monitoraggio | OpenTelemetry + Application Insights |
-| Segreti | Azure Key Vault (solo credenziali non sostituibili, oggi il token GHCR letto dai job) + identità gestite user-assigned, una per componente |
+| Segreti | Azure Key Vault (solo credenziali non sostituibili, oggi il token GHCR letto dal job di trascrizione) + identità gestite user-assigned, una per componente |
 
 ## Architettura dell'elaborazione
 
@@ -95,7 +95,7 @@ La Function HTTP salva il testo, con titolo e data della nota, nel database e, p
 - **Nei messaggi di coda solo identificativi o URL di blob**, mai testi o trascrizioni.
 - Mai dati personali nei parametri URL o nelle query string.
 - Comunicazione tra servizi con **identità gestite user-assigned**, una per componente (Functions, job di trascrizione, deploy), nessuna system-assigned; in Key Vault solo le credenziali non sostituibili. **Mai segreti nel repository**, nei file di configurazione versionati o nei log.
-- Principio del minimo privilegio: ogni identità ha solo i permessi che le servono (es. i job non hanno accesso in scrittura alle code né ad Azure SQL).
+- Principio del minimo privilegio: ogni identità ha solo i permessi che le servono (es. il job non ha accesso in scrittura alle code né ad Azure SQL).
 - Ogni Function HTTP verifica il token e opera **solo sui dati dell'utente autenticato**.
 - Le funzionalità di esportazione ed eliminazione account devono coprire tutti i dati dell'utente: database, tutti i contenitori blob e i messaggi in coda.
 
@@ -114,7 +114,6 @@ La Function HTTP salva il testo, con titolo e data della nota, nel database e, p
 - I tenant Entra External ID sono collegati alla sottoscrizione tramite **gruppi di risorse dedicati non gestiti da Bicep**: non includerli mai nei deployment stacks.
 - Authority e audience di Entra External ID sono **per ambiente** (un tenant per ambiente).
 - Pipeline GitHub Actions separate: frontend, Functions (che include ffmpeg nel pacchetto), schema del database, immagine di trascrizione.
-- Il Container Apps Job di normalizzazione (`src/jobs/normalizer`, `normalizer.yml`, identità e ruoli in Bicep) è in dismissione: resta finché la Function non è verificata in dev.
 - Storage account dei dati: soft delete e versioning (14 giorni), ridondanza GRS, blocco CanNotDelete.
 - In locale Azurite non emette eventi Event Grid: vanno simulati.
 

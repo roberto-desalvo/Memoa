@@ -12,19 +12,19 @@ Bicep per tutto ciò che lo supporta; qui sotto i passi manuali per il resto.
 | `identity/main.bicep` | tenant esterno | Registrazioni delle app in Entra External ID (estensione Microsoft Graph): API con scope `access_as_user` e token v2, frontend SPA con redirect URI, service principal e consenso dell'amministratore |
 | `identity/main.dev.bicepparam`, `identity/main.prod.bicepparam` | | Parametri per ambiente |
 | `identity/deploy.ps1` | | Deploy di `identity/main.bicep` nel tenant esterno di un ambiente e salvataggio degli ID in `.env` |
-| `modules/identities.bicep` | RG | Identità user-assigned di Functions, job di normalizzazione (in dismissione) e job di trascrizione |
+| `modules/identities.bicep` | RG | Identità user-assigned di Functions e job di trascrizione |
 | `modules/monitoring.bicep` | RG | Log Analytics (limite giornaliero, 30 giorni) + Application Insights |
 | `modules/static-web-app.bicep` | RG | Static Web Apps Free |
-| `modules/data-storage.bicep` | RG | Storage dati GRS: container `uploads` (originali) / `audio` (normalizzato) / `transcripts`, code `normalization` / `transcription` / `transcription-fallback` / `indexing` / `upload-expiry`, system topic Event Grid, soft delete 14 gg, versioning, lifecycle, blocco CanNotDelete; ruoli dei job limitati ai propri contenitori e alla propria coda |
+| `modules/data-storage.bicep` | RG | Storage dati GRS: container `uploads` (originali) / `audio` (normalizzato) / `transcripts`, code `normalization` / `transcription` / `transcription-fallback` / `indexing` / `upload-expiry`, system topic Event Grid, soft delete 14 gg, versioning, lifecycle, blocco CanNotDelete; ruoli del job limitati ai propri contenitori e alla propria coda |
 | `modules/event-subscriptions.bicep` | RG | Sottoscrizioni Event Grid "blob creato", una per contenitore, verso le Functions `ValidateUpload`, `EnqueueTranscription`, `EnqueueIndexing` (solo con `deployEventSubscriptions = true`) |
-| `modules/key-vault.bicep` | RG | Key Vault (RBAC) con il token GHCR, leggibile solo dalle identità dei due job |
+| `modules/key-vault.bicep` | RG | Key Vault (RBAC) con il token GHCR, leggibile solo dall'identità del job di trascrizione |
 | `modules/sql.bicep` | RG del server SQL | Database con offerta gratuita su un server esistente condiviso (il server non è gestito da qui) |
 | `modules/openai.bicep` | RG | Azure OpenAI con `text-embedding-3-small` Data Zone Standard |
 | `modules/speech.bicep` | RG | Azure AI Speech S0 per la fast transcription chiamata dalla Function `TranscribeRecord`: sottodominio personalizzato (non reversibile), autenticazione locale disattivata, ruolo `Cognitive Services Speech User` all'identità delle Functions e agli sviluppatori |
 | `modules/function-app.bicep` | RG | Flex Consumption, storage di sistema dedicato, app settings |
-| `modules/container-apps-env.bicep` | RG | Container Apps environment (profilo Consumption) condiviso dai due job |
-| `modules/deploy-identity.bicep` | RG | Identità delle pipeline GitHub Actions: federated credential sull'environment GitHub dell'ambiente, Website Contributor sulla Function App, Contributor sulla Static Web App, Container Apps Jobs Contributor sui due job |
-| `modules/queue-job.bicep` | RG | Container Apps Job attivato dalla propria coda, usato due volte: normalizzazione (`uploads` → `audio`, worker .NET e ffmpeg; in dismissione, sostituito dalla Function `NormalizeRecord`, che legge la stessa coda) e trascrizione di ripiego (coda `transcription-fallback`, `audio` → `transcripts`, Whisper, solo registrazioni fino a 10 minuti). Nessuna scrittura sulle code, nessun accesso ad Azure SQL |
+| `modules/container-apps-env.bicep` | RG | Container Apps environment (profilo Consumption) del job di trascrizione |
+| `modules/deploy-identity.bicep` | RG | Identità delle pipeline GitHub Actions: federated credential sull'environment GitHub dell'ambiente, Website Contributor sulla Function App, Contributor sulla Static Web App, Container Apps Jobs Contributor sul job di trascrizione |
+| `modules/queue-job.bicep` | RG | Container Apps Job attivato dalla propria coda, usato per la trascrizione di ripiego (coda `transcription-fallback`, `audio` → `transcripts`, Whisper, solo registrazioni fino a 10 minuti). Nessuna scrittura sulle code, nessun accesso ad Azure SQL |
 
 ## Deploy
 
@@ -40,8 +40,7 @@ I file `.bicepparam` leggono dall'ambiente i valori da non pubblicare nella repo
 | `AUTH_WEB_CLIENT_ID_DEV`, `AUTH_WEB_CLIENT_ID_PROD` | no (per il frontend) | Client ID della registrazione del frontend. Scritta da `identity/deploy.ps1` |
 | `AUTH_API_SCOPE_DEV`, `AUTH_API_SCOPE_PROD` | no (per il frontend) | Scope da richiedere nel frontend (`api://<tenant-id>/memoa-<env>-api/access_as_user`). Scritta da `identity/deploy.ps1` |
 | `DEVELOPER_PRINCIPAL_IDS_DEV` | no (per le Functions in locale) | Object ID, separati da virgola, degli utenti che eseguono le Functions in locale contro dev (`az ad signed-in-user show --query id -o tsv`). Ricevono sullo storage dei dati gli stessi ruoli delle Functions: un user delegation SAS firmato in locale non può concedere più dei ruoli dati di chi lo firma, e Owner non ne dà. Ricevono anche `Cognitive Services OpenAI User` sull'account Azure OpenAI, per gli embedding |
-| `NORMALIZER_IMAGE_DEV`, `NORMALIZER_IMAGE_PROD` | no (dopo la prima pubblicazione) | Immagine del job di normalizzazione da usare nel deploy dell'infrastruttura: `ghcr.io/<owner>/memoa-normalizer:main` per dev, `:prod` per prod. Senza, il deploy rimette l'immagine segnaposto al posto di quella impostata dalla pipeline |
-| `TRANSCRIBER_IMAGE_DEV`, `TRANSCRIBER_IMAGE_PROD` | no (dopo la prima pubblicazione) | Come sopra, per il job di trascrizione: `ghcr.io/<owner>/memoa-transcriber:main` per dev, `:prod` per prod |
+| `TRANSCRIBER_IMAGE_DEV`, `TRANSCRIBER_IMAGE_PROD` | no (dopo la prima pubblicazione) | Immagine del job di trascrizione da usare nel deploy dell'infrastruttura: `ghcr.io/<owner>/memoa-transcriber:main` per dev, `:prod` per prod. Senza, il deploy rimette l'immagine segnaposto al posto di quella impostata dalla pipeline |
 
 In locale stanno in `infra/.env`, escluso da git: copiare `infra/.env.example` in `infra/.env`, compilarlo e caricarlo nella sessione con `load-env.ps1`. In GitHub Actions vanno impostate come secret o variabili del repository.
 
@@ -144,7 +143,7 @@ Nessun dead-letter: gli eventi non consegnati dopo i retry automatici di Event G
 ## Passi manuali
 
 1. **Server SQL**: è un server condiviso con altri progetti, gestito fuori da questo template (amministratore Entra ID: account personale; regola firewall `AllowAllWindowsAzureIps` già presente). Nome e resource group si passano con le variabili d'ambiente indicate sopra. Chi esegue il deploy deve poter creare database in quel resource group.
-2. **Utente del database** per l'identità gestita delle Functions, da eseguire come amministratore Entra sul database di ogni ambiente. Solo le Functions scrivono nel database: i job di normalizzazione e di trascrizione non hanno un utente SQL.
+2. **Utente del database** per l'identità gestita delle Functions, da eseguire come amministratore Entra sul database di ogni ambiente. Solo le Functions scrivono nel database: il job di trascrizione non ha un utente SQL.
    ```sql
    CREATE USER [id-memoa-<env>-func] FROM EXTERNAL PROVIDER;
    ALTER ROLE db_datareader ADD MEMBER [id-memoa-<env>-func];
@@ -160,7 +159,7 @@ Nessun dead-letter: gli eventi non consegnati dopo i retry automatici di Event G
    ALTER ROLE db_datawriter ADD MEMBER [id-memoa-<env>-deploy];
    ```
 3. **Entra External ID**: creare un tenant esterno per ambiente (dev e prod, residenza dati in Europa), i flussi utente e il branding; compilare `AUTH_AUTHORITY_<ENV>` in `infra/.env`. Le registrazioni delle app (frontend e API) si distribuiscono con `identity/deploy.ps1` (vedi [Registrazioni delle app in Entra External ID](#registrazioni-delle-app-in-entra-external-id)); il collegamento dell'app del frontend al flusso utente resta manuale.
-4. **GHCR**: prima della prima esecuzione di `normalizer.yml` e `transcriber.yml`, impostare `ghcrUsername` nei `.bicepparam`, passare `GHCR_TOKEN` (PAT con scope `read:packages`) e ripetere il deploy dell'infrastruttura, così i job possono scaricare le immagini private. Dopo la prima pubblicazione impostare `NORMALIZER_IMAGE_<ENV>` e `TRANSCRIBER_IMAGE_<ENV>` (vedi [Deploy](#deploy)). La pipeline di trascrizione richiede anche un deploy dell'infrastruttura dopo questa modifica, che assegna all'identità della pipeline il ruolo sul job di trascrizione.
+4. **GHCR**: prima della prima esecuzione di `transcriber.yml`, impostare `ghcrUsername` nei `.bicepparam`, passare `GHCR_TOKEN` (PAT con scope `read:packages`) e ripetere il deploy dell'infrastruttura, così il job può scaricare l'immagine privata. Dopo la prima pubblicazione impostare `TRANSCRIBER_IMAGE_<ENV>` (vedi [Deploy](#deploy)). La pipeline di trascrizione richiede anche un deploy dell'infrastruttura dopo questa modifica, che assegna all'identità della pipeline il ruolo sul job di trascrizione.
 5. **GitHub**: environment e variabili delle pipeline, da configurare a mano (vedi [Pipeline GitHub Actions](#pipeline-github-actions)).
 
 ## Pipeline GitHub Actions
@@ -170,14 +169,13 @@ Nessun dead-letter: gli eventi non consegnati dopo i retry automatici di Event G
 | `web.yml` | `src/web/**` | Build Angular, poi su ogni ambiente genera `config.json` e carica su Static Web Apps |
 | `functions.yml` | `src/functions/**` tranne `Data/Migrations/**`, `src/shared/**` | `dotnet publish`, poi deploy del pacchetto sulla Function App |
 | `schema.yml` | `src/functions/Data/Migrations/**` | Genera lo script idempotente delle migration (scaricabile tra gli artifact) e lo applica con `sqlcmd` |
-| `normalizer.yml` | `src/jobs/normalizer/**`, `src/shared/**` | In dismissione insieme al job. Build dell'immagine del job di normalizzazione e push su GHCR (`memoa-normalizer:<sha>` e `:<branch>`), poi su ogni ambiente aggiorna l'immagine del job con il tag `<sha>` (`container-job-deploy.yml`) |
-| `transcriber.yml` | `src/jobs/transcriber/**`, `src/shared/**` | Come `normalizer.yml`, per l'immagine del job di trascrizione (`memoa-transcriber`, con i pesi del modello Whisper) |
+| `transcriber.yml` | `src/jobs/transcriber/**`, `src/shared/**` | Build dell'immagine del job di trascrizione (con i pesi del modello Whisper) e push su GHCR (`memoa-transcriber:<sha>` e `:<branch>`), poi su ogni ambiente aggiorna l'immagine del job con il tag `<sha>` (`container-job-deploy.yml`) |
 
 L'ambiente dipende dal branch: un push su `main` distribuisce su **dev**, un push su `prod` distribuisce su **prod** (il job prod attende l'approvazione dell'environment GitHub `prod`). Assetto temporaneo, in attesa del primo rilascio in produzione. Tutti si possono avviare anche a mano (**Run workflow**), scegliendo il branch dell'ambiente. I file `*-deploy.yml` sono i passi di deploy per un ambiente, richiamati dai workflow principali.
 
 Lo schema e le Functions si distribuiscono separatamente e in ordine non garantito: le modifiche allo schema vanno fatte in due tempi (vedi [docs/debug/sviluppo-locale.md](../docs/debug/sviluppo-locale.md#database-e-migration)).
 
-Autenticazione su Azure con OIDC, senza segreti: ogni ambiente ha l'identità `id-memoa-<env>-deploy` (`modules/deploy-identity.bicep`) con una federated credential sull'environment GitHub omonimo e i ruoli Website Contributor sulla Function App, Contributor sulla Static Web App (per leggerne il token di deployment) e Container Apps Jobs Contributor sui due job (per aggiornarne l'immagine con un PATCH del solo template, senza permessi sulle identità gestite). Sul database serve l'utente SQL del passo manuale 2. La connessione al server SQL dai runner GitHub passa dalla regola firewall `AllowAllWindowsAzureIps`.
+Autenticazione su Azure con OIDC, senza segreti: ogni ambiente ha l'identità `id-memoa-<env>-deploy` (`modules/deploy-identity.bicep`) con una federated credential sull'environment GitHub omonimo e i ruoli Website Contributor sulla Function App, Contributor sulla Static Web App (per leggerne il token di deployment) e Container Apps Jobs Contributor sul job di trascrizione (per aggiornarne l'immagine con un PATCH del solo template, senza permessi sulle identità gestite). Sul database serve l'utente SQL del passo manuale 2. La connessione al server SQL dai runner GitHub passa dalla regola firewall `AllowAllWindowsAzureIps`.
 
 Configurazione, una volta per ambiente, dopo il deploy dell'infrastruttura:
 

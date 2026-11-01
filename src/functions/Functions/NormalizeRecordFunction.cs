@@ -18,8 +18,8 @@ namespace Memoa.Functions.Functions;
 /// da <see cref="ValidateUploadFunction"/> e da "riprova"): verifica il formato reale con ffmpeg e scrive nel
 /// contenitore dell'audio normalizzato la copia Ogg Opus oppure, se il file va scartato, l'esito con il solo
 /// codice d'errore (vedi <see cref="NormalizedAudio"/>).
-/// Il flusso prosegue dall'evento "blob creato" su quel contenitore (<see cref="EnqueueTranscriptionFunction"/>),
-/// come quando a normalizzare era il Container Apps Job: nessun accesso al database. L'originale viene solo letto.
+/// Il flusso prosegue dall'evento "blob creato" su quel contenitore (<see cref="EnqueueTranscriptionFunction"/>):
+/// nessun accesso al database. L'originale viene solo letto.
 /// Idempotente: se uno dei due blob esiste già il messaggio viene solo consumato.
 /// </summary>
 public sealed class NormalizeRecordFunction(

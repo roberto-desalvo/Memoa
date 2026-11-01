@@ -24,9 +24,6 @@ param sqlServerName string
 @description('Limite giornaliero di ingestione di Log Analytics in GB. La somma dei due ambienti va tenuta entro i 5 GB gratuiti al mese.')
 param logDailyCapGb string
 
-@description('Immagine del job di normalizzazione, solo ffmpeg (es. ghcr.io/<owner>/memoa-normalizer:<tag>).')
-param normalizerImage string
-
 @description('Immagine del worker di trascrizione (es. ghcr.io/<owner>/memoa-transcriber:<tag>).')
 param transcriberImage string
 
@@ -36,12 +33,6 @@ param ghcrUsername string = ''
 @description('Personal access token GitHub con scope read:packages. Vuoto se le immagini sono pubbliche.')
 @secure()
 param ghcrToken string = ''
-
-@description('vCPU del job di normalizzazione.')
-param normalizerCpu string = '1.0'
-
-@description('Memoria del job di normalizzazione.')
-param normalizerMemory string = '2Gi'
 
 @description('vCPU del job di trascrizione.')
 param transcriberCpu string = '4.0'
@@ -82,7 +73,6 @@ var compactName = '${projectName}${environmentName}${suffix}'
 
 // Nomi delle identità noti all'avvio: i moduli li usano per i nomi delle assegnazioni RBAC.
 var functionIdentityName = 'id-${baseName}-func'
-var normalizerIdentityName = 'id-${baseName}-normalizer'
 var transcriberIdentityName = 'id-${baseName}-transcriber'
 
 resource rg 'Microsoft.Resources/resourceGroups@2024-03-01' = {
@@ -98,7 +88,6 @@ module identities 'modules/identities.bicep' = {
     location: location
     tags: tags
     functionIdentityName: functionIdentityName
-    normalizerIdentityName: normalizerIdentityName
     transcriberIdentityName: transcriberIdentityName
   }
 }
@@ -113,7 +102,6 @@ module monitoring 'modules/monitoring.bicep' = {
     dailyCapGb: logDailyCapGb
     publisherIdentityNames: [
       functionIdentityName
-      normalizerIdentityName
       transcriberIdentityName
     ]
   }
@@ -144,7 +132,6 @@ module dataStorage 'modules/data-storage.bicep' = {
     allowedOrigins: allowedOrigins
     audioCoolAfterDays: audioCoolAfterDays
     functionIdentityName: functionIdentityName
-    normalizerIdentityName: normalizerIdentityName
     transcriberIdentityName: transcriberIdentityName
     developerPrincipalIds: developerPrincipalIds
   }
@@ -162,9 +149,8 @@ module keyVault 'modules/key-vault.bicep' = {
     name: take('kv-${compactName}', 24)
     enablePurgeProtection: environmentName == 'prod'
     ghcrToken: ghcrToken
-    // Solo i job: il token GHCR serve per il pull delle immagini private.
+    // Solo il job: il token GHCR serve per il pull dell'immagine privata.
     secretReaderIdentityNames: [
-      normalizerIdentityName
       transcriberIdentityName
     ]
   }
@@ -274,9 +260,8 @@ module deployIdentity 'modules/deploy-identity.bicep' = {
     githubEnvironment: environmentName
     functionAppName: functionApp.outputs.name
     staticWebAppName: staticWebApp.outputs.name
-    // Pipeline delle immagini dei job.
+    // Pipeline dell'immagine del job.
     containerAppJobNames: [
-      normalizer.outputs.jobName
       transcriber.outputs.jobName
     ]
   }
@@ -290,35 +275,6 @@ module containerAppsEnv 'modules/container-apps-env.bicep' = {
     tags: tags
     baseName: baseName
     logAnalyticsWorkspaceName: monitoring.outputs.logAnalyticsWorkspaceName
-  }
-}
-
-// Coda di normalizzazione → ffprobe/ffmpeg → copia Opus nel contenitore dell'audio normalizzato.
-module normalizer 'modules/queue-job.bicep' = {
-  scope: rg
-  name: 'normalizer'
-  params: {
-    location: location
-    tags: tags
-    baseName: baseName
-    jobName: 'normalizer'
-    environmentId: containerAppsEnv.outputs.id
-    identityId: identities.outputs.normalizerIdentityId
-    identityClientId: identities.outputs.normalizerClientId
-    image: normalizerImage
-    cpu: normalizerCpu
-    memory: normalizerMemory
-    ghcrUsername: ghcrUsername
-    ghcrTokenSecretUri: keyVault.outputs.ghcrTokenSecretUri
-    appInsightsConnectionString: monitoring.outputs.appInsightsConnectionString
-    dataStorageName: dataStorage.outputs.name
-    dataBlobEndpoint: dataStorage.outputs.blobEndpoint
-    dataQueueEndpoint: dataStorage.outputs.queueEndpoint
-    queueName: dataStorage.outputs.normalizationQueueName
-    inputContainerName: dataStorage.outputs.uploadsContainerName
-    outputContainerName: dataStorage.outputs.audioContainerName
-    // File fino a 350 MB e registrazioni fino a 30 minuti.
-    replicaTimeout: 1800
   }
 }
 
@@ -360,10 +316,8 @@ output staticWebAppName string = staticWebApp.outputs.name
 output staticWebAppHostname string = staticWebApp.outputs.defaultHostname
 output sqlServerFqdn string = sql.outputs.serverFqdn
 output sqlDatabaseName string = sql.outputs.databaseName
-output normalizerJobName string = normalizer.outputs.jobName
 output transcriberJobName string = transcriber.outputs.jobName
 output functionIdentityName string = identities.outputs.functionIdentityName
-output normalizerIdentityName string = identities.outputs.normalizerIdentityName
 output transcriberIdentityName string = identities.outputs.transcriberIdentityName
 output deployIdentityName string = deployIdentity.outputs.name
 output deployIdentityClientId string = deployIdentity.outputs.clientId

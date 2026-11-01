@@ -14,9 +14,6 @@ param audioCoolAfterDays int
 @description('Nome dell\'identità user-assigned delle Functions (stesso resource group).')
 param functionIdentityName string
 
-@description('Nome dell\'identità user-assigned del job di normalizzazione (stesso resource group).')
-param normalizerIdentityName string
-
 @description('Nome dell\'identità user-assigned del job di trascrizione (stesso resource group).')
 param transcriberIdentityName string
 
@@ -120,7 +117,7 @@ resource uploadsContainer 'Microsoft.Storage/storageAccounts/blobServices/contai
   }
 }
 
-// Copie normalizzate in Opus scritte dal job di normalizzazione.
+// Copie normalizzate in Opus scritte dalla Function di normalizzazione.
 // Evento "blob creato" → Function che scrive sulla coda di trascrizione.
 resource audioContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
   parent: blobService
@@ -245,10 +242,6 @@ resource functionIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023
   name: functionIdentityName
 }
 
-resource normalizerIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' existing = {
-  name: normalizerIdentityName
-}
-
 resource transcriberIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' existing = {
   name: transcriberIdentityName
 }
@@ -297,44 +290,12 @@ resource developerDataRoles 'Microsoft.Authorization/roleAssignments@2022-04-01'
   }
 ]
 
-// Job: ruoli limitati ai contenitori e alla coda che usano. Leggono e consumano solo la propria coda
-// (nessuna scrittura sulle code) e scrivono solo nel contenitore di destinazione.
+// Job: ruoli limitati ai contenitori e alla coda che usa. Legge e consuma solo la propria coda
+// (nessuna scrittura sulle code) e scrive solo nel contenitore di destinazione.
 var queueRoles = [
   roles.queueDataReader
   roles.queueMessageProcessor
 ]
-
-resource normalizerQueueRoles 'Microsoft.Authorization/roleAssignments@2022-04-01' = [
-  for roleId in queueRoles: {
-    name: guid(normalizationQueue.id, normalizerIdentityName, roleId)
-    scope: normalizationQueue
-    properties: {
-      roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', roleId)
-      principalId: normalizerIdentity.properties.principalId
-      principalType: 'ServicePrincipal'
-    }
-  }
-]
-
-resource normalizerReadRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(uploadsContainer.id, normalizerIdentityName, roles.blobDataReader)
-  scope: uploadsContainer
-  properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', roles.blobDataReader)
-    principalId: normalizerIdentity.properties.principalId
-    principalType: 'ServicePrincipal'
-  }
-}
-
-resource normalizerWriteRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(audioContainer.id, normalizerIdentityName, roles.blobDataContributor)
-  scope: audioContainer
-  properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', roles.blobDataContributor)
-    principalId: normalizerIdentity.properties.principalId
-    principalType: 'ServicePrincipal'
-  }
-}
 
 // Il job di trascrizione legge solo la coda di ripiego, non quella letta dalla Function.
 resource transcriberQueueRoles 'Microsoft.Authorization/roleAssignments@2022-04-01' = [

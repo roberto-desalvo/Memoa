@@ -23,7 +23,7 @@ public sealed class Attachment
     /// <summary>Copia normalizzata in Opus (solo audio).</summary>
     public string? NormalizedBlobPath { get; set; }
 
-    /// <summary>Solo audio; scritta da una Function, non dal job di normalizzazione.</summary>
+    /// <summary>Solo audio; scritta da una Function, non da NormalizeRecord.</summary>
     public int? DurationSeconds { get; set; }
 
     public DateTime CreatedAt { get; set; }

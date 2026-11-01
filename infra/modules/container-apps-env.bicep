@@ -1,4 +1,4 @@
-// Ambiente Container Apps (profilo Consumption) condiviso dai job di normalizzazione e trascrizione.
+// Ambiente Container Apps (profilo Consumption) del job di trascrizione di ripiego.
 param location string
 param tags object
 param baseName string

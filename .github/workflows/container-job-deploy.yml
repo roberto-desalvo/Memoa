@@ -1,4 +1,4 @@
-# Aggiorna l'immagine di un Container Apps Job su un ambiente. Chiamato dalle pipeline delle immagini dei job.
+# Aggiorna l'immagine di un Container Apps Job su un ambiente. Chiamato dalla pipeline dell'immagine del job.
 # Le esecuzioni già avviate finiscono con l'immagine precedente; le successive usano la nuova.
 name: Container Apps Job (deploy)
 
@@ -9,11 +9,11 @@ on:
         type: string
         required: true
       job:
-        description: Nome breve del job (es. normalizer), come in infra/modules/queue-job.bicep.
+        description: Nome breve del job (es. transcriber), come in infra/modules/queue-job.bicep.
         type: string
         required: true
       image:
-        description: Immagine completa di tag (es. ghcr.io/<owner>/memoa-normalizer:<sha>).
+        description: Immagine completa di tag (es. ghcr.io/<owner>/memoa-transcriber:<sha>).
         type: string
         required: true
 

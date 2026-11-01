@@ -20,16 +20,15 @@ Contenuti: [Backend](#backend) · [Normalizzazione](#normalizzazione) · [Compon
 
 ## Normalizzazione
 
-**Decisione**: Function `NormalizeRecord`, attivata dalla coda `normalization`, con la build statica di ffmpeg inclusa nel pacchetto di deploy. Sostituisce il Container Apps Job di normalizzazione.
+**Decisione**: Function `NormalizeRecord`, attivata dalla coda `normalization`, con la build statica di ffmpeg inclusa nel pacchetto di deploy. Ha sostituito il Container Apps Job di normalizzazione (vedi [alternative scartate](#appendice-alternative-scartate)).
 
 - **Build**: [eugeneware/ffmpeg-static](https://github.com/eugeneware/ffmpeg-static), Linux x64. La release `b6.1.1` contiene ffmpeg 7.0.2 con libopus.
 - **Come arriva nel pacchetto**: la pipeline delle Functions scarica il binario, ne verifica lo SHA-256 (release e hash fissati nel workflow) e lo copia con la licenza in `tools/ffmpeg/`. Occupa circa 76 MB.
 - **Solo ffmpeg, senza ffprobe**: formato, stream e durata si leggono dal riepilogo che `ffmpeg -i` scrive su stderr. Si risparmiano circa 75 MB nel pacchetto. Quel testo può contenere i metadati del file e non va mai nei log.
 - **Permesso di esecuzione**: se lo zip lo perde, al primo uso ffmpeg viene copiato nella cartella temporanea e reso eseguibile.
 - **Una normalizzazione alla volta per istanza**: lo spazio temporaneo di Flex Consumption (0,8 GB) basta per un originale da 350 MB, la copia e ffmpeg, non per più file in parallelo.
-- **Stesso contratto del job**: copia `.opus` o esito `.error.json` in `audio`. Il flusso prosegue da Event Grid e la Function non accede al database.
+- **Contratto blob**: copia `.opus` o esito `.error.json` in `audio`. Il flusso prosegue da Event Grid e la Function non accede al database.
 - **Effetti**: niente immagine su GHCR, identità, ruoli e pipeline dedicati, né avvio KEDA. Il pacchetto delle Functions cresce di circa 76 MB, con possibile impatto sul cold start.
-- **Transizione**: il job resta finché la Function non è verificata in dev. Nel frattempo entrambi leggono la coda, senza effetti doppi grazie all'idempotenza.
 
 ---
 
@@ -128,7 +127,7 @@ Entrambe passano dalla coda di trascrizione, quindi prima Azure AI Speech e poi,
 
 ## Registry delle immagini
 
-**Decisione**: GitHub Container Registry, immagine privata del job di trascrizione (Whisper e modello). Quella della normalizzazione resta solo fino alla rimozione del job.
+**Decisione**: GitHub Container Registry, immagine privata del job di trascrizione (Whisper e modello).
 
 - Gratuito a questi volumi. Push dalle GitHub Actions con `GITHUB_TOKEN`.
 - Container Apps non supporta le identità gestite su registry diversi da ACR: il pull usa un personal access token con scope `read:packages`, salvato in Key Vault.

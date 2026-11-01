@@ -1,8 +1,8 @@
 namespace Memoa.Shared.Pipeline;
 
 /// <summary>
-/// Contratto tra il job di normalizzazione, che scrive nel contenitore dell'audio normalizzato, e la
-/// Function attivata dall'evento "blob creato" su quel contenitore. Il job scrive uno solo dei due blob:
+/// Contratto tra NormalizeRecord, che scrive nel contenitore dell'audio normalizzato, e la Function
+/// attivata dall'evento "blob creato" su quel contenitore. NormalizeRecord scrive uno solo dei due blob:
 /// <list type="bullet">
 /// <item>"&lt;oid&gt;/&lt;RecordUid&gt;.opus": copia Ogg Opus, con la durata nei metadati;</item>
 /// <item>"&lt;oid&gt;/&lt;RecordUid&gt;.error.json": esito di un file scartato, con il codice d'errore nei metadati.</item>
@@ -27,7 +27,7 @@ public static class NormalizedAudio
     public static string ErrorBlobName(Guid entraObjectId, Guid recordUid) =>
         $"{entraObjectId:D}/{recordUid:D}{ErrorExtension}";
 
-    /// <summary>Riconosce i due nomi scritti dal job; false per qualsiasi altro blob.</summary>
+    /// <summary>Riconosce i due nomi scritti da NormalizeRecord; false per qualsiasi altro blob.</summary>
     public static bool TryParse(string blobName, out Guid entraObjectId, out Guid recordUid, out bool isError)
     {
         entraObjectId = recordUid = Guid.Empty;

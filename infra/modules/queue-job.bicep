@@ -1,4 +1,4 @@
-// Container Apps Job attivato dalla propria coda tramite lo scaler KEDA (normalizzazione o trascrizione).
+// Container Apps Job attivato dalla propria coda tramite lo scaler KEDA (oggi solo il ripiego della trascrizione).
 // Fatturato solo durante l'esecuzione, dentro il grant gratuito di Container Apps.
 // Trasformazione da blob a blob: legge il messaggio dalla propria coda, legge il file di ingresso e
 // scrive il risultato nel contenitore di destinazione; l'evento "blob creato" fa proseguire il flusso.

@@ -9,10 +9,9 @@ param sqlServerName = readEnvironmentVariable('SQL_SERVER_NAME')
 // dev + prod = 0,16 GB al giorno, cioè circa i 5 GB gratuiti al mese.
 param logDailyCapGb = '0.06'
 
-// Immagini segnaposto finché le pipeline dei job non pubblicano su GHCR. Dopo la prima pubblicazione
-// impostare NORMALIZER_IMAGE_DEV e TRANSCRIBER_IMAGE_DEV (es. ghcr.io/<owner>/memoa-normalizer:main): il
+// Immagine segnaposto finché la pipeline del job non pubblica su GHCR. Dopo la prima pubblicazione
+// impostare TRANSCRIBER_IMAGE_DEV (es. ghcr.io/<owner>/memoa-transcriber:main): il
 // deploy dell'infrastruttura sostituisce l'immagine impostata dalla pipeline con questa.
-param normalizerImage = readEnvironmentVariable('NORMALIZER_IMAGE_DEV', 'mcr.microsoft.com/k8se/quickstart-jobs:latest')
 param transcriberImage = readEnvironmentVariable('TRANSCRIBER_IMAGE_DEV', 'mcr.microsoft.com/k8se/quickstart-jobs:latest')
 param ghcrUsername = 'roberto-desalvo'
 param ghcrToken = readEnvironmentVariable('GHCR_TOKEN', '')
@@ -23,9 +22,6 @@ param authAudience = readEnvironmentVariable('AUTH_AUDIENCE_DEV')
 
 // Pipeline GitHub Actions: federated credential sull'environment GitHub 'dev'.
 param githubRepository = 'roberto-desalvo/Memoa'
-
-param normalizerCpu = '1.0'
-param normalizerMemory = '2Gi'
 
 param transcriberCpu = '4.0'
 param transcriberMemory = '8Gi'
