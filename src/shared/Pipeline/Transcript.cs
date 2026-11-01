@@ -1,8 +1,8 @@
 namespace Memoa.Shared.Pipeline;
 
 /// <summary>
-/// Contratto tra il job di trascrizione, che scrive nel contenitore delle trascrizioni, e la Function
-/// attivata dall'evento "blob creato" su quel contenitore. Il job scrive uno solo dei due blob:
+/// Contratto tra il job di trascrizione di ripiego, che scrive nel contenitore delle trascrizioni, e la
+/// Function attivata dall'evento "blob creato" su quel contenitore. Il job scrive uno solo dei due blob:
 /// <list type="bullet">
 /// <item>"&lt;oid&gt;/&lt;RecordUid&gt;.txt": trascrizione in UTF-8, con lingua e motore nei metadati;</item>
 /// <item>"&lt;oid&gt;/&lt;RecordUid&gt;.error.json": esito di una trascrizione non riuscita, con il codice d'errore nei metadati.</item>
@@ -29,10 +29,17 @@ public static class Transcript
 
     public const string ErrorCodeMetadata = "errorcode";
 
-    // Codici d'errore: indicano la fase non riuscita, i dettagli sono nei log del job con il RecordUid.
+    // Codici d'errore: indicano la fase non riuscita, i dettagli sono nei log della Function di trascrizione
+    // o del job con il RecordUid. Usati anche dalla Function per gli errori della trascrizione con Azure.
 
     /// <summary>Nessun parlato riconosciuto: la trascrizione è vuota.</summary>
     public const string NoSpeech = "no_speech";
+
+    /// <summary>
+    /// Registrazione più lunga di quelle accettate dal job di ripiego (10 minuti), arrivata al job perché la
+    /// trascrizione con Azure non è riuscita.
+    /// </summary>
+    public const string AudioTooLong = "audio_too_long";
 
     /// <summary>Messaggio che identifica il record ma con un campo non valido (es. lingua non supportata).</summary>
     public const string InvalidRequest = "invalid_request";

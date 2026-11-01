@@ -17,11 +17,16 @@ param audioContainerName string
 param transcriptsContainerName string
 param normalizationQueueName string
 param transcriptionQueueName string
+param transcriptionFallbackQueueName string
 param indexingQueueName string
 param uploadExpiryQueueName string
 param sqlConnectionString string
 param openAiEndpoint string
 param embeddingDeploymentName string
+
+@description('Endpoint di Azure AI Speech con il sottodominio personalizzato.')
+param speechEndpoint string
+
 param keyVaultUri string
 
 @description('Authority del tenant Entra External ID (https://<sottodominio>.ciamlogin.com/<tenant-id>/v2.0).')
@@ -158,7 +163,7 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
         { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: appInsightsConnectionString }
         { name: 'APPLICATIONINSIGHTS_AUTHENTICATION_STRING', value: 'ClientId=${identityClientId};Authorization=AAD' }
         { name: 'AZURE_CLIENT_ID', value: identityClientId }
-        // Connessione "DataStorage" usata dal trigger della coda di indicizzazione e dai client di blob e code.
+        // Connessione "DataStorage" usata dai trigger delle code e dai client di blob e code.
         // Gli eventi "blob creato" arrivano dalle sottoscrizioni Event Grid (event-subscriptions.bicep).
         { name: 'DataStorage__blobServiceUri', value: dataBlobEndpoint }
         { name: 'DataStorage__queueServiceUri', value: dataQueueEndpoint }
@@ -169,11 +174,13 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
         { name: 'Containers__Transcripts', value: transcriptsContainerName }
         { name: 'Queues__Normalization', value: normalizationQueueName }
         { name: 'Queues__Transcription', value: transcriptionQueueName }
+        { name: 'Queues__TranscriptionFallback', value: transcriptionFallbackQueueName }
         { name: 'Queues__Indexing', value: indexingQueueName }
         { name: 'Queues__UploadExpiry', value: uploadExpiryQueueName }
         { name: 'Sql__ConnectionString', value: '${sqlConnectionString};User Id=${identityClientId}' }
         { name: 'OpenAI__Endpoint', value: openAiEndpoint }
         { name: 'OpenAI__EmbeddingDeployment', value: embeddingDeploymentName }
+        { name: 'Speech__Endpoint', value: speechEndpoint }
         { name: 'KeyVault__Uri', value: keyVaultUri }
         // Validazione dei token di accesso emessi da Entra External ID (middleware delle Functions).
         { name: 'Auth__Authority', value: authAuthority }

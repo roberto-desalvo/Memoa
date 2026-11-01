@@ -14,9 +14,10 @@ using Microsoft.Extensions.Options;
 namespace Memoa.Transcriber;
 
 /// <summary>
-/// Sesto passo del flusso audio: legge un messaggio dalla coda di trascrizione (l'URL della copia
-/// normalizzata e la lingua dell'account), trascrive l'audio e scrive nel contenitore delle trascrizioni
-/// il testo oppure, se la trascrizione non riesce, l'esito con il solo codice d'errore (vedi
+/// Ripiego della trascrizione: legge un messaggio dalla coda di ripiego (l'URL della copia normalizzata e
+/// la lingua dell'account), scritto dalla Function di trascrizione quando Azure AI Speech non risponde o si
+/// superano i limiti. Trascrive l'audio, se non supera la durata massima, e scrive nel contenitore delle
+/// trascrizioni il testo oppure, se la trascrizione non riesce, l'esito con il solo codice d'errore (vedi
 /// <see cref="Transcript"/>).
 /// L'evento "blob creato" su quel contenitore fa proseguire il flusso: il job non scrive né nel
 /// database né sulle code. La copia normalizzata viene solo letta.
@@ -161,6 +162,21 @@ public sealed class TranscriptionJob(
         var inputPath = Path.Combine(workDirectory, "input.opus");
         try
         {
+            // La durata è nei metadati scritti dal job di normalizzazione: si controlla prima di scaricare.
+            var properties = await source.GetPropertiesAsync(cancellationToken: cancellationToken);
+            var maxDuration = options.Value.MaxDurationSeconds;
+            if (!properties.Value.Metadata.TryGetValue(NormalizedAudio.DurationMetadata, out var value)
+                || !int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out var durationSeconds))
+            {
+                logger.LogWarning("Record {RecordUid}: durata mancante nei metadati della copia normalizzata, nessun controllo", recordUid);
+            }
+            else if (durationSeconds > maxDuration)
+            {
+                logger.LogWarning("Record {RecordUid}: {DurationSeconds} s di audio, oltre i {MaxDurationSeconds} s accettati",
+                    recordUid, durationSeconds, maxDuration);
+                return Transcript.AudioTooLong;
+            }
+
             await source.DownloadToAsync(inputPath, cancellationToken);
         }
         catch (Exception ex) when (ex is not OperationCanceledException && !IsBlobNotFound(ex))

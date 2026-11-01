@@ -13,9 +13,11 @@ namespace Memoa.Functions.Functions;
 
 /// <summary>
 /// Rigenera la trascrizione automatica di un audio pronto (vedi
-/// <see cref="RecordResponses.CanRegenerateTranscript"/>): elimina trascrizione ed esito nel contenitore,
-/// altrimenti il job salterebbe il record, azzera OriginalTranscript, riporta il record "in elaborazione" e
-/// accoda di nuovo la copia normalizzata per la trascrizione.
+/// <see cref="RecordResponses.CanRegenerateTranscript"/>): elimina trascrizione ed esito di un'eventuale
+/// trascrizione precedente del job di ripiego, che altrimenti salterebbe il record, azzera
+/// OriginalTranscript, riporta il record "in elaborazione" e accoda di nuovo la copia normalizzata sulla
+/// coda di trascrizione: come la prima volta si prova prima Azure AI Speech
+/// (<see cref="TranscribeRecordFunction"/>), poi eventualmente il job.
 /// Il testo corrente resta finché non arriva la nuova trascrizione, che lo sostituisce anche se modificato
 /// dall'utente; <see cref="EnqueueIndexingFunction"/> rifà l'indicizzazione solo se il testo cambia.
 /// </summary>
@@ -66,7 +68,7 @@ public sealed class RegenerateTranscriptFunction(
 
         logger.LogInformation("Record {RecordUid} accodato per rigenerare la trascrizione", recordUid);
 
-        // La lingua dell'account serve al job come ripiego se il rilevamento automatico è incerto.
+        // La lingua dell'account serve come ripiego se il rilevamento automatico è incerto.
         return new HttpWithTranscriptionOutput
         {
             Result = new OkObjectResult(RecordResponses.ToDetail(record)),

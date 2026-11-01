@@ -35,7 +35,7 @@ Il documento delle decisioni (`project.md`) è la fonte di verità per funzional
 | Code | Azure Storage Queue (nello stesso storage account dei dati) |
 | Eventi | Event Grid (piano Basic) |
 | Normalizzazione audio | Container Apps Job, worker C# .NET con ffmpeg nell'immagine; copia Ogg Opus mono 32 kbps |
-| Trascrizione | Whisper self-hosted in un Container Apps Job, worker in C# .NET |
+| Trascrizione | Azure AI Speech (fast transcription, risorsa S0 in West Europe, autenticazione Entra ID) chiamato da una Function; ripiego su Whisper self-hosted (Whisper.net, large-v3-turbo) in un Container Apps Job, worker in C# .NET |
 | Registry | GitHub Container Registry (immagini private) |
 | IaC | Bicep |
 | CI/CD | GitHub Actions |
@@ -51,9 +51,11 @@ Il documento delle decisioni (`project.md`) è la fonte di verità per funzional
 3. Evento Event Grid "blob creato" → **Function di validazione**: controlla il file e lo collega come allegato al record esistente; se valido scrive l'URL del blob sulla **coda di normalizzazione**, altrimenti porta il record a "in errore" senza accodare nulla; il file non viene eliminato, per poterlo analizzare.
 4. **Job di normalizzazione** (avviato dalla coda tramite scaler KEDA): `ffprobe` verifica formato reale e durata, `ffmpeg` crea la copia Ogg Opus nel contenitore dell'**audio normalizzato** (`<oid>/<RecordUid>.opus`, durata nei metadati del blob). Se il file va scartato scrive invece nello stesso contenitore l'esito `<oid>/<RecordUid>.error.json`, con il solo codice d'errore.
 5. Evento "blob creato" → Function: per la copia `.opus` salva durata e percorso nel database e scrive sulla **coda di trascrizione**; per l'esito `.error.json` porta il record a "in errore".
-6. **Job di trascrizione**: trascrive la copia normalizzata → file di testo nel contenitore delle **trascrizioni**.
-7. Evento "blob creato" → Function: per la trascrizione `<oid>/<RecordUid>.txt` salva testo (in `Text` e `OriginalTranscript`) e lingua nel database e scrive l'identificativo sulla **coda di indicizzazione**; per l'esito `<oid>/<RecordUid>.error.json` porta il record a "in errore".
+6. **Function di trascrizione** (attivata dalla coda di trascrizione): invia la copia normalizzata ad **Azure AI Speech** (fast transcription), con timeout di 30 secondi più 10 secondi per minuto di audio, salva testo (in `Text` e `OriginalTranscript`) e lingua **direttamente nel database**, senza file su Blob Storage, e scrive l'identificativo sulla **coda di indicizzazione**.
+7. **Ripiego**: se Azure AI Speech non risponde entro il timeout o si superano i limiti, la Function scrive invece il messaggio sulla **coda di ripiego** (`transcription-fallback`), che avvia il **job di trascrizione** con Whisper self-hosted. Il job accetta solo registrazioni fino a 10 minuti (le più lunghe vengono rifiutate) e scrive il file di testo nel contenitore delle **trascrizioni**. Evento "blob creato" → Function: per la trascrizione `<oid>/<RecordUid>.txt` salva testo e lingua nel database e scrive l'identificativo sulla coda di indicizzazione; per l'esito `<oid>/<RecordUid>.error.json` porta il record a "in errore".
 8. **Function di indicizzazione**: legge il testo dal database, calcola l'embedding, salva embedding e stato "pronto".
+
+La rigenerazione della trascrizione e il "riprova" seguono lo stesso percorso: coda di trascrizione, prima Azure AI Speech, poi eventualmente il ripiego.
 
 ### Flusso testo
 
@@ -62,8 +64,10 @@ La Function HTTP salva il testo, con titolo e data della nota, nel database e, p
 ### Regole dell'architettura (vincolanti)
 
 - **Solo le Functions scrivono nel database e sulla coda di indicizzazione.**
-- I due job leggono **solo la propria coda**, non scrivono su nessuna coda né nel database, e scrivono **solo su Blob Storage**.
-- Il job di trascrizione è una trasformazione audio → testo, indipendente dal motore: il motore di trascrizione sta dietro un'**interfaccia sostituibile** (alternativa futura: API cloud).
+- I due job leggono **solo la propria coda** (normalizzazione o ripiego della trascrizione), non scrivono su nessuna coda né nel database, e scrivono **solo su Blob Storage**.
+- La coda di trascrizione la legge solo la Function; il job di trascrizione ascolta solo la coda di ripiego.
+- Il file di testo della trascrizione su Blob Storage esiste **solo quando trascrive il job**; le trascrizioni di Azure AI Speech la Function le salva direttamente nel database.
+- Servizio di trascrizione (nella Function) e motore del job stanno dietro **interfacce sostituibili**: il job resta una trasformazione audio → testo indipendente dal motore.
 - Ogni passaggio scrive in un contenitore diverso da quello che legge. Ogni sottoscrizione Event Grid filtra sul proprio contenitore (prefisso del soggetto).
 - **L'audio originale non viene mai cancellato né sovrascritto** (salvo eliminazione del record o dell'account da parte dell'utente).
 - **Idempotenza obbligatoria**: Event Grid e le code consegnano almeno una volta, con possibili duplicati. Ogni handler deve poter ricevere due volte lo stesso messaggio senza effetti indesiderati.
@@ -71,7 +75,7 @@ La Function HTTP salva il testo, con titolo e data della nota, nel database e, p
 - I Container Apps Jobs si avviano dalle code (KEDA), non direttamente da Event Grid.
 - Nessuna orchestrazione (niente Durable Functions): code e Functions separate.
 - Retry tramite i meccanismi delle code (coda dei messaggi non elaborabili). I job non possono scrivere su quella coda: dopo il numero massimo di tentativi scrivono l'esito di errore (`processing_failed`). Eventi Event Grid: solo retry automatici, nessun dead-letter per ora.
-- Se il calcolo dell'embedding fallisce, la trascrizione è già salvata nel database (e resta nel blob): il record non va perso.
+- Se il calcolo dell'embedding fallisce, la trascrizione è già salvata nel database (e, nel ripiego, resta nel blob): il record non va perso.
 - Stati del record: "in elaborazione", "pronto", "in errore"; l'utente può riprovare in caso di errore. Il frontend aggiorna lo stato con **polling** solo finché ci sono record in elaborazione e l'app è visibile.
 
 ## Database e migration
@@ -114,7 +118,6 @@ La Function HTTP salva il testo, con titolo e data della nota, nel database e, p
 
 ## Ancora da definire (non decidere al posto dell'utente)
 
-- Libreria .NET di inferenza per Whisper (modello di partenza: large-v3-turbo quantizzato).
 - Struttura del repository, versioni di .NET e Angular, framework di test, convenzioni di codice.
 - Best practice e architettura interna della PWA.
 - Ripartizione tra identità gestite user-assigned e system-assigned.

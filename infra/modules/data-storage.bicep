@@ -28,6 +28,7 @@ var audioContainerName = 'audio'
 var transcriptsContainerName = 'transcripts'
 var normalizationQueueName = 'normalization'
 var transcriptionQueueName = 'transcription'
+var transcriptionFallbackQueueName = 'transcription-fallback'
 var indexingQueueName = 'indexing'
 var uploadExpiryQueueName = 'upload-expiry'
 
@@ -128,8 +129,9 @@ resource audioContainer 'Microsoft.Storage/storageAccounts/blobServices/containe
   }
 }
 
-// Trascrizioni scritte dal job e lette dalla Function di indicizzazione, che le salva nel database.
+// Trascrizioni scritte dal job di ripiego (Whisper) e lette dalla Function, che le salva nel database.
 // Evento "blob creato" → Function che scrive sulla coda di indicizzazione.
+// Le trascrizioni di Azure AI Speech vanno direttamente nel database e non passano di qui.
 // Il job non accede ad Azure SQL; se l'embedding fallisce la trascrizione resta qui.
 // Conservazione dopo il salvataggio nel database da definire (nessuna regola di lifecycle per ora).
 resource transcriptsContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
@@ -203,9 +205,17 @@ resource normalizationQueue 'Microsoft.Storage/storageAccounts/queueServices/que
   name: normalizationQueueName
 }
 
+// Letta dalla Function che chiama Azure AI Speech.
 resource transcriptionQueue 'Microsoft.Storage/storageAccounts/queueServices/queues@2023-05-01' = {
   parent: queueService
   name: transcriptionQueueName
+}
+
+// Scritta dalla Function quando Azure AI Speech non risponde o si superano i limiti; avvia il job di
+// trascrizione con Whisper.
+resource transcriptionFallbackQueue 'Microsoft.Storage/storageAccounts/queueServices/queues@2023-05-01' = {
+  parent: queueService
+  name: transcriptionFallbackQueueName
 }
 
 resource indexingQueue 'Microsoft.Storage/storageAccounts/queueServices/queues@2023-05-01' = {
@@ -323,10 +333,11 @@ resource normalizerWriteRole 'Microsoft.Authorization/roleAssignments@2022-04-01
   }
 }
 
+// Il job di trascrizione legge solo la coda di ripiego, non quella letta dalla Function.
 resource transcriberQueueRoles 'Microsoft.Authorization/roleAssignments@2022-04-01' = [
   for roleId in queueRoles: {
-    name: guid(transcriptionQueue.id, transcriberIdentityName, roleId)
-    scope: transcriptionQueue
+    name: guid(transcriptionFallbackQueue.id, transcriberIdentityName, roleId)
+    scope: transcriptionFallbackQueue
     properties: {
       roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', roleId)
       principalId: transcriberIdentity.properties.principalId
@@ -364,5 +375,6 @@ output audioContainerName string = audioContainer.name
 output transcriptsContainerName string = transcriptsContainer.name
 output normalizationQueueName string = normalizationQueue.name
 output transcriptionQueueName string = transcriptionQueue.name
+output transcriptionFallbackQueueName string = transcriptionFallbackQueue.name
 output indexingQueueName string = indexingQueue.name
 output uploadExpiryQueueName string = uploadExpiryQueue.name

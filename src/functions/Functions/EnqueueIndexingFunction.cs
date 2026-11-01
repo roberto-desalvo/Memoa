@@ -7,6 +7,7 @@ using Azure.Storage.Blobs.Models;
 using Memoa.Functions.Data;
 using Memoa.Functions.Data.Entities;
 using Memoa.Functions.Storage;
+using Memoa.Functions.Transcription;
 using Memoa.Shared.Pipeline;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.EntityFrameworkCore;
@@ -16,8 +17,10 @@ using Microsoft.Extensions.Options;
 namespace Memoa.Functions.Functions;
 
 /// <summary>
-/// Settimo passo del flusso audio, attivato dall'evento "blob creato" sul contenitore delle trascrizioni,
-/// dove il job di trascrizione scrive uno dei due blob di <see cref="Transcript"/>:
+/// Ripiego della trascrizione, attivato dall'evento "blob creato" sul contenitore delle trascrizioni, dove
+/// il job di trascrizione con Whisper scrive uno dei due blob di <see cref="Transcript"/>. Il job elabora
+/// solo i messaggi che <see cref="TranscribeRecordFunction"/> inoltra sulla coda di ripiego quando Azure AI
+/// Speech non risponde: negli altri casi la trascrizione va direttamente nel database, senza blob.
 /// <list type="bullet">
 /// <item>trascrizione: salva testo e lingua nel record e scrive sulla coda di indicizzazione il RecordUid;</item>
 /// <item>esito di errore: porta il record a "in errore" con il codice scritto dal job.</item>
@@ -27,6 +30,7 @@ namespace Memoa.Functions.Functions;
 public sealed partial class EnqueueIndexingFunction(
     MemoaDbContext db,
     BlobServiceClient blobService,
+    TranscriptStore transcripts,
     IOptions<ContainerOptions> containers,
     ILogger<EnqueueIndexingFunction> logger)
 {
@@ -96,88 +100,25 @@ public sealed partial class EnqueueIndexingFunction(
         }
 
         var metadata = blob.Details.Metadata;
-
-        return isError
-            ? await SaveErrorAsync(record, metadata, cancellationToken)
-            : await SaveTranscriptAsync(record, blob.Content.ToString(), metadata, cancellationToken);
-    }
-
-    private async Task<string?> SaveTranscriptAsync(
-        Record record,
-        string text,
-        IDictionary<string, string> metadata,
-        CancellationToken cancellationToken)
-    {
-        // Il job scrive l'esito no_speech al posto di una trascrizione vuota: una vuota è comunque
-        // inutilizzabile per l'indicizzazione.
-        if (string.IsNullOrWhiteSpace(text))
+        if (isError)
         {
-            logger.LogWarning("Record {RecordUid}: trascrizione vuota", record.RecordUid);
-            return await SetErrorAsync(record, Transcript.NoSpeech, cancellationToken);
+            return await SaveErrorAsync(record, metadata, cancellationToken);
         }
 
-        if (record.OriginalTranscript is null)
-        {
-            // Prima trascrizione, oppure rigenerazione (RegenerateTranscriptFunction azzera OriginalTranscript
-            // e lascia il testo corrente, già indicizzato): se il testo non cambia l'indicizzazione non serve.
-            var unchanged = record.Text == text && await HasChunksAsync(record, cancellationToken);
-
-            // OriginalTranscript resta la trascrizione automatica; Text è quella corrente, che l'utente
-            // potrà modificare. La rigenerazione sostituisce entrambe.
-            record.OriginalTranscript = text;
-            record.Text = text;
-
-            // Il job scrive la lingua rilevata o, se incerta, quella dell'account: se manca o non è
-            // supportata si ripiega sulla lingua dell'account.
-            if (metadata.TryGetValue(Transcript.LanguageMetadata, out var language)
-                && TranscriptionRequest.SupportedLanguages.Contains(language))
-            {
-                record.Language = language;
-            }
-            else
-            {
-                logger.LogWarning("Record {RecordUid}: lingua mancante o non valida nei metadati della trascrizione", record.RecordUid);
-                record.Language = record.User.PreferredLanguage;
-            }
-
-            if (unchanged)
-            {
-                record.Status = RecordStatus.Ready;
-                record.ErrorCode = null;
-            }
-
-            // Una modifica concorrente del record (RowVersion) solleva un'eccezione: Event Grid riprova.
-            await db.SaveChangesAsync(cancellationToken);
-
-            if (unchanged)
-            {
-                logger.LogInformation("Record {RecordUid}: trascrizione rigenerata invariata, indicizzazione non necessaria", record.RecordUid);
-                return null;
-            }
-        }
-
-        // Si accoda anche alle consegne successive finché il record è in elaborazione: la prima può aver
-        // salvato la trascrizione senza riuscire a scrivere sulla coda. La Function di indicizzazione è idempotente.
-        logger.LogInformation("Record {RecordUid} accodato per l'indicizzazione", record.RecordUid);
-        return record.RecordUid.ToString("D");
+        // Il job scrive la lingua rilevata o, se incerta, quella dell'account, e l'esito no_speech al posto
+        // di una trascrizione vuota. Una modifica concorrente del record (RowVersion) solleva un'eccezione:
+        // Event Grid riprova.
+        metadata.TryGetValue(Transcript.LanguageMetadata, out var language);
+        return await transcripts.SaveTranscriptAsync(record, blob.Content.ToString(), language, cancellationToken);
     }
-
-    /// <summary>
-    /// True se il testo corrente è già indicizzato: IndexRecordFunction salva i chunk insieme allo stato
-    /// "pronto", quindi esistono solo dopo un'indicizzazione completata.
-    /// </summary>
-    private Task<bool> HasChunksAsync(Record record, CancellationToken cancellationToken) =>
-        db.RecordChunks
-            .IgnoreQueryFilters([MemoaDbContext.CurrentUserFilter])
-            .AnyAsync(c => c.RecordId == record.Id, cancellationToken);
 
     private async Task<string?> SaveErrorAsync(
         Record record,
         IDictionary<string, string> metadata,
         CancellationToken cancellationToken)
     {
-        // Se la trascrizione è già salvata l'esito di errore viene da un'esecuzione concorrente del job:
-        // vale la trascrizione.
+        // Se la trascrizione è già salvata l'esito di errore viene da un'esecuzione concorrente del job, o
+        // da un messaggio di ripiego arrivato dopo una trascrizione con Azure riuscita: vale la trascrizione.
         if (record.OriginalTranscript is not null)
         {
             logger.LogWarning("Record {RecordUid} già trascritto: esito di errore ignorato", record.RecordUid);
@@ -188,27 +129,13 @@ public sealed partial class EnqueueIndexingFunction(
             ? value
             : Transcript.ProcessingFailed;
 
-        return await SetErrorAsync(record, errorCode, cancellationToken);
-    }
-
-    private async Task<string?> SetErrorAsync(Record record, string errorCode, CancellationToken cancellationToken)
-    {
-        record.Status = RecordStatus.Error;
-        record.ErrorCode = errorCode;
-
         // Una modifica concorrente del record (RowVersion) solleva un'eccezione: Event Grid riprova.
-        await db.SaveChangesAsync(cancellationToken);
-
-        // Un errore che non dipende dall'audio indica un problema del sistema: livello Error per gli
-        // avvisi di Application Insights. La causa è nei log del job con lo stesso RecordUid.
-        var level = Transcript.IsContentError(errorCode) ? LogLevel.Warning : LogLevel.Error;
-        logger.Log(level, "Trascrizione del record {RecordUid} non riuscita ({ErrorCode})", record.RecordUid, errorCode);
-        return null;
+        return await transcripts.SetErrorAsync(record, errorCode, cancellationToken);
     }
 
     /// <summary>
     /// L'evento non riporta contenuto e metadati del blob: si scaricano insieme con l'identità gestita.
-    /// La trascrizione è in UTF-8 e piccola (al massimo 30 minuti di parlato). Null se il blob non esiste più.
+    /// La trascrizione è in UTF-8 e piccola (al massimo 10 minuti di parlato). Null se il blob non esiste più.
     /// </summary>
     private async Task<BlobDownloadResult?> DownloadAsync(BlobUriBuilder blobUri, CancellationToken cancellationToken)
     {

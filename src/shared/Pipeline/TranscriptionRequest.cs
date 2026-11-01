@@ -4,7 +4,9 @@ using System.Text.Json;
 namespace Memoa.Shared.Pipeline;
 
 /// <summary>
-/// Messaggio della coda di trascrizione, scritto da EnqueueTranscription e letto dal job di trascrizione.
+/// Messaggio della coda di trascrizione, scritto da EnqueueTranscription (e dalle Function HTTP di
+/// riprova e rigenerazione) e letto da TranscribeRecord, che lo inoltra uguale sulla coda di ripiego del
+/// job di trascrizione se Azure AI Speech non risponde o si superano i limiti.
 /// Contiene solo l'URL della copia normalizzata (senza SAS) e un codice lingua: mai contenuti.
 /// </summary>
 /// <param name="BlobUrl">URL del blob "&lt;oid&gt;/&lt;RecordUid&gt;.opus" nel contenitore dell'audio normalizzato.</param>

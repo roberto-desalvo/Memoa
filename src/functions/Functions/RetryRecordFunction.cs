@@ -17,7 +17,8 @@ namespace Memoa.Functions.Functions;
 /// <item>record con testo (testo scritto, o audio la cui indicizzazione è fallita): si rifà solo
 /// l'indicizzazione, senza perdere il testo e le eventuali correzioni dell'utente;</item>
 /// <item>audio con testo ma senza OriginalTranscript (rigenerazione della trascrizione non riuscita, vedi
-/// <see cref="RegenerateTranscriptFunction"/>): si rifà la trascrizione della copia normalizzata;</item>
+/// <see cref="RegenerateTranscriptFunction"/>): si rifà la trascrizione della copia normalizzata, prima con
+/// Azure AI Speech (<see cref="TranscribeRecordFunction"/>);</item>
 /// <item>audio senza testo: si riparte dalla normalizzazione dell'originale, dopo aver eliminato copia
 /// normalizzata, trascrizione ed esiti di errore, che altrimenti farebbero saltare il record ai job.</item>
 /// </list>

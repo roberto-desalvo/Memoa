@@ -15,15 +15,16 @@ Bicep per tutto ciò che lo supporta; qui sotto i passi manuali per il resto.
 | `modules/identities.bicep` | RG | Identità user-assigned di Functions, job di normalizzazione e job di trascrizione |
 | `modules/monitoring.bicep` | RG | Log Analytics (limite giornaliero, 30 giorni) + Application Insights |
 | `modules/static-web-app.bicep` | RG | Static Web Apps Free |
-| `modules/data-storage.bicep` | RG | Storage dati GRS: container `uploads` (originali) / `audio` (normalizzato) / `transcripts`, code `normalization` / `transcription` / `indexing`, system topic Event Grid, soft delete 14 gg, versioning, lifecycle, blocco CanNotDelete; ruoli dei job limitati ai propri contenitori e alla propria coda |
+| `modules/data-storage.bicep` | RG | Storage dati GRS: container `uploads` (originali) / `audio` (normalizzato) / `transcripts`, code `normalization` / `transcription` / `transcription-fallback` / `indexing` / `upload-expiry`, system topic Event Grid, soft delete 14 gg, versioning, lifecycle, blocco CanNotDelete; ruoli dei job limitati ai propri contenitori e alla propria coda |
 | `modules/event-subscriptions.bicep` | RG | Sottoscrizioni Event Grid "blob creato", una per contenitore, verso le Functions `ValidateUpload`, `EnqueueTranscription`, `EnqueueIndexing` (solo con `deployEventSubscriptions = true`) |
 | `modules/key-vault.bicep` | RG | Key Vault (RBAC) con il token GHCR |
 | `modules/sql.bicep` | RG del server SQL | Database con offerta gratuita su un server esistente condiviso (il server non è gestito da qui) |
 | `modules/openai.bicep` | RG | Azure OpenAI con `text-embedding-3-small` Data Zone Standard |
+| `modules/speech.bicep` | RG | Azure AI Speech S0 per la fast transcription chiamata dalla Function `TranscribeRecord`: sottodominio personalizzato (non reversibile), autenticazione locale disattivata, ruolo `Cognitive Services Speech User` all'identità delle Functions e agli sviluppatori |
 | `modules/function-app.bicep` | RG | Flex Consumption, storage di sistema dedicato, app settings |
 | `modules/container-apps-env.bicep` | RG | Container Apps environment (profilo Consumption) condiviso dai due job |
 | `modules/deploy-identity.bicep` | RG | Identità delle pipeline GitHub Actions: federated credential sull'environment GitHub dell'ambiente, Website Contributor sulla Function App, Contributor sulla Static Web App, Container Apps Jobs Contributor sul job di normalizzazione |
-| `modules/queue-job.bicep` | RG | Container Apps Job attivato dalla propria coda, usato due volte: normalizzazione (`uploads` → `audio`, worker .NET e ffmpeg) e trascrizione (`audio` → `transcripts`, Whisper). Nessuna scrittura sulle code, nessun accesso ad Azure SQL |
+| `modules/queue-job.bicep` | RG | Container Apps Job attivato dalla propria coda, usato due volte: normalizzazione (`uploads` → `audio`, worker .NET e ffmpeg) e trascrizione di ripiego (coda `transcription-fallback`, `audio` → `transcripts`, Whisper, solo registrazioni fino a 10 minuti). Nessuna scrittura sulle code, nessun accesso ad Azure SQL |
 
 ## Deploy
 
@@ -107,7 +108,7 @@ Nessun dead-letter: gli eventi non consegnati dopo i retry automatici di Event G
 
 ## Verifiche prima del primo deploy
 
-- Disponibilità in West Europe: piano Flex Consumption, `text-embedding-3-small` in Data Zone Standard, runtime `dotnet-isolated` 10.0 su Flex Consumption.
+- Disponibilità in West Europe: piano Flex Consumption, `text-embedding-3-small` in Data Zone Standard, runtime `dotnet-isolated` 10.0 su Flex Consumption, fast transcription di Azure AI Speech.
 - Offerta gratuita SQL: la sottoscrizione ammette al massimo 10 database gratuiti, tutti nella regione del primo.
 
 ## Passi manuali

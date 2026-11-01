@@ -1,9 +1,11 @@
 # Job di trascrizione
 
-Container Apps Job (worker .NET 10 + ffmpeg + Whisper.net) avviato dallo scaler KEDA sulla coda `transcription`. Ogni esecuzione elabora un messaggio e termina.
+Ripiego della trascrizione: Container Apps Job (worker .NET 10 + ffmpeg + Whisper.net) avviato dallo scaler KEDA sulla coda `transcription-fallback`. Ogni esecuzione elabora un messaggio e termina.
 
-1. Legge un messaggio dalla coda, invisibile per 65 minuti. Il messaggio è il JSON `{"blobUrl": "...", "fallbackLanguage": "it"}` in base64, scritto da `EnqueueTranscription` (contratto in `src/shared/Pipeline/TranscriptionRequest.cs`).
-2. Scarica la copia normalizzata da `audio/<oid>/<RecordUid>.opus` in una cartella temporanea.
+La trascrizione normale la fa la Function `TranscribeRecord` (coda `transcription`) con Azure AI Speech, e salva il testo direttamente nel database. Solo se il servizio non risponde entro il timeout, si superano i limiti (HTTP 429 o 413) o falliscono tutti i tentativi, la Function inoltra lo stesso messaggio su `transcription-fallback`, e il flusso passa da questo job e dal blob della trascrizione.
+
+1. Legge un messaggio dalla coda, invisibile per 65 minuti. Il messaggio è il JSON `{"blobUrl": "...", "fallbackLanguage": "it"}` in base64, scritto da `TranscribeRecord` (contratto in `src/shared/Pipeline/TranscriptionRequest.cs`).
+2. Legge la durata dai metadati della copia normalizzata (`durationseconds`): oltre `Job__MaxDurationSeconds` (predefinito 600, cioè 10 minuti) scrive l'esito `audio_too_long` senza trascrivere. Altrimenti scarica la copia da `audio/<oid>/<RecordUid>.opus` in una cartella temporanea.
 3. `ffmpeg` la decodifica in PCM float32 mono a 16 kHz.
 4. Whisper rileva la lingua sui primi 30 secondi, scegliendo solo tra italiano e inglese. Se la probabilità è sotto `Whisper__LanguageProbabilityThreshold` (predefinita 0,5) usa `fallbackLanguage`, la lingua dell'account.
 5. Trascrive nella lingua scelta, con un prompt iniziale punteggiato in quella lingua (`Whisper__Prompts__it`, `Whisper__Prompts__en`; predefiniti in `JobOptions.cs`) che spinge Whisper a usare la punteggiatura, e scrive **uno** dei due blob nel contenitore `transcripts`, solo se nessuno dei due esiste già (scrittura condizionale):
@@ -24,7 +26,8 @@ Definiti in `src/shared/Pipeline/Transcript.cs`. Ogni codice indica la fase non 
 | Codice | Quando | Cosa controllare |
 |---|---|---|
 | `no_speech` | Subito: trascrizione vuota, nessun parlato riconosciuto | L'audio (silenzio, rumore). Unico codice dovuto al contenuto |
-| `invalid_request` | Subito: il messaggio identifica il record ma la lingua di ripiego non è supportata | `Users.PreferredLanguage` e `EnqueueTranscription` |
+| `audio_too_long` | Subito: registrazione oltre `Job__MaxDurationSeconds` | Perché Azure AI Speech non ha trascritto il record: log di `TranscribeRecord` con lo stesso `RecordUid` |
+| `invalid_request` | Subito: il messaggio identifica il record ma la lingua di ripiego non è supportata | `Users.PreferredLanguage` e `TranscribeRecord` |
 | `audio_download_failed` | All'ultimo tentativo: lettura della copia normalizzata non riuscita | Ruolo di lettura su `audio` dell'identità del job, rete, spazio su disco della replica |
 | `audio_decode_failed` | Subito, senza retry: ffmpeg non decodifica la copia in PCM | ffmpeg nell'immagine (`Job__FfmpegPath`), copia corrotta |
 | `model_load_failed` | Subito, senza retry: Whisper non carica il modello | Riga di log "Caricamento del modello": percorso, dimensione del file, memoria disponibile. Poi `Whisper__ModelPath`, checksum, memoria del job |
@@ -47,7 +50,7 @@ Il job dipende solo da `ITranscriptionEngine` (`Engine/`): riceve il file Opus e
 
 Il modello è `ggml-large-v3-turbo-q5_0.bin` (circa 550 MB), incluso nell'immagine dal `Dockerfile`: scaricato da Hugging Face a una revisione fissata e verificato con lo SHA-256. Per cambiarlo vanno aggiornati URL, checksum e `Whisper__ModelPath`.
 
-Velocità e qualità sull'italiano su CPU sono da misurare: con 4 vCPU (dev e prod) una registrazione di 30 minuti potrebbe avvicinarsi al `replicaTimeout` di 60 minuti.
+Con 4 vCPU (dev e prod) Whisper impiega circa 3 volte la durata dell'audio: per questo il job accetta solo registrazioni fino a 10 minuti, che restano entro il `replicaTimeout` di 60 minuti.
 
 ## Configurazione
 
@@ -57,23 +60,23 @@ Variabili d'ambiente impostate da `infra/modules/queue-job.bicep`:
 |---|---|
 | `DataStorage__BlobServiceUri` | `https://<account>.blob.core.windows.net/` |
 | `DataStorage__QueueServiceUri` | `https://<account>.queue.core.windows.net/` |
-| `Job__Queue` | `transcription` |
+| `Job__Queue` | `transcription-fallback` |
 | `Job__InputContainer` | `audio` |
 | `Job__OutputContainer` | `transcripts` |
 | `AZURE_CLIENT_ID` | Client ID dell'identità `id-memoa-<env>-transcriber` |
 | `APPLICATIONINSIGHTS_CONNECTION_STRING` | Facoltativa: senza, i log restano sulla console |
 
-Impostata dal `Dockerfile`: `Whisper__ModelPath`. Facoltative: `Whisper__LanguageProbabilityThreshold`, `Whisper__Threads` (predefinito: le vCPU viste dal processo, che in Container Apps possono superare quelle del job), `Whisper__Prompts__<lingua>` (stringa vuota per trascrivere senza prompt), `Job__MaxDequeueCount`, `Job__VisibilityTimeout` (formato `hh:mm:ss`, deve superare il `replicaTimeout`), `Job__FfmpegPath`.
+Impostata dal `Dockerfile`: `Whisper__ModelPath`. Facoltative: `Whisper__LanguageProbabilityThreshold`, `Whisper__Threads` (predefinito: le vCPU viste dal processo, che in Container Apps possono superare quelle del job), `Whisper__Prompts__<lingua>` (stringa vuota per trascrivere senza prompt), `Job__MaxDurationSeconds`, `Job__MaxDequeueCount`, `Job__VisibilityTimeout` (formato `hh:mm:ss`, deve superare il `replicaTimeout`), `Job__FfmpegPath`.
 
 ## Esecuzione in locale
 
-Richiede ffmpeg nel `PATH`, il modello scaricato in locale e un login con `az login`; il proprio utente deve avere sullo storage dati dev gli stessi ruoli dell'identità del job (lettura di `audio`, scrittura su `transcripts`, Queue Data Message Processor su `transcription`). Il runtime nativo per Windows è incluso nel pacchetto `Whisper.net.Runtime`.
+Richiede ffmpeg nel `PATH`, il modello scaricato in locale e un login con `az login`; il proprio utente deve avere sullo storage dati dev gli stessi ruoli dell'identità del job (lettura di `audio`, scrittura su `transcripts`, Queue Data Message Processor su `transcription-fallback`). Il runtime nativo per Windows è incluso nel pacchetto `Whisper.net.Runtime`.
 
 ```powershell
 Invoke-WebRequest https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-q5_0.bin -OutFile $env:TEMP\ggml-large-v3-turbo-q5_0.bin
 $env:DataStorage__BlobServiceUri = "https://<storage-dati-dev>.blob.core.windows.net/"
 $env:DataStorage__QueueServiceUri = "https://<storage-dati-dev>.queue.core.windows.net/"
-$env:Job__Queue = "transcription"
+$env:Job__Queue = "transcription-fallback"
 $env:Job__InputContainer = "audio"
 $env:Job__OutputContainer = "transcripts"
 $env:Whisper__ModelPath = "$env:TEMP\ggml-large-v3-turbo-q5_0.bin"

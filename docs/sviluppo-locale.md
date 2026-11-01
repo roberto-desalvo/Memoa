@@ -54,6 +54,8 @@ Copiare `src/functions/local.settings.example.json` in `src/functions/local.sett
 | `DataStorage__blobServiceUri`, `DataStorage__queueServiceUri` | Endpoint dello storage dei dati dev |
 | `Sql__ConnectionString` | Database dev, con `Authentication=Active Directory Default` |
 | `OpenAI__Endpoint`, `OpenAI__EmbeddingDeployment` | Endpoint dell'account Azure OpenAI dev e nome del deployment (`text-embedding-3-small`). L'account ha l'autenticazione locale disattivata: l'utente di Azure CLI riceve il ruolo `Cognitive Services OpenAI User` sull'account se il suo object ID è in `DEVELOPER_PRINCIPAL_IDS_DEV` di `infra/.env` |
+| `Speech__Endpoint` | Endpoint della risorsa Azure AI Speech dev, con il sottodominio personalizzato (`https://spch-memoa-dev-<suffisso>.cognitiveservices.azure.com/`). La risorsa ha l'autenticazione locale disattivata: l'utente di Azure CLI riceve il ruolo `Cognitive Services Speech User` se il suo object ID è in `DEVELOPER_PRINCIPAL_IDS_DEV` |
+| `Queues__TranscriptionFallback` | `transcription-fallback`, la coda di ripiego del job di trascrizione |
 | `AZURE_TOKEN_CREDENTIALS` | `AzureCliCredential`: fa usare solo l'account di Azure CLI (vedi [Database e migration](#database-e-migration)) |
 
 CORS è già aperto su `http://localhost:4200` nella sezione `Host`.
@@ -234,7 +236,7 @@ Il job di normalizzazione scrive in `audio` la copia `<oid>/<recordUid>.opus` op
      FROM Records r JOIN Attachments a ON a.RecordId = r.Id
      WHERE r.RecordUid = '<recordUid>';
      ```
-   - sulla coda di trascrizione, il messaggio JSON `{"blobUrl": "<URL della copia>", "fallbackLanguage": "it"}`, in base64:
+   - sulla coda di trascrizione, il messaggio JSON `{"blobUrl": "<URL della copia>", "fallbackLanguage": "it"}`, in base64. Con `func start` attivo il messaggio lo consuma subito `TranscribeRecord` (sotto): per vederlo in coda, verificare con le Functions ferme oppure seguire il log di `TranscribeRecord`.
      ```powershell
      az storage message peek --auth-mode login --account-name <storage-dati-dev> `
        --queue-name transcription --num-messages 5
@@ -245,7 +247,7 @@ Casi da provare:
 | Caso | Come | Risultato atteso |
 |---|---|---|
 | Copia normalizzata | `NORMALIZED_IS_ERROR=false` | `NormalizedBlobPath = <oid>/<recordUid>.opus`, `DurationSeconds` dai metadati, record ancora `Processing`, messaggio sulla coda di trascrizione |
-| Duplicato della copia | Reinviare lo stesso evento | Allegato invariato, nuovo messaggio finché il record è `Processing` (il job di trascrizione deve essere idempotente) |
+| Duplicato della copia | Reinviare lo stesso evento | Allegato invariato, nuovo messaggio finché il record è `Processing` (`TranscribeRecord` deve essere idempotente) |
 | Esito di errore | `NORMALIZED_IS_ERROR=true` | Record `Error` con `ErrorCode` dai metadati, nessun messaggio |
 | Codice non valido | `NORMALIZED_IS_ERROR=true`, `NORMALIZED_ERROR_CODE=ABC` | Record `Error` con `ErrorCode = processing_failed` |
 | Errore dopo la copia | Blob `.error.json` su un record già normalizzato | Esito ignorato (warning), record invariato |
@@ -253,9 +255,39 @@ Casi da provare:
 | Blob inesistente | Evento senza caricare il blob | Evento ignorato (warning), nessuna scrittura |
 | Nome non valido | `NORMALIZED_BLOB_NAME=abc.opus` (solo l'evento) | Evento ignorato (warning nel log), nessuna scrittura |
 
+### TranscribeRecord (coda di trascrizione)
+
+`TranscribeRecord` non è attivata da Event Grid ma dalla coda `transcription` dello storage dei dati dev, quindi parte da sola con `func start` quando arriva un messaggio: quelli scritti da `EnqueueTranscription` (sopra), da "riprova" e dalla rigenerazione della trascrizione. Invia la copia normalizzata ad Azure AI Speech (fast transcription) e salva testo e lingua direttamente nel database, senza blob in `transcripts`. Per inviare un messaggio a mano partendo da un record `Processing` con la copia normalizzata già caricata:
+
+```powershell
+$url = 'https://<storage-dati-dev>.blob.core.windows.net/audio/<oid>/<recordUid>.opus'
+$body = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes("{`"blobUrl`":`"$url`",`"fallbackLanguage`":`"it`"}"))
+az storage message put --auth-mode login --account-name <storage-dati-dev> `
+  --queue-name transcription --content $body
+```
+
+Verificare il risultato con la query di `EnqueueIndexing` (sotto) e, in caso di ripiego, la coda del job:
+
+```powershell
+az storage message peek --auth-mode login --account-name <storage-dati-dev> `
+  --queue-name transcription-fallback --num-messages 5
+```
+
+Il timeout della chiamata è di 30 secondi più 10 secondi per minuto di audio (`DurationSeconds` dell'allegato; 30 minuti se manca).
+
+| Caso | Come | Risultato atteso |
+|---|---|---|
+| Trascrizione | Messaggio valido | `Text` e `OriginalTranscript` uguali, `Language` rilevata (o quella dell'account), messaggio sulla coda di indicizzazione, nessun blob in `transcripts` |
+| Duplicato | Reinviare lo stesso messaggio | Nessuna nuova chiamata al servizio: nuovo messaggio di indicizzazione finché il record è `Processing`, poi ignorato |
+| Silenzio | Copia normalizzata senza parlato | Record `Error` con `ErrorCode = no_speech`, nessun ripiego |
+| Ripiego | `Speech__Endpoint` raggiungibile ma lento, oppure HTTP 429/413 | Messaggio su `transcription-fallback`, record ancora `Processing`; il flusso prosegue dal job e da `EnqueueIndexing` |
+| Errore del servizio | Es. `Speech__Endpoint` errato o ruolo mancante (401/403) | La coda riprova fino a 5 volte, poi messaggio su `transcription-fallback` |
+| Copia mancante | Messaggio per un record senza blob in `audio` | Record `Error` con `ErrorCode = audio_download_failed` |
+| Messaggio non valido | Contenuto non JSON, o URL fuori dal contenitore `audio` | Messaggio scartato (errore nel log), nessuna scrittura |
+
 ### EnqueueIndexing (esito della trascrizione nel contenitore delle trascrizioni)
 
-Il job di trascrizione scrive in `transcripts` la trascrizione `<oid>/<recordUid>.txt` oppure l'esito `<oid>/<recordUid>.error.json` (vedi [src/jobs/transcriber/README.md](../src/jobs/transcriber/README.md)). Come per `EnqueueTranscription` il blob deve esistere davvero: eseguire il job in locale, oppure caricarlo a mano partendo da un record `Processing`.
+Riguarda solo il ripiego: le trascrizioni di Azure AI Speech vanno direttamente nel database. Il job di trascrizione scrive in `transcripts` la trascrizione `<oid>/<recordUid>.txt` oppure l'esito `<oid>/<recordUid>.error.json` (vedi [src/jobs/transcriber/README.md](../src/jobs/transcriber/README.md)). Come per `EnqueueTranscription` il blob deve esistere davvero: eseguire il job in locale, oppure caricarlo a mano partendo da un record `Processing`.
 
 1. Caricare il blob con i metadati che scriverebbe il job, con [scripts/upload-transcript-blob.ps1](scripts/upload-transcript-blob.ps1). In `.env`, `TRANSCRIPT_IS_ERROR` sceglie tra la trascrizione (testo fittizio, lingua `TRANSCRIPT_LANGUAGE`) e l'esito di errore (`TRANSCRIPT_ERROR_CODE`):
    ```powershell
@@ -294,7 +326,7 @@ Casi da provare:
 
 ### IndexRecord (coda di indicizzazione)
 
-`IndexRecord` non è attivata da Event Grid ma dalla coda `indexing` dello storage dei dati dev, quindi parte da sola con `func start` quando arriva un messaggio: quelli scritti da `EnqueueIndexing` (sopra) o dalla Function HTTP dei testi. Per inviarne uno a mano partendo da un record `Processing` con `Text` valorizzato (il messaggio è il `recordUid` in base64, come lo scrivono le Functions):
+`IndexRecord` non è attivata da Event Grid ma dalla coda `indexing` dello storage dei dati dev, quindi parte da sola con `func start` quando arriva un messaggio: quelli scritti da `TranscribeRecord` ed `EnqueueIndexing` (sopra) o dalla Function HTTP dei testi. Per inviarne uno a mano partendo da un record `Processing` con `Text` valorizzato (il messaggio è il `recordUid` in base64, come lo scrivono le Functions):
 
 ```powershell
 $recordUid = '<recordUid>'

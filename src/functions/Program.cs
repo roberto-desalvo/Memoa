@@ -7,6 +7,7 @@ using Memoa.Functions.Data;
 using Memoa.Functions.Embeddings;
 using Memoa.Functions.Observability;
 using Memoa.Functions.Storage;
+using Memoa.Functions.Transcription;
 using Microsoft.Azure.Functions.Worker.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -62,6 +63,15 @@ builder.Services.AddSingleton(sp =>
     return new AzureOpenAIClient(options.Endpoint, new DefaultAzureCredential())
         .GetEmbeddingClient(options.EmbeddingDeployment);
 });
+
+builder.Services.AddOptions<SpeechOptions>()
+    .Bind(builder.Configuration.GetSection(SpeechOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+// Unico punto in cui si sceglie il servizio di trascrizione. Il timeout lo decide TranscribeRecord in base
+// alla durata dell'audio, non HttpClient (100 secondi di predefinito).
+builder.Services.AddHttpClient<ITranscriber, AzureSpeechTranscriber>(client => client.Timeout = Timeout.InfiniteTimeSpan);
+builder.Services.AddScoped<TranscriptStore>();
 
 builder.AddDatabase();
 

@@ -125,9 +125,9 @@ public sealed partial class EnqueueTranscriptionFunction(
         }
 
         // Si accoda anche alle consegne successive finché il record è in elaborazione: la prima può aver
-        // salvato l'allegato senza riuscire a scrivere sulla coda. Il job di trascrizione è idempotente.
-        // La lingua dell'account serve al job come ripiego se il rilevamento automatico è incerto: il job
-        // non legge il database.
+        // salvato l'allegato senza riuscire a scrivere sulla coda. TranscribeRecord è idempotente.
+        // La lingua dell'account serve come ripiego se il rilevamento automatico è incerto, anche al job di
+        // ripiego, che riceve lo stesso messaggio e non legge il database.
         logger.LogInformation("Record {RecordUid} accodato per la trascrizione", record.RecordUid);
         return new TranscriptionRequest(blobUri.ToUri().ToString(), record.User.PreferredLanguage).Serialize();
     }

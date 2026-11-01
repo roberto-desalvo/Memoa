@@ -33,7 +33,10 @@ public sealed class ContainerOptions
     [Required]
     public string Audio { get; set; } = string.Empty;
 
-    /// <summary>Trascrizioni ed esiti di errore scritti dal job di trascrizione.</summary>
+    /// <summary>
+    /// Trascrizioni ed esiti di errore scritti dal job di trascrizione di ripiego. Le trascrizioni di Azure
+    /// AI Speech vanno direttamente nel database.
+    /// </summary>
     [Required]
     public string Transcripts { get; set; } = string.Empty;
 }

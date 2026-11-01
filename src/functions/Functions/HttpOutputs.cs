@@ -19,7 +19,8 @@ public sealed class HttpWithIndexingOutput
 /// <summary>
 /// Risposta HTTP più l'eventuale messaggio per la coda di trascrizione
 /// (<see cref="Memoa.Shared.Pipeline.TranscriptionRequest"/> in JSON, come in
-/// <see cref="EnqueueTranscriptionFunction"/>). Con un messaggio null non si accoda nulla.
+/// <see cref="EnqueueTranscriptionFunction"/>), letta da <see cref="TranscribeRecordFunction"/>. Con un
+/// messaggio null non si accoda nulla.
 /// </summary>
 public sealed class HttpWithTranscriptionOutput
 {

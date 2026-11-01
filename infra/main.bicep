@@ -201,6 +201,24 @@ module openAi 'modules/openai.bicep' = {
   ]
 }
 
+// Trascrizione chiamata dalla Function; il job con Whisper resta come ripiego.
+module speech 'modules/speech.bicep' = {
+  scope: rg
+  name: 'speech'
+  params: {
+    location: location
+    tags: tags
+    name: 'spch-${baseName}-${suffix}'
+    userIdentityNames: [
+      functionIdentityName
+    ]
+    developerPrincipalIds: developerPrincipalIds
+  }
+  dependsOn: [
+    identities
+  ]
+}
+
 module functionApp 'modules/function-app.bicep' = {
   scope: rg
   name: 'functionApp'
@@ -219,11 +237,13 @@ module functionApp 'modules/function-app.bicep' = {
     transcriptsContainerName: dataStorage.outputs.transcriptsContainerName
     normalizationQueueName: dataStorage.outputs.normalizationQueueName
     transcriptionQueueName: dataStorage.outputs.transcriptionQueueName
+    transcriptionFallbackQueueName: dataStorage.outputs.transcriptionFallbackQueueName
     indexingQueueName: dataStorage.outputs.indexingQueueName
     uploadExpiryQueueName: dataStorage.outputs.uploadExpiryQueueName
     sqlConnectionString: sql.outputs.managedIdentityConnectionStringPrefix
     openAiEndpoint: openAi.outputs.endpoint
     embeddingDeploymentName: openAi.outputs.embeddingDeploymentName
+    speechEndpoint: speech.outputs.endpoint
     keyVaultUri: keyVault.outputs.uri
     authAuthority: authAuthority
     authAudience: authAudience
@@ -303,7 +323,8 @@ module normalizer 'modules/queue-job.bicep' = {
   }
 }
 
-// Coda di trascrizione → Whisper sulla copia normalizzata → file di testo nel contenitore delle trascrizioni.
+// Ripiego della trascrizione: coda di ripiego (scritta dalla Function se Azure AI Speech non risponde) →
+// Whisper sulla copia normalizzata → file di testo nel contenitore delle trascrizioni.
 module transcriber 'modules/queue-job.bicep' = {
   scope: rg
   name: 'transcriber'
@@ -324,10 +345,11 @@ module transcriber 'modules/queue-job.bicep' = {
     dataStorageName: dataStorage.outputs.name
     dataBlobEndpoint: dataStorage.outputs.blobEndpoint
     dataQueueEndpoint: dataStorage.outputs.queueEndpoint
-    queueName: dataStorage.outputs.transcriptionQueueName
+    queueName: dataStorage.outputs.transcriptionFallbackQueueName
     inputContainerName: dataStorage.outputs.audioContainerName
     outputContainerName: dataStorage.outputs.transcriptsContainerName
-    // Registrazioni fino a 30 minuti su CPU.
+    // Registrazioni fino a 10 minuti su CPU (circa 3 volte il tempo reale), con margine. Deve restare sotto
+    // Job__VisibilityTimeout del worker (65 minuti).
     replicaTimeout: 3600
   }
 }

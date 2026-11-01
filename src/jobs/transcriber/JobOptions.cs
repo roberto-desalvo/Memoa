@@ -25,9 +25,19 @@ public sealed class JobOptions
 {
     public const string SectionName = "Job";
 
-    /// <summary>Coda di trascrizione: l'unica letta dal job.</summary>
+    /// <summary>
+    /// Coda di ripiego della trascrizione, scritta dalla Function quando Azure AI Speech non risponde: l'unica
+    /// letta dal job.
+    /// </summary>
     [Required]
     public string Queue { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Durata massima accettata, in secondi: le registrazioni più lunghe vengono rifiutate con l'esito
+    /// "audio_too_long" senza trascriverle (su CPU circa 3 volte il tempo reale).
+    /// </summary>
+    [Range(1, 30 * 60)]
+    public int MaxDurationSeconds { get; set; } = 10 * 60;
 
     /// <summary>Contenitore dell'audio normalizzato (sola lettura).</summary>
     [Required]
