@@ -13,23 +13,6 @@
   list-style: none;
 }
 
-// Tutta la card è il collegamento alla nota.
-.result {
-  display: block;
-  color: inherit;
-  text-decoration: none;
-  border-radius: var(--mat-card-outlined-container-shape, 12px);
-
-  &:hover mat-card {
-    background: var(--mat-sys-surface-container-low);
-  }
-
-  &:focus-visible {
-    outline: 3px solid var(--mat-sys-primary);
-    outline-offset: 2px;
-  }
-}
-
 .result-content {
   display: flex;
   flex-direction: column;

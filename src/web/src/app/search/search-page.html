@@ -50,7 +50,7 @@
       <ul class="results">
         @for (result of results; track $index) {
           <li>
-            <a class="result" [routerLink]="['/records', result.recordUid]">
+            <a class="card-link" [routerLink]="['/records', result.recordUid]">
               <mat-card>
                 <mat-card-content class="result-content">
                   <span class="source">

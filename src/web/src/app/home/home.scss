@@ -27,16 +27,69 @@
   padding-inline: var(--space-4);
 }
 
-// La lista occupa tutta la colonna: le voci hanno già il loro padding orizzontale.
-.records {
-  margin-inline: calc(-1 * var(--space-4));
+.group {
+  margin-top: var(--space-4);
+
+  h2 {
+    padding: var(--space-2) var(--space-1);
+  }
 }
 
-// Record non pronto: testo attenuato, sempre accompagnato dall'etichetta di stato.
-.dimmed {
-  --mat-list-list-item-label-text-color: var(--mat-sys-on-surface-variant);
-  --mat-list-list-item-hover-label-text-color: var(--mat-sys-on-surface-variant);
-  --mat-list-list-item-focus-label-text-color: var(--mat-sys-on-surface-variant);
+.records {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.record {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+}
+
+.type {
+  flex: none;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.excerpt {
+  display: -webkit-box;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+// Record non pronto: titolo attenuato, sempre accompagnato dall'etichetta di stato.
+.dimmed .title {
+  color: var(--mat-sys-on-surface-variant);
 }
 
 .fab {

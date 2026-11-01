@@ -72,7 +72,7 @@ Valgono per ogni schermata. Una nuova schermata o un nuovo componente le rispett
 ## Homepage
 
 - **Intestazione**: logo e menu utente (avatar con le iniziali), con nome dell'account, Cerca, Impostazioni ed Esci.
-- **Lista**: tutte le note, dalla più recente per data della nota (a parità di data, per titolo), più il numero totale di note. Le note sono raggruppate per giorno della nota, con un'intestazione per gruppo: "Oggi", "Ieri" o la data estesa (es. "2 gennaio 2026"). Ogni voce mostra icona del tipo (audio o testo), titolo, ora e un estratto dell'inizio del testo (al massimo due righe, poi i puntini di sospensione); le note senza testo, come un audio non ancora trascritto, mostrano solo l'ora.
+- **Lista**: tutte le note, dalla più recente per data della nota (a parità di data, per titolo), più il numero totale di note. Le note sono raggruppate per giorno della nota, con un'intestazione per gruppo: "Oggi", "Ieri" o la data estesa (es. "2 gennaio 2026"). Ogni nota è una card (8 px tra una card e l'altra) e mostra icona del tipo (audio o testo), titolo, ora e un estratto dell'inizio del testo (al massimo due righe, poi i puntini di sospensione); le note senza testo, come un audio non ancora trascritto, mostrano solo l'ora.
   - **Pronta**: apre la pagina del record.
   - **In elaborazione**: appare attenuata con l'etichetta "In elaborazione", ma si apre comunque.
   - **In errore**: appare attenuata con l'etichetta "Errore". Al tap si apre una finestra che spiega l'errore e offre "Riprova" (solo se il record si può riprovare; altrimenti dice che il file non è valido), "Elimina" (con la conferma dell'eliminazione) e "Chiudi".

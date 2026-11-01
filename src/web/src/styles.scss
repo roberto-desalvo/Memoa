@@ -199,6 +199,31 @@ p {
   }
 }
 
+// Card cliccabile (voce della lista, risultato della ricerca): l'intera card è il collegamento o il
+// pulsante. Lo stile della card resta quello unico di mat-card outlined.
+.card-link {
+  display: block;
+  width: 100%;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-align: start;
+  text-decoration: none;
+  background: none;
+  border: 0;
+  border-radius: var(--mat-card-outlined-container-shape, 12px);
+  cursor: pointer;
+
+  &:hover .mat-mdc-card {
+    background: var(--mat-sys-surface-container-low);
+  }
+
+  &:focus-visible {
+    outline: 3px solid var(--mat-sys-primary);
+    outline-offset: 2px;
+  }
+}
+
 // Input file nascosto: si apre dal pulsante che lo richiama.
 input[type='file'] {
   display: none;

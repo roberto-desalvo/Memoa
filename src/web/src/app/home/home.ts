@@ -1,9 +1,10 @@
 import { Component, computed, inject, OnDestroy, OnInit } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
+import { MatCardModule } from '@angular/material/card';
 import { MatDialog } from '@angular/material/dialog';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatIconModule } from '@angular/material/icon';
-import { MatListModule } from '@angular/material/list';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -24,10 +25,11 @@ import { TEXT_ACCEPT } from '../uploads/text-file';
   imports: [
     RouterLink,
     NoteDatePipe,
+    NgTemplateOutlet,
     MatButtonModule,
+    MatCardModule,
     MatDividerModule,
     MatIconModule,
-    MatListModule,
     MatMenuModule,
     MatProgressSpinnerModule,
     MatToolbarModule,
