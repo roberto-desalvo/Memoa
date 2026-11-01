@@ -38,9 +38,6 @@
     } @else {
       <app-note-search #search />
       @if (!search.active()) {
-        <p class="count text-secondary muted">
-          {{ records.length }} {{ records.length === 1 ? 'nota' : 'note' }}
-        </p>
         @for (group of groups(); track group.key) {
           <section class="group">
             <h2 class="text-secondary strong muted">{{ group.label }}</h2>

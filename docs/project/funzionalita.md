@@ -58,9 +58,9 @@ Contenuti: [Account](#account) · [Contenuti in ingresso](#contenuti-in-ingresso
 
 | Funzionalità | Descrizione | Priorità | Stato |
 |---|---|---|---|
-| Vista elenco | Record ordinati per data della nota, con titolo e stato. I record in elaborazione si aprono, quelli in errore offrono "riprova". La pagina del record mostra il testo e l'audio normalizzato riproducibile. | core | ✅ |
+| Vista elenco | Record ordinati per data della nota e raggruppati per giorno (oggi, ieri, data estesa), con titolo, ora, stato e un estratto dell'inizio del testo. I record in elaborazione si aprono, quelli in errore offrono "riprova". La pagina del record mostra il testo e l'audio normalizzato riproducibile. | core | ✅ |
 | Modifica ed eliminazione | Titolo, data e testo modificabili dalla pagina del record, inclusa la correzione della trascrizione (l'originale resta salvato). Eliminazione del record con tutti i suoi file. | core | ✅ |
-| Ricerca semantica | Ricerca per significato, anche tra lingue diverse (es. query in inglese su note in italiano). | core | ⬜ indicizzazione pronta, ricerca da fare |
+| Ricerca semantica | Ricerca per significato, anche tra lingue diverse (es. query in inglese su note in italiano), dalla homepage: restituisce i frammenti più simili (al massimo 10), ciascuno con il collegamento alla nota. | core | ✅ |
 | Domande sui record (Q&A/RAG) | Risposta in linguaggio naturale con rimando ai record di origine. | avanzata | ⬜ |
 | Riassunti periodici | Riassunti generati periodicamente. | avanzata | ⬜ |
 | Categorie e tag | Categorie e tag liberi. | avanzata | ⬜ |
