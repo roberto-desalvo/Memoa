@@ -18,6 +18,7 @@ import { AudioRecorder, MAX_RECORDING_MS } from './audio-recorder';
 export class RecordAudio {
   private readonly recorder = inject(AudioRecorder);
 
+  readonly started = output<void>();
   readonly recorded = output<Blob>();
 
   protected readonly supported = AudioRecorder.isSupported();
@@ -41,6 +42,7 @@ export class RecordAudio {
         }
         this.recorded.emit(audio);
       });
+      this.started.emit();
     } catch (err) {
       console.error('Avvio della registrazione non riuscito', err);
       this.error.set(startErrorMessage(err));

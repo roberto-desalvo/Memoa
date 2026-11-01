@@ -1,10 +1,9 @@
 <mat-toolbar class="page-header">
-  <!-- Logo dell'app: unico elemento a colori oltre alle azioni principali. -->
   <img class="logo" src="favicon.svg" alt="" width="32" height="32" />
   <h1>Memoa</h1>
   <button mat-icon-button aria-label="Menu utente" [matMenuTriggerFor]="userMenu">
     @if (initials) {
-      <span class="avatar text-label" aria-hidden="true">{{ initials }}</span>
+      <span class="avatar" aria-hidden="true">{{ initials }}</span>
     } @else {
       <mat-icon svgIcon="account" />
     }
@@ -40,29 +39,35 @@
       <app-note-search #search />
       @if (!search.active()) {
         @for (group of groups(); track group.key) {
-          <section class="group">
-            <h2 class="text-secondary strong muted">{{ group.label }}</h2>
-            <ul class="records">
+          <section>
+            <h2 class="group-label text-secondary strong muted">{{ group.label }}</h2>
+            <ul class="note-list">
               @for (record of group.records; track record.recordUid) {
                 <li>
                   <!-- I record in errore non si aprono: il tap mostra la finestra con "Riprova". -->
                   @if (record.status === 'Error') {
-                    <button type="button" class="card-link" (click)="openError(record)">
-                      <app-note-card
+                    <button type="button" class="note-link" (click)="openError(record)">
+                      <app-note-row
                         [sourceType]="record.sourceType"
                         [title]="record.title"
                         [status]="record.status"
-                        [detail]="record.occurredAt | noteDate: 'time'"
+                        [detail]="
+                          record.occurredAt | noteDate: (group.recent ? 'time' : 'dayMonth')
+                        "
+                        [duration]="durationOf(record)"
                         [text]="record.excerpt"
                       />
                     </button>
                   } @else {
-                    <a class="card-link" [routerLink]="['/records', record.recordUid]">
-                      <app-note-card
+                    <a class="note-link" [routerLink]="['/records', record.recordUid]">
+                      <app-note-row
                         [sourceType]="record.sourceType"
                         [title]="record.title"
                         [status]="record.status"
-                        [detail]="record.occurredAt | noteDate: 'time'"
+                        [detail]="
+                          record.occurredAt | noteDate: (group.recent ? 'time' : 'dayMonth')
+                        "
+                        [duration]="durationOf(record)"
                         [text]="record.excerpt"
                       />
                     </a>

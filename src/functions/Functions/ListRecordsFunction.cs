@@ -1,4 +1,5 @@
 using Memoa.Functions.Data;
+using Memoa.Functions.Data.Entities;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
@@ -40,6 +41,10 @@ public sealed class ListRecordsFunction(MemoaDbContext db)
                 HasText = r.Text != null,
                 Excerpt = r.Text != null ? r.Text.Substring(0, ExcerptLength) : null,
                 HasAttachment = r.Attachments.Any(),
+                DurationSeconds = r.Attachments
+                    .Where(a => a.Kind == AttachmentKind.Audio)
+                    .Select(a => a.DurationSeconds)
+                    .FirstOrDefault(),
             })
             .ToListAsync(cancellationToken);
 
@@ -50,7 +55,8 @@ public sealed class ListRecordsFunction(MemoaDbContext db)
             r.SourceType.ToString(),
             r.Status.ToString(),
             RecordResponses.CanRetry(r.Status, r.SourceType, r.ErrorCode, r.HasText, r.HasAttachment),
-            r.Excerpt));
+            r.Excerpt,
+            r.DurationSeconds));
 
         return new OkObjectResult(records);
     }

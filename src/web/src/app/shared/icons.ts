@@ -14,7 +14,7 @@ const ICONS: Record<string, string> = {
     '<circle cx="9" cy="12" r="3" /><circle cx="17" cy="18" r="3" />',
   logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />',
   audio: '<path d="M4 10v4M8 7v10M12 4v16M16 8v8M20 10v4" />',
-  text: '<path d="M5 6h14M5 10h14M5 14h10M5 18h7" />',
+  text: '<path d="M5 7h14M5 12h14M5 17h9" />',
   mic: '<rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" />',
   stop: '<rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" />',
   write: '<path d="M4 20h4L19 9l-4-4L4 16v4ZM13 7l4 4" />',

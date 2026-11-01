@@ -1,11 +1,11 @@
 <form role="search" (submit)="$event.preventDefault(); search()">
-  <mat-form-field class="field" subscriptSizing="dynamic">
+  <mat-form-field class="field search-field" subscriptSizing="dynamic">
     <mat-icon matPrefix svgIcon="search" />
     <input
       matInput
       type="search"
       aria-label="Cerca nelle note"
-      placeholder="Cerca per significato, anche in inglese…"
+      placeholder="Cerca nelle note"
       enterkeyhint="search"
       [maxLength]="maxQueryLength"
       [value]="query()"
@@ -46,15 +46,16 @@
       <p class="count text-secondary muted">
         {{ results.length }} {{ results.length === 1 ? 'risultato' : 'risultati' }}
       </p>
-      <ul class="results">
+      <ul class="note-list">
         @for (result of results; track $index) {
           <li>
-            <a class="card-link" [routerLink]="['/records', result.recordUid]">
-              <app-note-card
+            <a class="note-link" [routerLink]="['/records', result.recordUid]">
+              <app-note-row
                 [sourceType]="result.sourceType"
                 [title]="result.title"
                 [detail]="result.occurredAt | noteDate"
                 [text]="result.content"
+                [lines]="2"
               />
             </a>
           </li>

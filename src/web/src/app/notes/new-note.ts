@@ -22,7 +22,13 @@ import {
 } from '../uploads/audio-formats';
 import { AudioUploadService } from '../uploads/audio-upload.service';
 import { isTextFile, readTextFile, TEXT_ACCEPT, TEXT_FORMATS_LABEL } from '../uploads/text-file';
-import { defaultTitle, nowInputValue, titleFromFileName, toOccurredAt } from './note-date';
+import {
+  defaultTitle,
+  nowInputValue,
+  recordingTitle,
+  titleFromFileName,
+  toOccurredAt,
+} from './note-date';
 import { NoteDraft } from './note-draft';
 
 export type NewNoteMode = 'record' | 'write' | 'upload';
@@ -50,8 +56,8 @@ interface FileItem {
 
 /**
  * Creazione delle note. La scrittura ha due passi: il testo, poi titolo, data e ora. La registrazione
- * e gli upload si salvano subito: la registrazione con data e ora attuali e come titolo data e ora, gli
- * upload con la data di ultima modifica del file e come titolo il nome del file; titolo e data sono
+ * e gli upload si salvano subito: la registrazione con data e ora attuali e il titolo scritto sopra il
+ * registratore (proposta REC_yyyyMMdd_HHmm dall'avvio della registrazione), gli upload con la data di ultima modifica del file e come titolo il nome del file; titolo e data sono
  * modificabili poi nella pagina del record. Gli upload accettano più
  * file, salvati uno alla volta come note separate. Per gli audio titolo e data vanno con la richiesta
  * del SAS di upload.
@@ -96,6 +102,10 @@ export class NewNote implements OnInit {
     defaultTitle(new Date(this.date() || nowInputValue())),
   );
 
+  /** Titolo della registrazione scritto dall'utente; null finché non lo modifica. */
+  protected readonly recordTitle = signal<string | null>(null);
+  protected readonly recordTitleProposal = signal(recordingTitle(new Date()));
+
   protected readonly files = signal<FileItem[]>([]);
   protected readonly filesBusy = computed(() =>
     this.files().some((item) => item.status === 'waiting' || item.status === 'saving'),
@@ -128,10 +138,18 @@ export class NewNote implements OnInit {
     }
   }
 
+  /** La proposta segue l'avvio della registrazione, finché l'utente non scrive un titolo. */
+  protected onRecordingStarted(): void {
+    this.recordTitleProposal.set(recordingTitle(new Date()));
+  }
+
   protected onRecorded(audio: Blob): void {
     const now = new Date();
     this.content.set({ kind: 'audio', audio, contentType: audio.type });
-    this.note = { title: defaultTitle(now), occurredAt: now.toISOString() };
+    this.note = {
+      title: this.recordTitle()?.trim() || this.recordTitleProposal(),
+      occurredAt: now.toISOString(),
+    };
     void this.submit();
   }
 

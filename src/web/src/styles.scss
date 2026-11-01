@@ -1,9 +1,11 @@
 @use '@angular/material' as mat;
 
-// Regole visive in docs/project/ui.md. Tema Material 3: un solo colore d'accento (primary), il resto
-// neutri; colori e testo solo tramite i token --mat-sys-*.
-// Solo font di sistema: nessun font caricato da servizi esterni.
+// Regole visive in docs/project/ui.md. Tema Material 3: un solo colore d'accento pieno (primary, il
+// viola del logo) per le azioni principali, tinte tenue dell'accento e neutri caldi per il resto;
+// colori e testo solo tramite i token --mat-sys-* (e --accent-soft).
+// Solo font di sistema: nessun font caricato da servizi esterni. Serif solo per i titoli di pagina.
 $font-family: (system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif);
+$title-family: ('Iowan Old Style', Charter, Georgia, Cambria, serif);
 
 html {
   // Modalità chiara / scura: segue il sistema, salvo scelta esplicita nelle impostazioni (attributo
@@ -22,6 +24,53 @@ html {
         brand-family: $font-family,
       ),
       density: 0,
+    )
+  );
+
+  // Accento uguale al viola del logo e neutri caldi (carta), in chiaro e in scuro. Le superfici: pagina
+  // (surface), liste e card (surface-container-lowest), campi (surface-container-high).
+  @include mat.theme-overrides(
+    (
+      primary: light-dark(#6e4bf2, #b8a6ff),
+      on-primary: light-dark(#ffffff, #23125e),
+      surface: light-dark(#f4f2ef, #141316),
+      on-surface: light-dark(#1c1a18, #ebe8e4),
+      on-surface-variant: light-dark(#5f5a55, #b3ada7),
+      surface-container-lowest: light-dark(#ffffff, #1c1b1f),
+      surface-container-low: light-dark(#f8f6f3, #201f23),
+      surface-container: light-dark(#efebe6, #242328),
+      surface-container-high: light-dark(#e9e4de, #2b2a2f),
+      surface-container-highest: light-dark(#e2ddd6, #36343a),
+      outline-variant: light-dark(#e4dfd9, #36343a),
+    )
+  );
+
+  // Tinta tenue dell'accento (avatar, sfondi leggeri).
+  --accent-soft: color-mix(
+    in srgb,
+    var(--mat-sys-primary) 14%,
+    var(--mat-sys-surface-container-lowest)
+  );
+
+  // Card bianche su fondo carta, campi pieni senza linea inferiore, FAB pieno nel colore d'accento.
+  @include mat.card-overrides(
+    (
+      outlined-container-color: var(--mat-sys-surface-container-lowest),
+    )
+  );
+  @include mat.form-field-overrides(
+    (
+      filled-container-color: var(--mat-sys-surface-container-high),
+      filled-container-shape: var(--space-3),
+      filled-active-indicator-height: 0,
+      filled-focus-active-indicator-height: 0,
+      filled-hover-active-indicator-color: transparent,
+    )
+  );
+  @include mat.fab-overrides(
+    (
+      container-color: var(--mat-sys-primary),
+      foreground-color: var(--mat-sys-on-primary),
     )
   );
 
@@ -116,10 +165,8 @@ p {
   padding: 0 var(--space-4) calc(var(--space-6) + env(safe-area-inset-bottom));
 }
 
-// Intestazione di ogni pagina: freccia indietro (o logo), titolo, azioni. Si distingue dal contenuto
-// con una superficie tonale (surface-container) estesa a tutta la larghezza dello schermo, anche
-// quando la colonna è centrata: la border-image con outset dipinge oltre i bordi senza allargare la
-// pagina né creare scroll orizzontale.
+// Intestazione di ogni pagina: freccia indietro (o logo), titolo in serif, azioni. Stesso fondo della
+// pagina, opaco perché il contenuto scorre sotto.
 .page-header.mat-toolbar {
   position: sticky;
   top: 0;
@@ -127,22 +174,30 @@ p {
   gap: var(--space-1);
   height: auto;
   min-height: 64px;
-  margin: 0 calc(-1 * var(--space-4)) var(--space-4);
+  margin: 0 calc(-1 * var(--space-4)) var(--space-2);
   padding: env(safe-area-inset-top) var(--space-1) 0;
   color: var(--mat-sys-on-surface);
-  background: var(--mat-sys-surface-container);
-  border-image-source: linear-gradient(var(--mat-sys-surface-container) 0 0);
-  border-image-slice: 0 fill;
-  border-image-outset: 0 100vmax;
+  background: var(--mat-sys-surface);
 
   h1 {
     flex: 1;
     min-width: 0;
     font: var(--mat-sys-title-large);
-    font-weight: 500;
+    font-family: $title-family;
+    font-weight: 700;
     white-space: normal;
     overflow-wrap: anywhere;
   }
+}
+
+// Campi pieni con tutti gli angoli arrotondati; senza linea inferiore, il focus è un bordo nel colore
+// d'accento.
+.mat-mdc-form-field .mdc-text-field--filled {
+  border-radius: var(--space-3);
+}
+
+.mat-mdc-form-field.mat-focused .mdc-text-field--filled {
+  outline: 2px solid var(--mat-sys-primary);
 }
 
 // Gruppo di pulsanti in fondo a un form o a una sezione: il primario a destra.
@@ -206,9 +261,29 @@ p {
   }
 }
 
-// Card cliccabile (voce della lista, risultato della ricerca): l'intera card è il collegamento o il
-// pulsante. Lo stile della card resta quello unico di mat-card outlined.
-.card-link {
+// Lista di note (homepage, risultati della ricerca): un blocco bianco con divisori sottili. Su telefono
+// occupa tutta la larghezza; sugli schermi grandi è un blocco arrotondato nella colonna.
+.note-list {
+  margin: 0 calc(-1 * var(--space-4));
+  padding: 0;
+  list-style: none;
+  background: var(--mat-sys-surface-container-lowest);
+  border-block: 1px solid var(--mat-sys-outline-variant);
+
+  > li + li {
+    border-top: 1px solid var(--mat-sys-outline-variant);
+  }
+
+  @media (min-width: 45rem) {
+    margin-inline: 0;
+    overflow: hidden;
+    border-inline: 1px solid var(--mat-sys-outline-variant);
+    border-radius: var(--space-3);
+  }
+}
+
+// Voce della lista: tutta la riga è il collegamento o il pulsante.
+.note-link {
   display: block;
   width: 100%;
   padding: 0;
@@ -218,16 +293,15 @@ p {
   text-decoration: none;
   background: none;
   border: 0;
-  border-radius: var(--mat-card-outlined-container-shape, 12px);
   cursor: pointer;
 
-  &:hover .mat-mdc-card {
+  &:hover {
     background: var(--mat-sys-surface-container-low);
   }
 
   &:focus-visible {
-    outline: 3px solid var(--mat-sys-primary);
-    outline-offset: 2px;
+    outline: 2px solid var(--mat-sys-primary);
+    outline-offset: -2px;
   }
 }
 

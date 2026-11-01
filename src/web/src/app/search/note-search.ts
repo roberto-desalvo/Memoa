@@ -7,7 +7,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { NoteDatePipe } from '../notes/note-date';
-import { NoteCard } from '../shared/note-card';
+import { NoteRow } from '../shared/note-row';
 import { MAX_QUERY_LENGTH, SearchApi, SearchResult } from './search-api';
 
 /**
@@ -20,7 +20,7 @@ import { MAX_QUERY_LENGTH, SearchApi, SearchResult } from './search-api';
   imports: [
     RouterLink,
     NoteDatePipe,
-    NoteCard,
+    NoteRow,
     MatButtonModule,
     MatFormFieldModule,
     MatIconModule,

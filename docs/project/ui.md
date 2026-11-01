@@ -23,9 +23,11 @@ Valgono per ogni schermata. Una nuova schermata o un nuovo componente le rispett
 ### Componenti
 
 - **Angular Material** (Material 3) per tutti i componenti: pulsanti, card, liste, finestre, campi, menu, barre di avanzamento, snackbar. Niente componenti fatti a mano se Material ne ha uno equivalente.
-- Personalizzazione solo tramite il tema (token di colore, tipografia, densità), non sovrascrivendo gli stili interni dei componenti.
+- Personalizzazione tramite il tema (token di sistema e override dei componenti); poche regole globali in `styles.scss` solo dove i token non bastano (es. angoli dei campi pieni).
 - **Un solo stile per ogni cosa**:
-  - **Card**: `mat-card` con aspetto *outlined*, unico tipo di card dell'app.
+  - **Card**: `mat-card` con aspetto *outlined*, bianca sul fondo carta, unico tipo di card dell'app.
+  - **Lista di note** (homepage e risultati della ricerca): un solo componente di riga dentro un blocco bianco con divisori sottili, a tutta larghezza su telefono e arrotondato sugli schermi grandi.
+  - **Campi**: `mat-form-field` pieno (*fill*), angoli arrotondati, senza linea inferiore; il focus è un bordo nel colore d'accento.
   - **Pulsante primario**: `mat-flat-button` (pieno, colore d'accento), al massimo uno per schermata o finestra.
   - **Pulsante secondario**: `mat-button` (testo).
   - **Pulsante distruttivo** (es. Elimina): `mat-button` con testo esplicito; la conferma avviene sempre nella finestra di conferma.
@@ -51,13 +53,14 @@ Valgono per ogni schermata. Una nuova schermata o un nuovo componente le rispett
   | Etichetta | etichette di stato, didascalie |
 
 - La **gerarchia** si ottiene soprattutto con **peso** (regolare / medio) e **colore** (testo principale / testo attenuato), non con nuove dimensioni.
-- Un solo font, quello del tema.
+- Due famiglie, entrambe di sistema (nessun font scaricato): **serif** solo per i titoli di pagina (in grassetto), **sans** per tutto il resto.
 
 ### Colore
 
-- **Un solo colore d'accento**, il colore primario del tema, riservato alle azioni principali (pulsante primario, FAB, elemento attivo, focus).
-- Tutto il resto in **neutri**: sfondo, superfici, bordi, testo principale e attenuato.
-- Unica eccezione: il **logo dell'app** (foglio con onda sonora, lo stesso della favicon), a colori nell'intestazione della homepage e nel diario vuoto.
+- **Un solo colore d'accento pieno**, il viola del logo, per le azioni principali (pulsante primario, FAB, elemento attivo, focus).
+- **Tinte tenui** dell'accento ammesse per elementi secondari (es. avatar, sfondi leggeri), purché il contrasto del testo resti sufficiente.
+- Il resto in **neutri caldi**: fondo della pagina color carta, superfici bianche per liste e card, campi in un grigio caldo, bordi sottili, testo principale e attenuato.
+- Il **logo dell'app** (foglio con onda sonora, lo stesso della favicon) è a colori nell'intestazione della homepage e nel diario vuoto.
 - Il colore di errore del tema si usa solo per gli errori, sempre insieme a testo e icona.
 - Tema chiaro e scuro con gli stessi ruoli di colore: nessun colore scritto direttamente nei componenti, solo token del tema.
 
@@ -72,9 +75,9 @@ Valgono per ogni schermata. Una nuova schermata o un nuovo componente le rispett
 
 ## Homepage
 
-- **Intestazione**: logo e menu utente (avatar con le iniziali), con nome dell'account, Impostazioni ed Esci.
-- **Ricerca**: campo in alto, sopra la lista (solo se ci sono note). La ricerca è per significato, anche tra lingue diverse, e parte con Invio. I risultati prendono il posto della lista: il numero di risultati e una card per frammento trovato, con icona del tipo, titolo, data e il testo del frammento (al massimo due righe, poi i puntini di sospensione); il tap apre la nota. Svuotando il campo, o con la ×, torna la lista. Stati: ricerca in corso, nessun risultato, errore con "Riprova".
-- **Lista**: tutte le note, dalla più recente per data della nota (a parità di data, per titolo). Le note sono raggruppate per giorno della nota, con un'intestazione per gruppo: "Oggi", "Ieri" o la data estesa (es. "2 gennaio 2026"). Ogni nota è una card (8 px tra una card e l'altra) e mostra icona del tipo (audio o testo), titolo, ora e un estratto dell'inizio del testo (al massimo due righe, poi i puntini di sospensione); le note senza testo, come un audio non ancora trascritto, mostrano solo l'ora.
+- **Intestazione**: logo, nome dell'app e menu utente (avatar con le iniziali su tinta tenue), con nome dell'account, Impostazioni ed Esci. Stesso fondo della pagina.
+- **Ricerca**: campo in alto, sopra la lista (solo se ci sono note). La ricerca è per significato, anche tra lingue diverse, e parte con Invio. I risultati prendono il posto della lista: il numero di risultati e una riga per frammento trovato, nello stesso stile della lista, con icona del tipo, titolo, data e il testo del frammento (al massimo due righe, poi i puntini di sospensione); il tap apre la nota. Svuotando il campo, o con la ×, torna la lista. Stati: ricerca in corso, nessun risultato, errore con "Riprova".
+- **Lista**: tutte le note, dalla più recente per data della nota (a parità di data, per titolo). Le note sono raggruppate con un'intestazione per gruppo: "Oggi", "Ieri", poi un gruppo per mese (es. "Gennaio 2026"). Ogni gruppo è un blocco bianco con una riga per nota, separate da divisori sottili. Ogni riga mostra a sinistra l'icona del tipo (microfono per l'audio, righe per il testo), poi il titolo e, sotto, un estratto dell'inizio del testo su una riga con i puntini di sospensione (o lo stato, se la nota non è pronta); a destra l'ora (oggi e ieri) o giorno e mese (es. "27 gen") e, per gli audio, la durata.
   - **Pronta**: apre la pagina del record.
   - **In elaborazione**: appare attenuata con l'etichetta "In elaborazione", ma si apre comunque.
   - **In errore**: appare attenuata con l'etichetta "Errore". Al tap si apre una finestra che spiega l'errore e offre "Riprova" (solo se il record si può riprovare; altrimenti dice che il file non è valido), "Elimina" (con la conferma dell'eliminazione) e "Chiudi".

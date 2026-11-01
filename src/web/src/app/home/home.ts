@@ -10,13 +10,13 @@ import { MatToolbarModule } from '@angular/material/toolbar';
 import { Router, RouterLink } from '@angular/router';
 import { MsalService } from '@azure/msal-angular';
 import { firstValueFrom } from 'rxjs';
-import { dayKey, dayLabel, NoteDatePipe } from '../notes/note-date';
+import { formatDuration, ListGroup, listGroup, NoteDatePipe } from '../notes/note-date';
 import { NoteDraft } from '../notes/note-draft';
 import { RecordsApi, RecordSummary } from '../records/records-api';
 import { RecordsStore } from '../records/records-store';
 import { NoteSearch } from '../search/note-search';
 import { DELETE_NOTE_DIALOG, openConfirmDialog } from '../shared/confirm-dialog';
-import { NoteCard } from '../shared/note-card';
+import { NoteRow } from '../shared/note-row';
 import { AUDIO_ACCEPT } from '../uploads/audio-formats';
 import { TEXT_ACCEPT } from '../uploads/text-file';
 
@@ -25,7 +25,7 @@ import { TEXT_ACCEPT } from '../uploads/text-file';
   imports: [
     RouterLink,
     NoteDatePipe,
-    NoteCard,
+    NoteRow,
     NoteSearch,
     MatButtonModule,
     MatDividerModule,
@@ -61,8 +61,8 @@ export class Home implements OnInit, OnDestroy {
 
   protected readonly uploadAccept = `${AUDIO_ACCEPT},${TEXT_ACCEPT}`;
 
-  /** Record raggruppati per giorno della nota, nell'ordine della lista (dal più recente). */
-  protected readonly groups = computed(() => groupByDay(this.store.records() ?? []));
+  /** Record raggruppati (oggi, ieri, poi per mese), nell'ordine della lista (dal più recente). */
+  protected readonly groups = computed(() => groupRecords(this.store.records() ?? []));
 
   ngOnInit(): void {
     this.store.start();
@@ -70,6 +70,10 @@ export class Home implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.store.stop();
+  }
+
+  protected durationOf(record: RecordSummary): string | null {
+    return record.durationSeconds != null ? formatDuration(record.durationSeconds) : null;
   }
 
   protected logout(): void {
@@ -126,28 +130,25 @@ export class Home implements OnInit, OnDestroy {
   }
 }
 
-interface DayGroup {
-  key: string;
-  label: string;
+interface RecordGroup extends ListGroup {
   records: RecordSummary[];
 }
 
 /**
- * Un gruppo per giorno, nell'ordine in cui il giorno compare nella lista. Raggruppa per chiave e non
- * per record consecutivi: un record con la data appena modificata non crea un gruppo doppio.
+ * Un gruppo per oggi, per ieri e per ogni mese, nell'ordine in cui compare nella lista. Raggruppa per
+ * chiave e non per record consecutivi: un record con la data appena modificata non crea un gruppo doppio.
  */
-function groupByDay(records: RecordSummary[]): DayGroup[] {
+function groupRecords(records: RecordSummary[]): RecordGroup[] {
   const now = new Date();
-  const groups = new Map<string, DayGroup>();
+  const groups = new Map<string, RecordGroup>();
   for (const record of records) {
-    const date = new Date(record.occurredAt);
-    const key = dayKey(date);
-    let group = groups.get(key);
-    if (!group) {
-      group = { key, label: dayLabel(date, now), records: [] };
-      groups.set(key, group);
+    const group = listGroup(new Date(record.occurredAt), now);
+    let entry = groups.get(group.key);
+    if (!entry) {
+      entry = { ...group, records: [] };
+      groups.set(group.key, entry);
     }
-    group.records.push(record);
+    entry.records.push(record);
   }
   return [...groups.values()];
 }

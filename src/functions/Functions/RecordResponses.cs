@@ -5,6 +5,8 @@ namespace Memoa.Functions.Functions;
 /// <summary>
 /// Record nella lista della homepage. <paramref name="Excerpt"/> è l'inizio del testo (al massimo
 /// <see cref="ListRecordsFunction.ExcerptLength"/> caratteri), null se il record non ha ancora un testo.
+/// <paramref name="DurationSeconds"/> è la durata dell'audio, null finché non è stato normalizzato o se il
+/// record non ha audio.
 /// </summary>
 public sealed record RecordSummary(
     Guid RecordUid,
@@ -13,7 +15,8 @@ public sealed record RecordSummary(
     string SourceType,
     string Status,
     bool CanRetry,
-    string? Excerpt);
+    string? Excerpt,
+    int? DurationSeconds);
 
 /// <summary>Record nella propria pagina. L'audio si chiede a parte (SAS di lettura).</summary>
 public sealed record RecordDetail(

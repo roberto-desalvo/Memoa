@@ -31,7 +31,7 @@ export function appConfig(
       provideAppInitializer(registerIcons),
       // Un solo stile per componente (docs/project/ui.md, Regole visive).
       { provide: MAT_CARD_CONFIG, useValue: { appearance: 'outlined' } },
-      { provide: MAT_FORM_FIELD_DEFAULT_OPTIONS, useValue: { appearance: 'outline' } },
+      { provide: MAT_FORM_FIELD_DEFAULT_OPTIONS, useValue: { appearance: 'fill' } },
       // Il focus va sulla finestra, non sul primo pulsante: evita di attivare "Elimina" per errore.
       {
         provide: MAT_DIALOG_DEFAULT_OPTIONS,

@@ -11,7 +11,18 @@
   @case ('capture') {
     @switch (mode()) {
       @case ('record') {
-        <app-record-audio (recorded)="onRecorded($event)" />
+        <mat-form-field class="full">
+          <mat-label>Titolo</mat-label>
+          <input
+            matInput
+            type="text"
+            maxlength="200"
+            [placeholder]="recordTitleProposal()"
+            [value]="recordTitle() ?? recordTitleProposal()"
+            (input)="recordTitle.set($any($event.target).value)"
+          />
+        </mat-form-field>
+        <app-record-audio (started)="onRecordingStarted()" (recorded)="onRecorded($event)" />
       }
       @case ('write') {
         <mat-form-field class="full">

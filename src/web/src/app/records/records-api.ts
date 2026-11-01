@@ -22,6 +22,8 @@ export interface RecordSummary {
    * Facoltativo finché le Functions distribuite non lo restituiscono.
    */
   excerpt?: string | null;
+  /** Durata dell'audio in secondi, null senza audio o finché non è normalizzato. Facoltativa come excerpt. */
+  durationSeconds?: number | null;
 }
 
 /** Lunghezza dell'estratto nella lista, uguale a quella delle Functions (ListRecordsFunction). */

@@ -8,14 +8,16 @@
   margin-inline: var(--space-3) var(--space-1);
 }
 
-// Iniziali dell'utente nel pulsante del menu: superficie neutra, non il colore d'accento.
+// Iniziali dell'utente nel pulsante del menu: tinta tenue dell'accento.
 .avatar {
   display: grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
-  color: var(--mat-sys-on-surface);
-  background: var(--mat-sys-surface-container-highest);
+  width: 40px;
+  height: 40px;
+  font: var(--mat-sys-body-large);
+  font-weight: 500;
+  color: var(--mat-sys-primary);
+  background: var(--accent-soft);
   border-radius: 50%;
 }
 
@@ -24,21 +26,8 @@
   overflow-wrap: anywhere;
 }
 
-.group {
-  margin-top: var(--space-4);
-
-  h2 {
-    padding: var(--space-2) var(--space-1);
-  }
-}
-
-.records {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  margin: 0;
-  padding: 0;
-  list-style: none;
+.group-label {
+  padding: var(--space-5) 0 var(--space-2);
 }
 
 .fab {
