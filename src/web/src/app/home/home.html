@@ -109,7 +109,7 @@
                 </button>
               }
               @default {
-                <div class="record disabled" aria-disabled="true">
+                <a class="record disabled" [routerLink]="['/records', record.recordUid]">
                   <ng-container
                     *ngTemplateOutlet="typeIcon; context: { $implicit: record.sourceType }"
                   />
@@ -118,7 +118,7 @@
                     <span class="date">{{ record.occurredAt | noteDate }}</span>
                   </span>
                   <span class="chip processing"><span class="dot"></span>In elaborazione</span>
-                </div>
+                </a>
               }
             }
           </li>

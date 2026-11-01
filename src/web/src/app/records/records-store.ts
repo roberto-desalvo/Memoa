@@ -2,8 +2,8 @@ import { inject, Injectable, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { RecordsApi, RecordSummary } from './records-api';
 
-/** Intervallo del polling della lista. */
-const POLL_INTERVAL_MS = 10_000;
+/** Intervallo del polling della lista e della pagina di un record in elaborazione. */
+export const POLL_INTERVAL_MS = 10_000;
 
 /**
  * Lista dei record della homepage. Il polling resta attivo solo mentre la homepage è aperta, l'app è

@@ -69,10 +69,60 @@
       }
     </div>
 
+    @if (record.processingStep) {
+      <ol class="progress" aria-label="Avanzamento dell'elaborazione" aria-live="polite">
+        @for (item of stepsOf(record); track item.step) {
+          <li [class]="item.state" [attr.aria-current]="item.state === 'current' ? 'step' : null">
+            <span class="marker" aria-hidden="true">
+              @if (item.state === 'done') {
+                <svg viewBox="0 0 24 24"><path d="m5 12 5 5 9-10" /></svg>
+              } @else if (item.state === 'current') {
+                <span class="spinner"></span>
+              }
+            </span>
+            @switch (item.step) {
+              @case ('Preparing') {
+                Preparazione dell’audio
+              }
+              @case ('Transcribing') {
+                Trascrizione
+              }
+              @case ('Indexing') {
+                Indicizzazione per la ricerca
+              }
+            }
+          </li>
+        }
+      </ol>
+    }
+
     @if (audioUrl(); as url) {
       <div class="player">
         <audio controls preload="metadata" [src]="url"></audio>
       </div>
+    }
+
+    <!-- Prima trascrizione di un audio: un segnaposto al posto del testo che non c'è ancora. -->
+    @if (
+      (record.processingStep === 'Preparing' || record.processingStep === 'Transcribing') &&
+      !record.text
+    ) {
+      <div class="text pending" aria-hidden="true">
+        <p class="hint">
+          {{
+            record.processingStep === 'Transcribing'
+              ? 'Trascrizione in corso: il testo apparirà qui.'
+              : 'Il testo apparirà qui al termine della trascrizione.'
+          }}
+        </p>
+        <span class="line"></span>
+        <span class="line"></span>
+        <span class="line short"></span>
+      </div>
+    }
+
+    @if (record.processingStep === 'Transcribing' && record.text) {
+      <p class="hint replace-hint">Nuova trascrizione in corso: sostituirà il testo qui sotto.</p>
     }
 
     @if (record.text) {

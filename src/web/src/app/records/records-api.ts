@@ -5,6 +5,8 @@ import { APP_CONFIG } from '../config/app-config';
 
 export type RecordStatus = 'Processing' | 'Ready' | 'Error';
 export type SourceType = 'Audio' | 'Text' | 'Image';
+/** Passo in corso di un record in elaborazione. */
+export type ProcessingStep = 'Preparing' | 'Transcribing' | 'Indexing';
 
 /** Record nella lista della homepage. */
 export interface RecordSummary {
@@ -29,6 +31,8 @@ export interface RecordDetail extends RecordSummary {
   /** La trascrizione automatica è stata modificata dall'utente. */
   isTranscriptEdited: boolean;
   canRegenerateTranscript: boolean;
+  /** Null se il record non è in elaborazione. */
+  processingStep: ProcessingStep | null;
 }
 
 /** Titolo e data della nota, chiesti per tutte le modalità di aggiunta. */

@@ -26,7 +26,8 @@ public sealed record RecordDetail(
     bool CanRetry,
     bool IsTranscript,
     bool IsTranscriptEdited,
-    bool CanRegenerateTranscript);
+    bool CanRegenerateTranscript,
+    string? ProcessingStep);
 
 internal static class RecordResponses
 {
@@ -53,6 +54,19 @@ internal static class RecordResponses
     public static bool CanRegenerateTranscript(RecordStatus status, SourceType sourceType, string? normalizedBlobPath) =>
         status == RecordStatus.Ready && sourceType == SourceType.Audio && normalizedBlobPath is not null;
 
+    /// <summary>
+    /// Passo in corso di un record in elaborazione, per mostrarne l'avanzamento; null se non è in elaborazione.
+    /// Un audio senza copia normalizzata è da caricare o da normalizzare (anche dopo "riprova", che la
+    /// azzera); senza OriginalTranscript è da trascrivere, anche durante una rigenerazione, in cui il testo
+    /// resta quello precedente. Negli altri casi manca solo l'indicizzazione.
+    /// </summary>
+    public static string? ProcessingStep(Record record, Attachment? audio) =>
+        record.Status != RecordStatus.Processing ? null
+        : record.SourceType != SourceType.Audio ? "Indexing"
+        : audio?.NormalizedBlobPath is null ? "Preparing"
+        : record.OriginalTranscript is null ? "Transcribing"
+        : "Indexing";
+
     public static RecordDetail ToDetail(Record record)
     {
         var audio = record.Attachments.FirstOrDefault(a => a.Kind == AttachmentKind.Audio);
@@ -73,6 +87,7 @@ internal static class RecordResponses
             isTranscript,
             // OriginalTranscript è null solo durante una rigenerazione (o se è fallita): il testo resta quello di prima.
             isTranscript && record.OriginalTranscript is not null && record.Text != record.OriginalTranscript,
-            CanRegenerateTranscript(record.Status, record.SourceType, audio?.NormalizedBlobPath));
+            CanRegenerateTranscript(record.Status, record.SourceType, audio?.NormalizedBlobPath),
+            ProcessingStep(record, audio));
     }
 }
