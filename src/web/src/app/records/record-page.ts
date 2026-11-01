@@ -19,7 +19,13 @@ import {
   RecordDetail,
   RecordsApi,
 } from './records-api';
-import { POLL_INTERVAL_MS, RecordsStore } from './records-store';
+import { RecordsStore } from './records-store';
+
+/**
+ * Intervallo del polling di un record in elaborazione: breve, perché l'avanzamento dei passi sembri in
+ * tempo reale. Il controllo successivo parte solo dopo la risposta, quindi le richieste non si sovrappongono.
+ */
+const POLL_INTERVAL_MS = 1_000;
 
 /** Passi dell'elaborazione mostrati nella pagina, nell'ordine in cui avvengono. */
 const AUDIO_STEPS: readonly ProcessingStep[] = ['Preparing', 'Transcribing', 'Indexing'];
