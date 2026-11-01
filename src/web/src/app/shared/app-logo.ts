@@ -21,9 +21,9 @@ import { Component, input } from '@angular/core';
     </svg>
   `,
   styles: `
-    :host {
+    :host,
+    svg {
       display: block;
-      line-height: 0;
     }
   `,
 })

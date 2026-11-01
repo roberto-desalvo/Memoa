@@ -3,18 +3,26 @@
   padding-bottom: calc(96px + env(safe-area-inset-bottom));
 }
 
+// Logo e avatar speculari, allineati al margine del contenuto della pagina (16 px dal bordo, con i 4 px
+// di padding dell'intestazione). Il fondo della scritta "Memoa" (la linea di base: nessuna lettera
+// scende sotto) è all'altezza del fondo del logo: logo e titolo allineati sulla linea di base, che per
+// il logo è il bordo inferiore; il margine verticale tiene il logo centrato nei 64 px dell'intestazione.
 .logo {
   flex: none;
-  margin-inline: var(--space-3) var(--space-1);
+  align-self: baseline;
+  margin: var(--space-4) var(--space-1) var(--space-4) var(--space-3);
 }
 
-// Logo e avatar allineati al margine del contenuto della pagina (16 px dal bordo).
+h1 {
+  align-self: baseline;
+}
+
 .user-button {
-  margin-inline-end: var(--space-2);
+  margin-inline-end: var(--space-3);
 }
 
-// Iniziali dell'utente nel pulsante del menu: tinta tenue dell'accento. Il pulsante è pensato per
-// un'icona da 24 px: il margine negativo centra il cerchio da 40 px.
+// Iniziali dell'utente nel pulsante del menu: tinta tenue dell'accento. Il pulsante (40 px) è pensato
+// per un'icona da 24 px: il margine negativo annulla il padding e il cerchio lo riempie.
 .avatar {
   margin: -8px;
   display: grid;

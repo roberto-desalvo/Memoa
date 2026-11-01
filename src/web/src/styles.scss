@@ -215,6 +215,9 @@ p {
   top: 0;
   z-index: 5;
   gap: var(--space-1);
+  // Material dà alla barra width: 100%: con i margini negativi sarebbe spostata a sinistra e più corta
+  // a destra. Con width: auto si allarga da entrambi i lati.
+  width: auto;
   height: auto;
   min-height: 64px;
   margin: 0 calc(-1 * var(--space-4)) var(--space-2);
