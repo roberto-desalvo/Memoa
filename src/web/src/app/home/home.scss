@@ -68,12 +68,14 @@ h1 {
   z-index: 31;
 }
 
-// Intestazione della selezione multipla: sopra lo strato, con il numero delle note e il cestino.
+// Intestazione della selezione multipla: sopra lo strato e sopra le note che le scorrono sotto, con il
+// numero delle note e il cestino.
 .page-header.selection-header {
-  z-index: 31;
+  z-index: 32;
 }
 
 .selection-count {
+  align-self: center;
   font-family: inherit;
 }
 
