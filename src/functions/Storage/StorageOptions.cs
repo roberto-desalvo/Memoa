@@ -29,7 +29,7 @@ public sealed class ContainerOptions
     [Required]
     public string Uploads { get; set; } = string.Empty;
 
-    /// <summary>Copie normalizzate ed esiti di errore scritti dal job di normalizzazione.</summary>
+    /// <summary>Copie normalizzate ed esiti di errore scritti da NormalizeRecord.</summary>
     [Required]
     public string Audio { get; set; } = string.Empty;
 

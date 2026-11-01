@@ -1,5 +1,7 @@
 # Job di normalizzazione
 
+> **In dismissione.** La normalizzazione è passata alla Function `NormalizeRecord` ([src/functions/README.md](../../functions/README.md#normalizzazione-audio-normalizerecord)), che legge la stessa coda e scrive gli stessi blob. Job, identità, ruoli e `normalizer.yml` vengono rimossi quando la Function è verificata in dev.
+
 Container Apps Job (worker .NET 10 + ffmpeg) avviato dallo scaler KEDA sulla coda `normalization`. Ogni esecuzione elabora un messaggio e termina.
 
 1. Legge un messaggio dalla coda (l'URL del blob originale, in base64, scritto da `ValidateUpload`), invisibile per 35 minuti.

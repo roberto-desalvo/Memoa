@@ -14,6 +14,7 @@ Contenuti: [Prerequisiti](#prerequisiti) · [Configurazione](#configurazione) ·
 
 - Azure CLI, Azure Functions Core Tools, .NET SDK, Node.js con npm.
 - `dotnet ef` per le migration e go-sqlcmd per applicare gli script (`winget install sqlcmd`).
+- ffmpeg nel `PATH` per la Function `NormalizeRecord` (`winget install Gyan.FFmpeg`), oppure il percorso dell'eseguibile in `Ffmpeg__Path`. In Azure si usa la build statica che la pipeline include nel pacchetto.
 - Il proprio Object ID in `DEVELOPER_PRINCIPAL_IDS_DEV` di `infra/.env`, poi un nuovo deploy dell'infrastruttura dev. Dà al proprio utente gli stessi ruoli delle Functions su storage dei dati, Azure OpenAI e Azure AI Speech. Serve perché un SAS firmato in locale non può concedere più dei ruoli di chi lo firma, e Owner non dà accesso ai dati.
   ```powershell
   az ad signed-in-user show --query id -o tsv

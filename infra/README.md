@@ -12,7 +12,7 @@ Bicep per tutto ciò che lo supporta; qui sotto i passi manuali per il resto.
 | `identity/main.bicep` | tenant esterno | Registrazioni delle app in Entra External ID (estensione Microsoft Graph): API con scope `access_as_user` e token v2, frontend SPA con redirect URI, service principal e consenso dell'amministratore |
 | `identity/main.dev.bicepparam`, `identity/main.prod.bicepparam` | | Parametri per ambiente |
 | `identity/deploy.ps1` | | Deploy di `identity/main.bicep` nel tenant esterno di un ambiente e salvataggio degli ID in `.env` |
-| `modules/identities.bicep` | RG | Identità user-assigned di Functions, job di normalizzazione e job di trascrizione |
+| `modules/identities.bicep` | RG | Identità user-assigned di Functions, job di normalizzazione (in dismissione) e job di trascrizione |
 | `modules/monitoring.bicep` | RG | Log Analytics (limite giornaliero, 30 giorni) + Application Insights |
 | `modules/static-web-app.bicep` | RG | Static Web Apps Free |
 | `modules/data-storage.bicep` | RG | Storage dati GRS: container `uploads` (originali) / `audio` (normalizzato) / `transcripts`, code `normalization` / `transcription` / `transcription-fallback` / `indexing` / `upload-expiry`, system topic Event Grid, soft delete 14 gg, versioning, lifecycle, blocco CanNotDelete; ruoli dei job limitati ai propri contenitori e alla propria coda |
@@ -24,7 +24,7 @@ Bicep per tutto ciò che lo supporta; qui sotto i passi manuali per il resto.
 | `modules/function-app.bicep` | RG | Flex Consumption, storage di sistema dedicato, app settings |
 | `modules/container-apps-env.bicep` | RG | Container Apps environment (profilo Consumption) condiviso dai due job |
 | `modules/deploy-identity.bicep` | RG | Identità delle pipeline GitHub Actions: federated credential sull'environment GitHub dell'ambiente, Website Contributor sulla Function App, Contributor sulla Static Web App, Container Apps Jobs Contributor sui due job |
-| `modules/queue-job.bicep` | RG | Container Apps Job attivato dalla propria coda, usato due volte: normalizzazione (`uploads` → `audio`, worker .NET e ffmpeg) e trascrizione di ripiego (coda `transcription-fallback`, `audio` → `transcripts`, Whisper, solo registrazioni fino a 10 minuti). Nessuna scrittura sulle code, nessun accesso ad Azure SQL |
+| `modules/queue-job.bicep` | RG | Container Apps Job attivato dalla propria coda, usato due volte: normalizzazione (`uploads` → `audio`, worker .NET e ffmpeg; in dismissione, sostituito dalla Function `NormalizeRecord`, che legge la stessa coda) e trascrizione di ripiego (coda `transcription-fallback`, `audio` → `transcripts`, Whisper, solo registrazioni fino a 10 minuti). Nessuna scrittura sulle code, nessun accesso ad Azure SQL |
 
 ## Deploy
 
@@ -170,7 +170,7 @@ Nessun dead-letter: gli eventi non consegnati dopo i retry automatici di Event G
 | `web.yml` | `src/web/**` | Build Angular, poi su ogni ambiente genera `config.json` e carica su Static Web Apps |
 | `functions.yml` | `src/functions/**` tranne `Data/Migrations/**`, `src/shared/**` | `dotnet publish`, poi deploy del pacchetto sulla Function App |
 | `schema.yml` | `src/functions/Data/Migrations/**` | Genera lo script idempotente delle migration (scaricabile tra gli artifact) e lo applica con `sqlcmd` |
-| `normalizer.yml` | `src/jobs/normalizer/**`, `src/shared/**` | Build dell'immagine del job di normalizzazione e push su GHCR (`memoa-normalizer:<sha>` e `:<branch>`), poi su ogni ambiente aggiorna l'immagine del job con il tag `<sha>` (`container-job-deploy.yml`) |
+| `normalizer.yml` | `src/jobs/normalizer/**`, `src/shared/**` | In dismissione insieme al job. Build dell'immagine del job di normalizzazione e push su GHCR (`memoa-normalizer:<sha>` e `:<branch>`), poi su ogni ambiente aggiorna l'immagine del job con il tag `<sha>` (`container-job-deploy.yml`) |
 | `transcriber.yml` | `src/jobs/transcriber/**`, `src/shared/**` | Come `normalizer.yml`, per l'immagine del job di trascrizione (`memoa-transcriber`, con i pesi del modello Whisper) |
 
 L'ambiente dipende dal branch: un push su `main` distribuisce su **dev**, un push su `prod` distribuisce su **prod** (il job prod attende l'approvazione dell'environment GitHub `prod`). Assetto temporaneo, in attesa del primo rilascio in produzione. Tutti si possono avviare anche a mano (**Run workflow**), scegliendo il branch dell'ambiente. I file `*-deploy.yml` sono i passi di deploy per un ambiente, richiamati dai workflow principali.

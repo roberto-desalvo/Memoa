@@ -10,7 +10,7 @@ public sealed class RecordBlobService(BlobServiceClient blobServiceClient, IOpti
     /// <summary>
     /// Percorso dell'originale nel contenitore degli originali. Prefisso per utente: la cancellazione GDPR
     /// elimina tutti i suoi file con un solo prefisso. Nessuna estensione: il formato reale viene rilevato
-    /// con ffprobe durante la normalizzazione.
+    /// con ffmpeg durante la normalizzazione.
     /// </summary>
     public static string UploadBlobName(Guid entraObjectId, Guid recordUid) => $"{entraObjectId:D}/{recordUid:D}";
 

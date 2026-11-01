@@ -107,7 +107,7 @@ public sealed class ValidateUploadFunction(
 
     /// <summary>
     /// Controlli possibili senza leggere il file. Il formato reale (non l'estensione né il tipo
-    /// dichiarato dal client) e la durata li verifica ffprobe nel job di normalizzazione.
+    /// dichiarato dal client) e la durata li verifica ffmpeg in NormalizeRecord.
     /// </summary>
     private static string? Validate(StorageBlobCreatedEventData data) => data.ContentLength switch
     {

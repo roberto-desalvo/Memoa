@@ -67,7 +67,7 @@ File collegati a un record (audio, in futuro immagini). Le colonne specifiche di
 | OriginalContentType | varchar(100) | |
 | OriginalSizeBytes | bigint | |
 | NormalizedBlobPath | nvarchar(1024), null | Copia Opus in `audio`, riprodotta nella pagina del record. |
-| DurationSeconds | int, null | Dai metadati della copia normalizzata, scritta dalla Function (il job non scrive nel database). |
+| DurationSeconds | int, null | Dai metadati della copia normalizzata, salvata da `EnqueueTranscription` (`NormalizeRecord` non scrive nel database). |
 | CreatedAt | datetime2 | |
 
 ---

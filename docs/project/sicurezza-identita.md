@@ -34,7 +34,7 @@ Contenuti: [Autenticazione](#autenticazione) · [Identità gestite](#identità-g
 | Identità | Accessi |
 |---|---|
 | Functions | storage dei dati (Blob Data Contributor, Blob Delegator per i SAS, Queue Data Contributor), storage di sistema, Azure SQL (utente del database), Azure OpenAI, Azure AI Speech, Application Insights |
-| Job di normalizzazione | coda `normalization` (lettura ed elaborazione), lettura di `uploads`, scrittura di `audio`, token GHCR in Key Vault, Application Insights |
+| Job di normalizzazione (da rimuovere, sostituito da `NormalizeRecord` con l'identità delle Functions) | coda `normalization` (lettura ed elaborazione), lettura di `uploads`, scrittura di `audio`, token GHCR in Key Vault, Application Insights |
 | Job di trascrizione | coda `transcription-fallback` (lettura ed elaborazione), lettura di `audio`, scrittura di `transcripts`, token GHCR in Key Vault, Application Insights |
 | Deploy (GitHub Actions) | federated credential OIDC sull'environment GitHub, nessun segreto; ruoli solo su Function App, Static Web App e Container Apps Jobs; utente del database per le migration |
 

@@ -81,7 +81,7 @@ Contenuti: [Account](#account) · [Contenuti in ingresso](#contenuti-in-ingresso
 
 | Vincolo | Valore |
 |---|---|
-| Audio | MP3, M4A/AAC, WAV, FLAC, Ogg/Opus, WebM, AMR/3GP, verificati sul formato reale con `ffprobe`; nessun video. Massimo 350 MB per file e 30 minuti. |
+| Audio | MP3, M4A/AAC, WAV, FLAC, Ogg/Opus, WebM, AMR/3GP, verificati sul formato reale con `ffmpeg`; nessun video. Massimo 350 MB per file e 30 minuti. |
 | Testo | Tutti i formati di testo, inclusi DOCX e PDF. Massimo 10 MB per file e 50.000 caratteri di testo. |
 | Immagini | Da definire. |
 | Lingue | Italiano e inglese. |

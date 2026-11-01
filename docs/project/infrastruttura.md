@@ -42,9 +42,9 @@ Contenuti: [Infrastruttura come codice](#infrastruttura-come-codice) · [Ambient
 | Workflow | Componente |
 |---|---|
 | `web.yml` | frontend su Static Web Apps (`config.json` generato per ambiente) |
-| `functions.yml` | Functions (migration escluse) |
+| `functions.yml` | Functions (migration escluse), con la build statica di ffmpeg nel pacchetto |
 | `schema.yml` | script idempotente delle migration, applicato con `sqlcmd` ([dati.md](dati.md#accesso-ai-dati-e-migration)) |
-| `normalizer.yml` | immagine del job di normalizzazione su GHCR e aggiornamento del job |
+| `normalizer.yml` | immagine del job di normalizzazione su GHCR e aggiornamento del job; da rimuovere insieme al job |
 | `transcriber.yml` | immagine del job di trascrizione su GHCR e aggiornamento del job |
 
 - Autenticazione su Azure con OIDC e l'identità `id-memoa-<env>-deploy`, nessun segreto ([sicurezza-identita.md](sicurezza-identita.md#identità-gestite)).

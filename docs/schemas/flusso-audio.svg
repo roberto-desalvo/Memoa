@@ -1,6 +1,6 @@
 <svg width="100%" viewBox="0 0 770 790" role="img" xmlns="http://www.w3.org/2000/svg">
 <title>Flusso di una nota audio</title>
-<desc>La PWA chiede il SAS a CreateAudioUpload, che crea il record e scrive un messaggio ritardato su upload-expiry; se il file non arriva, ExpireAudioUpload elimina il record. La PWA carica l'originale in uploads. L'evento "blob creato" attiva ValidateUpload, che scrive sulla coda normalization; il job di normalizzazione scrive in audio la copia Opus o un esito di errore. L'evento attiva EnqueueTranscription, che scrive sulla coda transcription; TranscribeRecord chiama Azure AI Speech, salva il testo nel database e scrive su indexing. In caso di ripiego scrive su transcription-fallback: il job Whisper scrive in transcripts e l'evento attiva EnqueueIndexing, che salva il testo e scrive su indexing. IndexRecord calcola gli embedding con Azure OpenAI e salva frammenti e stato in Azure SQL.</desc>
+<desc>La PWA chiede il SAS a CreateAudioUpload, che crea il record e scrive un messaggio ritardato su upload-expiry; se il file non arriva, ExpireAudioUpload elimina il record. La PWA carica l'originale in uploads. L'evento "blob creato" attiva ValidateUpload, che scrive sulla coda normalization; la Function NormalizeRecord scrive in audio la copia Opus o un esito di errore. L'evento attiva EnqueueTranscription, che scrive sulla coda transcription; TranscribeRecord chiama Azure AI Speech, salva il testo nel database e scrive su indexing. In caso di ripiego scrive su transcription-fallback: il job Whisper scrive in transcripts e l'evento attiva EnqueueIndexing, che salva il testo e scrive su indexing. IndexRecord calcola gli embedding con Azure OpenAI e salva frammenti e stato in Azure SQL.</desc>
 <style>
   text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
   .bg { fill: #ffffff; }
@@ -38,7 +38,7 @@
 <g class="storage"><rect x="30" y="150" width="150" height="56" rx="8" stroke-width="0.5"/><text class="t" x="105" y="168" text-anchor="middle" dominant-baseline="central">uploads</text><text class="s" x="105" y="188" text-anchor="middle" dominant-baseline="central">Originali, mai cancellati</text></g>
 <g class="compute"><rect x="215" y="150" width="150" height="56" rx="8" stroke-width="0.5"/><text class="t" x="290" y="168" text-anchor="middle" dominant-baseline="central">ValidateUpload</text><text class="s" x="290" y="188" text-anchor="middle" dominant-baseline="central">Dimensione, allegato</text></g>
 <g class="storage"><rect x="400" y="150" width="150" height="56" rx="8" stroke-width="0.5"/><text class="t" x="475" y="168" text-anchor="middle" dominant-baseline="central">normalization</text><text class="s" x="475" y="188" text-anchor="middle" dominant-baseline="central">Coda, URL del blob</text></g>
-<g class="compute"><rect x="585" y="150" width="150" height="56" rx="8" stroke-width="0.5"/><text class="t" x="660" y="168" text-anchor="middle" dominant-baseline="central">Normalizzazione</text><text class="s" x="660" y="188" text-anchor="middle" dominant-baseline="central">Job, ffprobe + ffmpeg</text></g>
+<g class="compute"><rect x="585" y="150" width="150" height="56" rx="8" stroke-width="0.5"/><text class="t" x="660" y="168" text-anchor="middle" dominant-baseline="central">NormalizeRecord</text><text class="s" x="660" y="188" text-anchor="middle" dominant-baseline="central">Function, ffmpeg</text></g>
 <line class="event" x1="182" y1="178" x2="211" y2="178" marker-end="url(#arrow)"/>
 <line class="flow" x1="367" y1="178" x2="396" y2="178" marker-end="url(#arrow)"/>
 <line class="flow" x1="552" y1="178" x2="581" y2="178" marker-end="url(#arrow)"/>
@@ -80,7 +80,7 @@
 <line class="flow" x1="475" y1="548" x2="475" y2="596" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
 
 <!-- Note -->
-<text class="label" x="30" y="690">Solo le Functions scrivono su code e database; i job leggono solo la propria coda e scrivono solo su Blob Storage.</text>
+<text class="label" x="30" y="690">Solo le Functions scrivono su code e database; il job di trascrizione legge solo la propria coda e scrive solo su Blob Storage.</text>
 <text class="label" x="30" y="710">Note di testo: CreateTextRecord salva il testo in Azure SQL e scrive il RecordUid sulla coda indexing.</text>
 <text class="label" x="30" y="730">Dettaglio della trascrizione in trascrizione.svg.</text>
 

@@ -1,6 +1,6 @@
 <svg width="100%" viewBox="0 0 680 760" role="img" xmlns="http://www.w3.org/2000/svg">
 <title>Architettura di Memoa</title>
-<desc>Utente ed Entra External ID fuori da Azure. Dentro Azure West Europe: Static Web Apps, Azure Functions, Azure AI Speech, storage dei dati con 3 contenitori e 5 code, Event Grid, Azure SQL, Container Apps Job di normalizzazione e di trascrizione di ripiego, Azure OpenAI, Key Vault con il token GHCR per i job, Application Insights, Cost Management. Sotto, GitHub Actions e GHCR.</desc>
+<desc>Utente ed Entra External ID fuori da Azure. Dentro Azure West Europe: Static Web Apps, Azure Functions, Azure AI Speech, storage dei dati con 3 contenitori e 5 code, Event Grid, Azure SQL, normalizzazione nelle Functions con ffmpeg statico, Container Apps Job di trascrizione di ripiego, Azure OpenAI, Key Vault con il token GHCR per il job, Application Insights, Cost Management. Sotto, GitHub Actions e GHCR.</desc>
 <style>
   text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
   .bg { fill: #ffffff; }
@@ -42,17 +42,17 @@
 <g class="storage"><rect x="252" y="280" width="176" height="56" rx="8" stroke-width="0.5"/><text class="t" x="340" y="298" text-anchor="middle" dominant-baseline="central">Event Grid</text><text class="s" x="340" y="318" text-anchor="middle" dominant-baseline="central">Eventi "blob creato"</text></g>
 <g class="storage"><rect x="448" y="280" width="176" height="56" rx="8" stroke-width="0.5"/><text class="t" x="536" y="298" text-anchor="middle" dominant-baseline="central">Azure SQL</text><text class="s" x="536" y="318" text-anchor="middle" dominant-baseline="central">Record, testi e vettori</text></g>
 
-<g class="compute"><rect x="56" y="380" width="176" height="56" rx="8" stroke-width="0.5"/><text class="t" x="144" y="398" text-anchor="middle" dominant-baseline="central">Job normalizzazione</text><text class="s" x="144" y="418" text-anchor="middle" dominant-baseline="central">Container Apps, ffmpeg</text></g>
+<g class="compute"><rect x="56" y="380" width="176" height="56" rx="8" stroke-width="0.5"/><text class="t" x="144" y="398" text-anchor="middle" dominant-baseline="central">Normalizzazione</text><text class="s" x="144" y="418" text-anchor="middle" dominant-baseline="central">Function, ffmpeg statico</text></g>
 <g class="compute"><rect x="252" y="380" width="176" height="56" rx="8" stroke-width="0.5"/><text class="t" x="340" y="398" text-anchor="middle" dominant-baseline="central">Job trascrizione</text><text class="s" x="340" y="418" text-anchor="middle" dominant-baseline="central">Ripiego, Whisper</text></g>
 <g class="compute"><rect x="448" y="380" width="176" height="56" rx="8" stroke-width="0.5"/><text class="t" x="536" y="398" text-anchor="middle" dominant-baseline="central">Azure OpenAI</text><text class="s" x="536" y="418" text-anchor="middle" dominant-baseline="central">Embedding (Data Zone EU)</text></g>
 
-<g class="storage"><rect x="56" y="480" width="176" height="56" rx="8" stroke-width="0.5"/><text class="t" x="144" y="498" text-anchor="middle" dominant-baseline="central">Key Vault</text><text class="s" x="144" y="518" text-anchor="middle" dominant-baseline="central">Token GHCR per i job</text></g>
+<g class="storage"><rect x="56" y="480" width="176" height="56" rx="8" stroke-width="0.5"/><text class="t" x="144" y="498" text-anchor="middle" dominant-baseline="central">Key Vault</text><text class="s" x="144" y="518" text-anchor="middle" dominant-baseline="central">Token GHCR per il job</text></g>
 <g class="external"><rect x="252" y="480" width="176" height="56" rx="8" stroke-width="0.5"/><text class="t" x="340" y="498" text-anchor="middle" dominant-baseline="central">App Insights</text><text class="s" x="340" y="518" text-anchor="middle" dominant-baseline="central">Log e tracce</text></g>
 <g class="external"><rect x="448" y="480" width="176" height="56" rx="8" stroke-width="0.5"/><text class="t" x="536" y="498" text-anchor="middle" dominant-baseline="central">Cost Management</text><text class="s" x="536" y="518" text-anchor="middle" dominant-baseline="central">Budget e avvisi</text></g>
 
 <!-- Supporto -->
 <g class="external"><rect x="56" y="600" width="176" height="56" rx="8" stroke-width="0.5"/><text class="t" x="144" y="618" text-anchor="middle" dominant-baseline="central">GitHub Actions</text><text class="s" x="144" y="638" text-anchor="middle" dominant-baseline="central">Pipeline con OIDC</text></g>
-<g class="external"><rect x="252" y="600" width="176" height="56" rx="8" stroke-width="0.5"/><text class="t" x="340" y="618" text-anchor="middle" dominant-baseline="central">GHCR</text><text class="s" x="340" y="638" text-anchor="middle" dominant-baseline="central">Immagini dei due job</text></g>
+<g class="external"><rect x="252" y="600" width="176" height="56" rx="8" stroke-width="0.5"/><text class="t" x="340" y="618" text-anchor="middle" dominant-baseline="central">GHCR</text><text class="s" x="340" y="638" text-anchor="middle" dominant-baseline="central">Immagine del job</text></g>
 
 <!-- Note e legenda -->
 <text class="label" x="56" y="690">Comunicazione tra servizi con identità gestite user-assigned, una per componente; nessuna chiave.</text>

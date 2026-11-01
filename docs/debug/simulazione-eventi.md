@@ -69,9 +69,9 @@ Casi da provare:
 
 ## EnqueueTranscription (esito della normalizzazione nel contenitore dell'audio normalizzato)
 
-Il job di normalizzazione scrive in `audio` la copia `<oid>/<recordUid>.opus` oppure l'esito `<oid>/<recordUid>.error.json` (vedi [src/jobs/normalizer/README.md](../../src/jobs/normalizer/README.md)). La Function legge i metadati dal blob, quindi il blob deve esistere davvero: eseguire il job in locale, oppure caricarlo a mano partendo da un record `Processing` creato con `ValidateUpload`.
+La Function `NormalizeRecord` (coda `normalization`) scrive in `audio` la copia `<oid>/<recordUid>.opus` oppure l'esito `<oid>/<recordUid>.error.json` (vedi [src/functions/README.md](../../src/functions/README.md#normalizzazione-audio-normalizerecord)). `EnqueueTranscription` legge i metadati dal blob, quindi il blob deve esistere davvero: lasciare che `NormalizeRecord` elabori il messaggio con `func start` (serve ffmpeg in locale), oppure caricarlo a mano partendo da un record `Processing` creato con `ValidateUpload`.
 
-1. Caricare il blob con i metadati che scriverebbe il job, con [scripts/upload-normalized-blob.ps1](scripts/upload-normalized-blob.ps1). In `.env`, `NORMALIZED_IS_ERROR` sceglie tra la copia normalizzata (file `NORMALIZED_OPUS_FILE`, durata `NORMALIZED_DURATION_SECONDS`) e l'esito di errore (`NORMALIZED_ERROR_CODE`):
+1. Caricare il blob con i metadati che scriverebbe `NormalizeRecord`, con [scripts/upload-normalized-blob.ps1](scripts/upload-normalized-blob.ps1). In `.env`, `NORMALIZED_IS_ERROR` sceglie tra la copia normalizzata (file `NORMALIZED_OPUS_FILE`, durata `NORMALIZED_DURATION_SECONDS`) e l'esito di errore (`NORMALIZED_ERROR_CODE`):
    ```powershell
    .\docs\scripts\upload-normalized-blob.ps1
    ```

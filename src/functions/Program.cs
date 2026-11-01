@@ -5,6 +5,7 @@ using Azure.Storage.Queues;
 using Memoa.Functions.Authentication;
 using Memoa.Functions.Data;
 using Memoa.Functions.Embeddings;
+using Memoa.Functions.Normalization;
 using Memoa.Functions.Observability;
 using Memoa.Functions.Storage;
 using Memoa.Functions.Transcription;
@@ -52,6 +53,10 @@ builder.Services.AddSingleton(sp => new QueueServiceClient(
 builder.Services.AddSingleton<BlobSasService>();
 builder.Services.AddSingleton<UploadExpiryScheduler>();
 builder.Services.AddSingleton<RecordBlobService>();
+
+builder.Services.AddOptions<FfmpegOptions>()
+    .Bind(builder.Configuration.GetSection(FfmpegOptions.SectionName));
+builder.Services.AddSingleton<Ffmpeg>();
 
 builder.Services.AddOptions<OpenAIOptions>()
     .Bind(builder.Configuration.GetSection(OpenAIOptions.SectionName))

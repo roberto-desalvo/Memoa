@@ -30,7 +30,7 @@ Contenuti: [App](#app) · [Struttura](#struttura) · [Registrazione audio](#regi
 
 ## Registrazione audio
 
-**Decisione**: formato nativo del browser, normalizzato poi nel job in Ogg Opus mono 32 kbps VBR. Si conservano sia l'originale sia la copia normalizzata.
+**Decisione**: formato nativo del browser, normalizzato poi dalla Function `NormalizeRecord` in Ogg Opus mono 32 kbps VBR. Si conservano sia l'originale sia la copia normalizzata.
 
 - Formato scelto con `MediaRecorder.isTypeSupported()`, in ordine: `audio/webm;codecs=opus`, `audio/ogg;codecs=opus`, `audio/mp4`. Il fallback MP4/AAC serve ai Safari precedenti alla 18.4.
 - Il Blob prende il tipo effettivamente scelto dal browser. Nessun bitrate personalizzato.
@@ -43,7 +43,7 @@ Contenuti: [App](#app) · [Struttura](#struttura) · [Registrazione audio](#regi
 
 ## Upload
 
-- **Audio**: primo filtro nel browser per estensione (MP3, M4A/AAC, WAV, FLAC, Ogg/Opus, WebM, AMR/3GP) e dimensione (350 MB). Il formato reale lo verifica `ffprobe` nel job.
+- **Audio**: primo filtro nel browser per estensione (MP3, M4A/AAC, WAV, FLAC, Ogg/Opus, WebM, AMR/3GP) e dimensione (350 MB). Il formato reale lo verifica `ffmpeg` in `NormalizeRecord`.
   - Il tipo MIME salvato sul blob si ricava dall'estensione, perché il browser non lo indica in modo affidabile per AMR, 3GP e Opus.
   - Upload diretto su Blob Storage con il SAS restituito da `CreateAudioUpload`. Sopra 8 MB il file va a blocchi (Put Block + Put Block List), con 3 tentativi per blocco sugli errori di rete e del server.
   - Il blob esiste, e quindi parte l'evento, solo alla conferma della lista dei blocchi.

@@ -17,11 +17,11 @@ namespace Memoa.Functions.Functions;
 
 /// <summary>
 /// Quinto passo del flusso audio, attivato dall'evento "blob creato" sul contenitore dell'audio
-/// normalizzato, dove il job di normalizzazione scrive uno dei due blob di <see cref="NormalizedAudio"/>:
+/// normalizzato, dove <see cref="NormalizeRecordFunction"/> scrive uno dei due blob di <see cref="NormalizedAudio"/>:
 /// <list type="bullet">
 /// <item>copia Opus: salva percorso e durata nell'allegato e scrive sulla coda di trascrizione l'URL del blob
 /// e la lingua dell'account (<see cref="TranscriptionRequest"/>);</item>
-/// <item>esito di errore: porta il record a "in errore" con il codice scritto dal job.</item>
+/// <item>esito di errore: porta il record a "in errore" con il codice scritto dalla normalizzazione.</item>
 /// </list>
 /// Idempotente: Event Grid consegna almeno una volta, anche in parallelo.
 /// </summary>
@@ -55,7 +55,7 @@ public sealed partial class EnqueueTranscriptionFunction(
             return null;
         }
 
-        // Solo il job di normalizzazione scrive in questo contenitore: un altro nome indica un errore.
+        // Solo la normalizzazione scrive in questo contenitore: un altro nome indica un errore.
         if (!NormalizedAudio.TryParse(blobUri.BlobName, out var entraObjectId, out var recordUid, out var isError))
         {
             logger.LogWarning("Blob con nome non valido nell'evento {EventId}: ignorato", eventGridEvent.Id);
@@ -138,8 +138,8 @@ public sealed partial class EnqueueTranscriptionFunction(
         IDictionary<string, string> metadata,
         CancellationToken cancellationToken)
     {
-        // Se esiste già la copia normalizzata l'esito di errore viene da un'esecuzione concorrente del
-        // job: vale la copia.
+        // Se esiste già la copia normalizzata l'esito di errore viene da un'esecuzione concorrente della
+        // normalizzazione: vale la copia.
         if (attachment.NormalizedBlobPath is not null)
         {
             logger.LogWarning("Record {RecordUid} già normalizzato: esito di errore ignorato", record.RecordUid);
@@ -188,7 +188,7 @@ public sealed partial class EnqueueTranscriptionFunction(
                 ? seconds
                 : null;
 
-    /// <summary>Codice d'errore del job: minuscole e trattini bassi, entro la lunghezza di Records.ErrorCode.</summary>
+    /// <summary>Codice d'errore della normalizzazione: minuscole e trattini bassi, entro la lunghezza di Records.ErrorCode.</summary>
     [GeneratedRegex("^[a-z_]{1,50}$")]
     private static partial Regex ErrorCodePattern();
 }

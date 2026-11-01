@@ -32,6 +32,24 @@ jobs:
 
       - run: dotnet publish src/functions/Memoa.Functions.csproj -c Release -o publish
 
+      # Build statica di ffmpeg per Linux x64 (la release contiene ffmpeg 7.0.2 con libopus), usata da
+      # NormalizeRecord. Solo ffmpeg, senza ffprobe: le informazioni sul file le legge ffmpeg stesso.
+      # Release e hash fissati: per aggiornare, cambiare tag e SHA-256 insieme.
+      - name: Build statica di ffmpeg
+        env:
+          FFMPEG_RELEASE: https://github.com/eugeneware/ffmpeg-static/releases/download/b6.1.1
+          FFMPEG_SHA256: bfe8a8fc511530457b528c48d77b5737527b504a3797a9bc4866aeca69c2dffa
+          LICENSE_SHA256: 8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903
+        run: |
+          mkdir -p publish/tools/ffmpeg
+          cd publish/tools/ffmpeg
+          curl -fsSL -o ffmpeg.gz "$FFMPEG_RELEASE/ffmpeg-linux-x64.gz"
+          curl -fsSL -o LICENSE "$FFMPEG_RELEASE/linux-x64.LICENSE"
+          printf '%s  ffmpeg.gz\n%s  LICENSE\n' "$FFMPEG_SHA256" "$LICENSE_SHA256" | sha256sum -c -
+          gunzip ffmpeg.gz
+          chmod +x ffmpeg
+          ./ffmpeg -hide_banner -encoders | grep -q libopus
+
       # La cartella .azurefunctions del worker isolato è nascosta: senza include-hidden-files l'host non parte.
       - uses: actions/upload-artifact@v4
         with:
