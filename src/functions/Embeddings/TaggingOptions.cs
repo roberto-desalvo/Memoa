@@ -13,7 +13,7 @@ public sealed class TaggingOptions
     /// SearchFunction.MinSimilarity.
     /// </summary>
     [Range(0.0, 1.0)]
-    public double MinSimilarity { get; set; } = 0.4;
+    public double MinSimilarity { get; set; } = 0.35;
 
     /// <summary>
     /// Dopo quanti minuti un'attesa di assegnazione non conclusa (processo fallito senza ripulire) non rende
