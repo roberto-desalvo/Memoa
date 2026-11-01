@@ -41,17 +41,19 @@ export function toOccurredAt(inputValue: string, timeOf: Date = new Date()): str
   return date.toISOString();
 }
 
-/**
- * Titolo usato se l'utente non lo specifica: data e ora della nota, es. "1 novembre 2026, 14:35".
- */
-export function defaultTitle(date: Date): string {
-  return formatLong(date);
-}
-
 /** Titolo proposto per le registrazioni, nel fuso orario dell'utente: es. "REC_20261101_1435". */
 export function recordingTitle(date: Date): string {
+  return stampedTitle('REC', date);
+}
+
+/** Titolo dei testi scritti senza titolo, dalla data della nota: es. "TXT_20261101_1435". */
+export function textTitle(date: Date): string {
+  return stampedTitle('TXT', date);
+}
+
+function stampedTitle(prefix: string, date: Date): string {
   const [day, time] = toInputValue(date).split('T');
-  return `REC_${day.replaceAll('-', '')}_${time.replace(':', '')}`;
+  return `${prefix}_${day.replaceAll('-', '')}_${time.replace(':', '')}`;
 }
 
 /** Nome del file senza estensione, usato come titolo degli upload. */

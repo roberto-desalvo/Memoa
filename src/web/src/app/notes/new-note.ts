@@ -23,9 +23,9 @@ import {
 import { AudioUploadService } from '../uploads/audio-upload.service';
 import { isTextFile, readTextFile, TEXT_ACCEPT, TEXT_FORMATS_LABEL } from '../uploads/text-file';
 import {
-  defaultTitle,
   nowInputValue,
   recordingTitle,
+  textTitle,
   titleFromFileName,
   toOccurredAt,
 } from './note-date';
@@ -99,7 +99,7 @@ export class NewNote implements OnInit {
   protected readonly title = signal('');
   protected readonly date = signal(nowInputValue());
   protected readonly titlePlaceholder = computed(() =>
-    defaultTitle(new Date(this.date() || nowInputValue())),
+    textTitle(new Date(this.date() || nowInputValue())),
   );
 
   /** Titolo della registrazione scritto dall'utente; null finché non lo modifica. */
@@ -164,7 +164,7 @@ export class NewNote implements OnInit {
   protected save(): void {
     const occurredAt = toOccurredAt(this.date() || nowInputValue());
     this.note = {
-      title: this.title().trim() || defaultTitle(new Date(occurredAt)),
+      title: this.title().trim() || textTitle(new Date(occurredAt)),
       occurredAt,
     };
     void this.submit();
@@ -245,7 +245,7 @@ export class NewNote implements OnInit {
 
       const occurredAt = fileDate(item.file);
       const note = {
-        title: item.title || defaultTitle(occurredAt),
+        title: item.title || (content.kind === 'audio' ? recordingTitle : textTitle)(occurredAt),
         occurredAt: occurredAt.toISOString(),
       };
       try {
