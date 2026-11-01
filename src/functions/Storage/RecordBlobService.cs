@@ -1,4 +1,5 @@
 using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Models;
 using Memoa.Shared.Pipeline;
 using Microsoft.Extensions.Options;
 
@@ -55,6 +56,28 @@ public sealed class RecordBlobService(BlobServiceClient blobServiceClient, IOpti
     {
         await DeleteDerivedAsync(entraObjectId, recordUid, cancellationToken);
         await DeleteAsync(containers.Value.Uploads, UploadBlobName(entraObjectId, recordUid), cancellationToken);
+    }
+
+    /// <summary>
+    /// Elimina tutti i blob dell'utente nei tre contenitori, cioè tutto ciò che sta sotto "&lt;oid&gt;/"
+    /// (eliminazione dell'account). Comprende i file di record già eliminati dal database ma rimasti, ad
+    /// esempio scritti dalla pipeline dopo l'eliminazione. Restano recuperabili per 14 giorni grazie al soft
+    /// delete dello storage.
+    /// </summary>
+    public Task DeleteUserAsync(Guid entraObjectId, CancellationToken cancellationToken) =>
+        Task.WhenAll(
+            DeletePrefixAsync(containers.Value.Uploads, entraObjectId, cancellationToken),
+            DeletePrefixAsync(containers.Value.Audio, entraObjectId, cancellationToken),
+            DeletePrefixAsync(containers.Value.Transcripts, entraObjectId, cancellationToken));
+
+    private async Task DeletePrefixAsync(string container, Guid entraObjectId, CancellationToken cancellationToken)
+    {
+        var client = Container(container);
+        var options = new GetBlobsOptions { Prefix = $"{entraObjectId:D}/" };
+        await foreach (var blob in client.GetBlobsAsync(options, cancellationToken))
+        {
+            await client.GetBlobClient(blob.Name).DeleteIfExistsAsync(cancellationToken: cancellationToken);
+        }
     }
 
     private Task DeleteAsync(string container, string blobName, CancellationToken cancellationToken) =>

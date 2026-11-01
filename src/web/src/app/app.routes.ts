@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { MsalGuard } from '@azure/msal-angular';
+import { AboutPage } from './about/about-page';
 import { Home } from './home/home';
 import { NewNote } from './notes/new-note';
 import { RecordPage } from './records/record-page';
@@ -10,5 +11,6 @@ export const routes: Routes = [
   { path: 'new/:mode', component: NewNote, canActivate: [MsalGuard] },
   { path: 'records/:recordUid', component: RecordPage, canActivate: [MsalGuard] },
   { path: 'settings', component: SettingsPage, canActivate: [MsalGuard] },
+  { path: 'about', component: AboutPage, canActivate: [MsalGuard] },
   { path: '**', redirectTo: '' },
 ];

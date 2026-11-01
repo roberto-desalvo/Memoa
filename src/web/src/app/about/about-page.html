@@ -1,0 +1,36 @@
+<mat-toolbar class="page-header">
+  <a mat-icon-button routerLink="/" aria-label="Torna alle note">
+    <mat-icon svgIcon="back" />
+  </a>
+  <h1>Informazioni</h1>
+</mat-toolbar>
+
+<mat-card>
+  <mat-card-content class="sections">
+    <section class="section">
+      <h2 class="text-body strong">Account</h2>
+      @if (accountName) {
+        <p class="text-body">{{ accountName }}</p>
+      }
+      @if (username) {
+        <p class="text-secondary muted">{{ username }}</p>
+      }
+    </section>
+
+    <mat-divider />
+
+    <section class="section">
+      <h2 class="text-body strong">Elimina account</h2>
+      <p class="text-secondary muted">
+        Elimina l’account e tutti i dati collegati: note, registrazioni audio, trascrizioni e
+        impostazioni.
+      </p>
+      <div class="actions">
+        <button mat-button [disabled]="deleting()" (click)="confirmDelete()">
+          <mat-icon svgIcon="delete" />
+          {{ deleting() ? 'Eliminazione…' : 'Elimina account' }}
+        </button>
+      </div>
+    </section>
+  </mat-card-content>
+</mat-card>
