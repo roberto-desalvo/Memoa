@@ -1,14 +1,27 @@
-<mat-toolbar class="page-header">
-  <img class="logo" src="favicon.svg" alt="" width="32" height="32" />
-  <h1>Memoa</h1>
-  <button mat-icon-button aria-label="Menu utente" [matMenuTriggerFor]="userMenu">
-    @if (initials) {
-      <span class="avatar" aria-hidden="true">{{ initials }}</span>
-    } @else {
-      <mat-icon svgIcon="account" />
-    }
-  </button>
-</mat-toolbar>
+<!-- Con un record selezionato (pressione prolungata) l'intestazione mostra le azioni sul record. -->
+@if (selected()) {
+  <mat-toolbar class="page-header">
+    <button mat-icon-button aria-label="Annulla la selezione" (click)="clearSelection()">
+      <mat-icon svgIcon="close" />
+    </button>
+    <h1>1 nota selezionata</h1>
+    <button mat-icon-button aria-label="Elimina la nota" (click)="deleteSelected()">
+      <mat-icon svgIcon="delete" />
+    </button>
+  </mat-toolbar>
+} @else {
+  <mat-toolbar class="page-header">
+    <img class="logo" src="favicon.svg" alt="" width="32" height="32" />
+    <h1>Memoa</h1>
+    <button mat-icon-button aria-label="Menu utente" [matMenuTriggerFor]="userMenu">
+      @if (initials) {
+        <span class="avatar" aria-hidden="true">{{ initials }}</span>
+      } @else {
+        <mat-icon svgIcon="account" />
+      }
+    </button>
+  </mat-toolbar>
+}
 
 <mat-menu #userMenu xPosition="before">
   @if (accountName) {
@@ -50,7 +63,16 @@
                 <li>
                   <!-- I record in errore non si aprono: il tap mostra la finestra con "Riprova". -->
                   @if (record.status === 'Error') {
-                    <button type="button" class="note-link" (click)="openError(record)">
+                    <button
+                      type="button"
+                      class="note-link"
+                      [class.selected]="record.recordUid === selected()?.recordUid"
+                      appLongPress
+                      [blockClicks]="!!selected()"
+                      (longPress)="select(record)"
+                      (blockedClick)="clearSelection()"
+                      (click)="openError(record)"
+                    >
                       <app-note-row
                         [sourceType]="record.sourceType"
                         [title]="record.title"
@@ -62,7 +84,15 @@
                       />
                     </button>
                   } @else {
-                    <a class="note-link" [routerLink]="['/records', record.recordUid]">
+                    <a
+                      class="note-link"
+                      [class.selected]="record.recordUid === selected()?.recordUid"
+                      appLongPress
+                      [blockClicks]="!!selected()"
+                      (longPress)="select(record)"
+                      (blockedClick)="clearSelection()"
+                      [routerLink]="['/records', record.recordUid]"
+                    >
                       <app-note-row
                         [sourceType]="record.sourceType"
                         [title]="record.title"

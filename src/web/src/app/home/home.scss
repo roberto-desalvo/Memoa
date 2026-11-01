@@ -36,3 +36,13 @@
   bottom: calc(var(--space-4) + env(safe-area-inset-bottom));
   z-index: 20;
 }
+
+// Voci selezionabili con la pressione prolungata: niente menu del browser né selezione del testo.
+.note-link {
+  -webkit-touch-callout: none;
+  user-select: none;
+
+  &.selected {
+    background: var(--accent-soft);
+  }
+}

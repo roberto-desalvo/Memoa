@@ -1,4 +1,4 @@
-import { Component, computed, inject, OnDestroy, OnInit } from '@angular/core';
+import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatDividerModule } from '@angular/material/divider';
@@ -16,6 +16,7 @@ import { RecordsApi, RecordSummary } from '../records/records-api';
 import { RecordsStore } from '../records/records-store';
 import { NoteSearch } from '../search/note-search';
 import { DELETE_NOTE_DIALOG, openConfirmDialog } from '../shared/confirm-dialog';
+import { LongPress } from '../shared/long-press';
 import { NoteRow } from '../shared/note-row';
 import { AUDIO_ACCEPT } from '../uploads/audio-formats';
 import { TEXT_ACCEPT } from '../uploads/text-file';
@@ -24,6 +25,7 @@ import { TEXT_ACCEPT } from '../uploads/text-file';
   selector: 'app-home',
   imports: [
     RouterLink,
+    LongPress,
     NoteDatePipe,
     NoteRow,
     NoteSearch,
@@ -36,7 +38,7 @@ import { TEXT_ACCEPT } from '../uploads/text-file';
   ],
   templateUrl: './home.html',
   styleUrl: './home.scss',
-  host: { class: 'page' },
+  host: { class: 'page', '(document:keydown.escape)': 'clearSelection()' },
 })
 export class Home implements OnInit, OnDestroy {
   private readonly msal = inject(MsalService);
@@ -64,12 +66,33 @@ export class Home implements OnInit, OnDestroy {
   /** Record raggruppati (oggi, ieri, poi per mese), nell'ordine della lista (dal più recente). */
   protected readonly groups = computed(() => groupRecords(this.store.records() ?? []));
 
+  /** Record selezionato con la pressione prolungata; sparisce se il record non è più nella lista. */
+  private readonly selectedUid = signal<string | null>(null);
+  protected readonly selected = computed(() =>
+    this.store.records()?.find((r) => r.recordUid === this.selectedUid()),
+  );
+
   ngOnInit(): void {
     this.store.start();
   }
 
   ngOnDestroy(): void {
     this.store.stop();
+  }
+
+  protected select(record: RecordSummary): void {
+    this.selectedUid.set(record.recordUid);
+  }
+
+  protected clearSelection(): void {
+    this.selectedUid.set(null);
+  }
+
+  protected async deleteSelected(): Promise<void> {
+    const record = this.selected();
+    if (record && (await this.delete(record))) {
+      this.clearSelection();
+    }
   }
 
   protected logout(): void {
@@ -112,16 +135,19 @@ export class Home implements OnInit, OnDestroy {
     }
   }
 
-  private async delete(record: RecordSummary): Promise<void> {
+  /** True se la nota è stata eliminata. */
+  private async delete(record: RecordSummary): Promise<boolean> {
     if ((await openConfirmDialog(this.dialog, DELETE_NOTE_DIALOG)) !== 'confirm') {
-      return;
+      return false;
     }
     try {
       await firstValueFrom(this.api.delete(record.recordUid));
       this.store.remove(record.recordUid);
+      return true;
     } catch (err) {
       console.error('Eliminazione non riuscita', err);
       this.snackBar.open('Eliminazione non riuscita. Riprova più tardi.');
+      return false;
     }
   }
 }
