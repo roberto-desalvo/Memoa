@@ -1,6 +1,6 @@
 import { inject, Injectable, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import { RecordsApi, RecordSummary } from './records-api';
+import { EXCERPT_LENGTH, RecordDetail, RecordsApi, RecordSummary } from './records-api';
 
 /** Intervallo del polling della lista, attivo solo mentre almeno un record è in elaborazione. */
 const POLL_INTERVAL_MS = 10_000;
@@ -74,7 +74,7 @@ export class RecordsStore {
   }
 
   /** Aggiorna subito un record dopo un'azione dell'utente, senza attendere il polling. */
-  replace(record: RecordSummary): void {
+  replace(record: RecordSummary | RecordDetail): void {
     this.records.update(
       (records) =>
         records?.map((r) => (r.recordUid === record.recordUid ? toSummary(record) : r)) ?? null,
@@ -98,15 +98,12 @@ export class RecordsStore {
   }
 }
 
-function toSummary({
-  recordUid,
-  title,
-  occurredAt,
-  sourceType,
-  status,
-  canRetry,
-}: RecordSummary): RecordSummary {
-  return { recordUid, title, occurredAt, sourceType, status, canRetry };
+/** Voce della lista; da un record completo l'estratto si ricava dal testo, come fanno le Functions. */
+function toSummary(record: RecordSummary | RecordDetail): RecordSummary {
+  const { recordUid, title, occurredAt, sourceType, status, canRetry } = record;
+  const excerpt =
+    'text' in record ? (record.text?.slice(0, EXCERPT_LENGTH) ?? null) : (record.excerpt ?? null);
+  return { recordUid, title, occurredAt, sourceType, status, canRetry, excerpt };
 }
 
 function sameRecords(current: RecordSummary[] | null, next: RecordSummary[]): boolean {

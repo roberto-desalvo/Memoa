@@ -1,85 +1,37 @@
-.pick,
-.status {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1rem;
-  padding: 2.5rem 1.5rem;
-  text-align: center;
+.full {
+  display: block;
+  width: 100%;
+}
 
-  p {
-    margin: 0;
-  }
+form .full + .full {
+  margin-top: var(--space-2);
 }
 
 .pick {
-  margin-top: 1rem;
-  background: var(--surface);
-  border: 2px dashed var(--border);
-  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  padding-block: var(--space-6);
+  text-align: center;
 }
 
 .pick-icon {
-  display: grid;
-  place-items: center;
-  width: 4rem;
-  height: 4rem;
-  color: var(--accent);
-  background: var(--accent-soft);
-  border-radius: 50%;
-
-  svg {
-    width: 1.75rem;
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 2;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-  }
+  width: 48px;
+  height: 48px;
+  color: var(--mat-sys-on-surface-variant);
 }
 
-// Input nascosto ma raggiungibile da tastiera tramite la label.
-.pick input {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  opacity: 0;
-}
-
-.pick label:focus-within {
-  box-shadow: 0 0 0 3px var(--focus);
-}
-
-progress {
+mat-progress-bar {
   max-width: 20rem;
 }
 
 .files {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  margin: 0 0 1rem;
-  padding: 0;
-  list-style: none;
+  margin-inline: calc(-1 * var(--space-4));
+}
 
-  li {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.25rem 1rem;
-    padding: 0.875rem 1rem;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-  }
-
-  .name {
-    font-weight: 600;
-    overflow-wrap: anywhere;
-  }
-
-  progress {
-    max-width: 8rem;
-  }
+// File non valido o non salvato: icona e testo nel colore d'errore.
+.failed {
+  --mat-list-list-item-leading-icon-color: var(--mat-sys-error);
+  --mat-list-list-item-supporting-text-color: var(--mat-sys-error);
 }

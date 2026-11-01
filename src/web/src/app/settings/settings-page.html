@@ -1,48 +1,48 @@
-<header class="page-header">
-  <a class="button icon" routerLink="/" aria-label="Torna alle note">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+<mat-toolbar class="page-header">
+  <a mat-icon-button routerLink="/" aria-label="Torna alle note">
+    <mat-icon svgIcon="back" />
   </a>
   <h1>Impostazioni</h1>
-</header>
+</mat-toolbar>
 
-<section class="card settings">
-  <div class="field">
-    <label for="language">Lingua preferita</label>
-    <select
-      id="language"
-      [disabled]="language() === null || status() === 'saving'"
-      (change)="setLanguage($any($event.target).value)"
-    >
-      <option value="it" [selected]="language() === 'it'">Italiano</option>
-      <option value="en" [selected]="language() === 'en'">English</option>
-    </select>
-    <p class="hint" aria-live="polite">
-      @switch (status()) {
-        @case ('saving') {
-          Salvataggio…
+<mat-card>
+  <mat-card-content class="settings">
+    <mat-form-field>
+      <mat-label>Lingua preferita</mat-label>
+      <mat-select
+        [value]="language()"
+        [disabled]="language() === null || status() === 'saving'"
+        (selectionChange)="setLanguage($event.value)"
+      >
+        <mat-option value="it">Italiano</mat-option>
+        <mat-option value="en">English</mat-option>
+      </mat-select>
+      <mat-hint aria-live="polite" [class.error]="status() === 'failed'">
+        @switch (status()) {
+          @case ('saving') {
+            Salvataggio…
+          }
+          @case ('saved') {
+            Salvata.
+          }
+          @case ('failed') {
+            <mat-icon svgIcon="error" />Impossibile caricare o salvare la lingua.
+          }
+          @default {
+            Usata quando la lingua di una registrazione non viene riconosciuta con certezza.
+          }
         }
-        @case ('saved') {
-          Salvata.
-        }
-        @case ('failed') {
-          <span class="error">Impossibile caricare o salvare la lingua.</span>
-        }
-        @default {
-          Usata quando la lingua di una registrazione non viene riconosciuta con certezza.
-        }
-      }
-    </p>
-  </div>
+      </mat-hint>
+    </mat-form-field>
 
-  <div class="field">
-    <label for="theme">Aspetto</label>
-    <select id="theme" (change)="theme.set($any($event.target).value)">
-      @for (option of themes; track option.value) {
-        <option [value]="option.value" [selected]="option.value === theme.preference()">
-          {{ option.label }}
-        </option>
-      }
-    </select>
-    <p class="hint">Vale solo per questo dispositivo.</p>
-  </div>
-</section>
+    <mat-form-field>
+      <mat-label>Aspetto</mat-label>
+      <mat-select [value]="theme.preference()" (selectionChange)="theme.set($event.value)">
+        @for (option of themes; track option.value) {
+          <mat-option [value]="option.value">{{ option.label }}</mat-option>
+        }
+      </mat-select>
+      <mat-hint>Vale solo per questo dispositivo.</mat-hint>
+    </mat-form-field>
+  </mat-card-content>
+</mat-card>

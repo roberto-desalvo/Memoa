@@ -1,105 +1,132 @@
-<header class="page-header">
-  <a class="button icon" routerLink="/" aria-label="Torna alle note">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+<mat-toolbar class="page-header">
+  <a mat-icon-button routerLink="/" aria-label="Torna alle note">
+    <mat-icon svgIcon="back" />
   </a>
   <h1>{{ record()?.title }}</h1>
-</header>
+  @if (record() && !editing()) {
+    <button mat-icon-button aria-label="Altre azioni" [matMenuTriggerFor]="moreMenu">
+      <mat-icon svgIcon="more" />
+    </button>
+  }
+</mat-toolbar>
+
+<mat-menu #moreMenu xPosition="before">
+  @if (record()?.canRegenerateTranscript) {
+    <button mat-menu-item (click)="confirmRegenerate()">
+      <mat-icon svgIcon="regenerate" />
+      <span>Rigenera trascrizione</span>
+    </button>
+  }
+  <button mat-menu-item (click)="confirmDelete()">
+    <mat-icon svgIcon="delete" />
+    <span>Elimina</span>
+  </button>
+</mat-menu>
 
 @if (record(); as record) {
   @if (editing()) {
-    <form class="card" (submit)="$event.preventDefault(); saveEdit(record)">
-      <div class="field">
-        <label for="title">Titolo</label>
+    <form (submit)="$event.preventDefault(); saveEdit(record)">
+      <mat-form-field class="full">
+        <mat-label>Titolo</mat-label>
         <input
-          id="title"
+          matInput
           type="text"
           maxlength="200"
           required
           [value]="editTitle()"
           (input)="editTitle.set($any($event.target).value)"
         />
-      </div>
-      <div class="field">
-        <label for="date">Data e ora della nota</label>
+      </mat-form-field>
+      <mat-form-field class="full">
+        <mat-label>Data e ora della nota</mat-label>
         <input
-          id="date"
+          matInput
           type="datetime-local"
           required
           [value]="editDate()"
           (input)="editDate.set($any($event.target).value)"
         />
-      </div>
+      </mat-form-field>
       @if (record.text !== null) {
-        <div class="field">
-          <label for="text">Testo</label>
+        <mat-form-field class="full">
+          <mat-label>Testo</mat-label>
           <textarea
-            id="text"
+            matInput
+            rows="12"
             [maxLength]="maxTextLength"
             [value]="editText()"
             (input)="editText.set($any($event.target).value)"
           ></textarea>
-          <p class="hint">Dopo una modifica il testo viene indicizzato di nuovo.</p>
-        </div>
+          <mat-hint>Dopo una modifica il testo viene indicizzato di nuovo.</mat-hint>
+        </mat-form-field>
       }
       @if (actionError(); as message) {
-        <p class="error" role="alert">{{ message }}</p>
+        <p class="error" role="alert"><mat-icon svgIcon="error" />{{ message }}</p>
       }
       <div class="actions">
-        <button type="button" [disabled]="busy()" (click)="editing.set(false)">Annulla</button>
-        <button type="submit" class="primary" [disabled]="busy()">Salva</button>
+        <button mat-button type="button" [disabled]="busy()" (click)="editing.set(false)">
+          Annulla
+        </button>
+        <button mat-flat-button type="submit" [disabled]="busy()">Salva</button>
       </div>
     </form>
   } @else {
-    <div class="meta">
-      <span class="date">
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <rect x="3" y="5" width="18" height="16" rx="2" />
-          <path d="M3 10h18M8 3v4M16 3v4" />
-        </svg>
+    <div class="meta text-secondary muted">
+      <span class="meta-item">
+        <mat-icon svgIcon="calendar" />
         {{ record.occurredAt | noteDate: 'long' }}
       </span>
-      @if (record.status !== 'Ready') {
-        <span class="state" [class.failed]="record.status === 'Error'">
-          {{
-            record.status === 'Processing'
-              ? 'La nota è in elaborazione.'
-              : 'Errore nell’elaborazione.'
-          }}
-        </span>
+      @if (record.status === 'Processing') {
+        <span class="status"><mat-icon svgIcon="pending" />In elaborazione</span>
+      } @else if (record.status === 'Error') {
+        <span class="status failed"><mat-icon svgIcon="error" />Errore nell’elaborazione</span>
       }
     </div>
 
     @if (record.processingStep) {
-      <ol class="progress" aria-label="Avanzamento dell'elaborazione" aria-live="polite">
-        @for (item of stepsOf(record); track item.step) {
-          <li [class]="item.state" [attr.aria-current]="item.state === 'current' ? 'step' : null">
-            <span class="marker" aria-hidden="true">
-              @if (item.state === 'done') {
-                <svg viewBox="0 0 24 24"><path d="m5 12 5 5 9-10" /></svg>
-              } @else if (item.state === 'current') {
-                <span class="spinner"></span>
-              }
-            </span>
-            @switch (item.step) {
-              @case ('Preparing') {
-                Preparazione dell’audio
-              }
-              @case ('Transcribing') {
-                Trascrizione
-              }
-              @case ('Indexing') {
-                Indicizzazione per la ricerca
-              }
+      <mat-card class="section">
+        <mat-card-content>
+          <ol class="steps" aria-label="Avanzamento dell'elaborazione" aria-live="polite">
+            @for (item of stepsOf(record); track item.step) {
+              <li
+                [class]="item.state"
+                [attr.aria-current]="item.state === 'current' ? 'step' : null"
+              >
+                @switch (item.state) {
+                  @case ('done') {
+                    <mat-icon svgIcon="check" />
+                  }
+                  @case ('current') {
+                    <mat-spinner diameter="24" aria-hidden="true" />
+                  }
+                  @default {
+                    <mat-icon svgIcon="todo" />
+                  }
+                }
+                @switch (item.step) {
+                  @case ('Preparing') {
+                    Preparazione dell’audio
+                  }
+                  @case ('Transcribing') {
+                    Trascrizione
+                  }
+                  @case ('Indexing') {
+                    Indicizzazione per la ricerca
+                  }
+                }
+              </li>
             }
-          </li>
-        }
-      </ol>
+          </ol>
+        </mat-card-content>
+      </mat-card>
     }
 
     @if (audioUrl(); as url) {
-      <div class="player">
-        <audio controls preload="metadata" [src]="url"></audio>
-      </div>
+      <mat-card class="section">
+        <mat-card-content>
+          <audio controls preload="metadata" [src]="url"></audio>
+        </mat-card-content>
+      </mat-card>
     }
 
     <!-- Prima trascrizione di un audio: un segnaposto al posto del testo che non c'è ancora. -->
@@ -107,31 +134,33 @@
       (record.processingStep === 'Preparing' || record.processingStep === 'Transcribing') &&
       !record.text
     ) {
-      <div class="text pending" aria-hidden="true">
-        <p class="hint">
-          {{
-            record.processingStep === 'Transcribing'
-              ? 'Trascrizione in corso: il testo apparirà qui.'
-              : 'Il testo apparirà qui al termine della trascrizione.'
-          }}
-        </p>
-        <span class="line"></span>
-        <span class="line"></span>
-        <span class="line short"></span>
-      </div>
+      <mat-card class="section">
+        <mat-card-content class="placeholder">
+          <p class="text-secondary muted">
+            {{
+              record.processingStep === 'Transcribing'
+                ? 'Trascrizione in corso: il testo apparirà qui.'
+                : 'Il testo apparirà qui al termine della trascrizione.'
+            }}
+          </p>
+          <span class="line" aria-hidden="true"></span>
+          <span class="line" aria-hidden="true"></span>
+          <span class="line short" aria-hidden="true"></span>
+        </mat-card-content>
+      </mat-card>
     }
 
     @if (record.processingStep === 'Transcribing' && record.text) {
-      <p class="hint replace-hint">Nuova trascrizione in corso: sostituirà il testo qui sotto.</p>
+      <p class="label text-secondary muted">
+        <mat-icon svgIcon="pending" />
+        Nuova trascrizione in corso: sostituirà il testo qui sotto.
+      </p>
     }
 
     @if (record.text) {
       @if (record.isTranscript) {
-        <p class="transcript-label">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <rect x="9" y="3" width="6" height="11" rx="3" />
-            <path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
-          </svg>
+        <p class="label text-secondary muted">
+          <mat-icon svgIcon="mic" />
           {{
             record.isTranscriptEdited
               ? 'Trascrizione automatica, modificata da te'
@@ -139,61 +168,28 @@
           }}
         </p>
       }
-      <article class="text">{{ record.text }}</article>
+      <mat-card class="section">
+        <mat-card-content>
+          <article class="text text-body">{{ record.text }}</article>
+        </mat-card-content>
+      </mat-card>
     }
 
-    @if (actionError(); as message) {
-      <p class="error" role="alert">{{ message }}</p>
-    }
-
-    <div class="actions view-actions">
-      <button type="button" class="danger" (click)="confirmDelete()">Elimina</button>
-      @if (record.canRegenerateTranscript) {
-        <button type="button" aria-label="Rigenera trascrizione" (click)="confirmRegenerate()">
-          Rigenera<span class="wide-only">&nbsp;trascrizione</span>
+    @if (record.status === 'Ready') {
+      <div class="actions">
+        <button mat-flat-button (click)="startEdit(record)">
+          <mat-icon svgIcon="write" />
+          Modifica
         </button>
-      }
-      @if (record.status === 'Ready') {
-        <button type="button" class="primary" (click)="startEdit(record)">Modifica</button>
-      }
-    </div>
+      </div>
+    }
   }
-
-  <dialog #regenerateDialog>
-    <h2>Rigenerare la trascrizione?</h2>
-    <p>
-      L’audio viene trascritto di nuovo e la nuova trascrizione sostituisce il testo attuale.
-      @if (record.isTranscriptEdited) {
-        Le modifiche che hai fatto al testo andranno perse.
-      }
-    </p>
-    <div class="actions">
-      <button type="button" [disabled]="busy()" (click)="regenerateDialog.close()">Annulla</button>
-      <button
-        type="button"
-        class="primary"
-        [disabled]="busy()"
-        (click)="regenerateTranscript(record)"
-      >
-        Rigenera
-      </button>
-    </div>
-  </dialog>
-
-  <dialog #deleteDialog>
-    <h2>Eliminare la nota?</h2>
-    <p>
-      I file eliminati restano recuperabili per 14 giorni, poi vengono cancellati definitivamente.
-    </p>
-    <div class="actions">
-      <button type="button" [disabled]="busy()" (click)="deleteDialog.close()">Annulla</button>
-      <button type="button" class="danger" [disabled]="busy()" (click)="delete(record)">
-        Elimina
-      </button>
-    </div>
-  </dialog>
 } @else if (loadError(); as message) {
-  <p class="error" role="alert">{{ message }}</p>
+  <div class="page-state" role="alert">
+    <p class="error"><mat-icon svgIcon="error" />{{ message }}</p>
+  </div>
 } @else {
-  <p class="hint">Caricamento…</p>
+  <div class="page-state" aria-live="polite">
+    <mat-spinner diameter="32" aria-label="Caricamento della nota" />
+  </div>
 }

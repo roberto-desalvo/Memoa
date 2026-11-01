@@ -1,4 +1,7 @@
 import { Component, computed, inject, output, signal } from '@angular/core';
+import { MatButtonModule } from '@angular/material/button';
+import { MatCardModule } from '@angular/material/card';
+import { MatIconModule } from '@angular/material/icon';
 import { AudioRecorder, MAX_RECORDING_MS } from './audio-recorder';
 
 /**
@@ -7,6 +10,7 @@ import { AudioRecorder, MAX_RECORDING_MS } from './audio-recorder';
  */
 @Component({
   selector: 'app-record-audio',
+  imports: [MatButtonModule, MatCardModule, MatIconModule],
   templateUrl: './record-audio.html',
   styleUrl: './record-audio.scss',
   providers: [AudioRecorder],

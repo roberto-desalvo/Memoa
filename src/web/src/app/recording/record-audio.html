@@ -1,38 +1,27 @@
-@if (supported) {
-  <button
-    type="button"
-    class="record"
-    [class.active]="recording()"
-    [attr.aria-label]="recording() ? 'Ferma la registrazione' : 'Registra'"
-    (click)="toggle()"
-  >
-    @if (recording()) {
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <rect x="6" y="6" width="12" height="12" rx="2" />
-      </svg>
+<mat-card>
+  <mat-card-content class="content">
+    @if (supported) {
+      <p class="timer text-title" [class.muted]="!recording()">
+        {{ elapsed() }} <span class="muted">/ {{ maxDuration }}</span>
+      </p>
+      <button mat-flat-button (click)="toggle()">
+        <mat-icon [svgIcon]="recording() ? 'stop' : 'mic'" />
+        {{ recording() ? 'Ferma e salva' : 'Avvia registrazione' }}
+      </button>
     } @else {
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Z" />
-        <path
-          d="M19 11a7 7 0 0 1-14 0M12 18v3"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-        />
-      </svg>
+      <p class="error">
+        <mat-icon svgIcon="error" />Il browser non supporta la registrazione audio.
+      </p>
     }
-  </button>
-} @else {
-  <p class="error">Il browser non supporta la registrazione audio.</p>
-}
 
-<div class="message" aria-live="polite">
-  @if (error(); as message) {
-    <p class="error">{{ message }}</p>
-  } @else if (recording()) {
-    <p class="timer">{{ elapsed() }} / {{ maxDuration }}</p>
-  } @else if (supported) {
-    <p>Tocca per registrare (massimo {{ maxDuration }}).</p>
-  }
-</div>
+    <div aria-live="polite">
+      @if (error(); as message) {
+        <p class="error" role="alert"><mat-icon svgIcon="error" />{{ message }}</p>
+      } @else if (recording()) {
+        <p class="text-secondary muted">Registrazione in corso…</p>
+      } @else if (supported) {
+        <p class="text-secondary muted">La registrazione dura al massimo {{ maxDuration }}.</p>
+      }
+    </div>
+  </mat-card-content>
+</mat-card>

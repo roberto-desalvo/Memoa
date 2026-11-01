@@ -1,14 +1,15 @@
-import {
-  Component,
-  ElementRef,
-  inject,
-  input,
-  OnDestroy,
-  OnInit,
-  signal,
-  viewChild,
-} from '@angular/core';
+import { Component, inject, input, OnDestroy, OnInit, signal } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
+import { MatButtonModule } from '@angular/material/button';
+import { MatCardModule } from '@angular/material/card';
+import { MatDialog } from '@angular/material/dialog';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
+import { MatMenuModule } from '@angular/material/menu';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatToolbarModule } from '@angular/material/toolbar';
 import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { inputValueOf, NoteDatePipe, toOccurredAt } from '../notes/note-date';
@@ -20,6 +21,7 @@ import {
   RecordsApi,
 } from './records-api';
 import { RecordsStore } from './records-store';
+import { DELETE_NOTE_DIALOG, openConfirmDialog } from '../shared/confirm-dialog';
 
 /**
  * Intervallo del polling di un record in elaborazione: breve, perché l'avanzamento dei passi sembri in
@@ -39,7 +41,18 @@ const TEXT_STEPS: readonly ProcessingStep[] = ['Indexing'];
  */
 @Component({
   selector: 'app-record-page',
-  imports: [RouterLink, NoteDatePipe],
+  imports: [
+    RouterLink,
+    NoteDatePipe,
+    MatButtonModule,
+    MatCardModule,
+    MatFormFieldModule,
+    MatIconModule,
+    MatInputModule,
+    MatMenuModule,
+    MatProgressSpinnerModule,
+    MatToolbarModule,
+  ],
   templateUrl: './record-page.html',
   styleUrl: './record-page.scss',
   host: { class: 'page' },
@@ -48,6 +61,8 @@ export class RecordPage implements OnInit, OnDestroy {
   private readonly api = inject(RecordsApi);
   private readonly store = inject(RecordsStore);
   private readonly router = inject(Router);
+  private readonly dialog = inject(MatDialog);
+  private readonly snackBar = inject(MatSnackBar);
 
   /** Dal percorso /records/:recordUid. */
   readonly recordUid = input.required<string>();
@@ -63,10 +78,6 @@ export class RecordPage implements OnInit, OnDestroy {
   protected readonly busy = signal(false);
   protected readonly actionError = signal<string | null>(null);
   protected readonly maxTextLength = MAX_TEXT_LENGTH;
-
-  private readonly deleteDialog = viewChild.required<ElementRef<HTMLDialogElement>>('deleteDialog');
-  private readonly regenerateDialog =
-    viewChild.required<ElementRef<HTMLDialogElement>>('regenerateDialog');
 
   private destroyed = false;
   private timer?: ReturnType<typeof setTimeout>;
@@ -219,48 +230,54 @@ export class RecordPage implements OnInit, OnDestroy {
     }
   }
 
-  protected confirmRegenerate(): void {
-    this.actionError.set(null);
-    this.regenerateDialog().nativeElement.showModal();
-  }
+  protected async confirmRegenerate(): Promise<void> {
+    const record = this.record();
+    if (!record) {
+      return;
+    }
+    const result = await openConfirmDialog(this.dialog, {
+      title: 'Rigenerare la trascrizione?',
+      message:
+        'L’audio viene trascritto di nuovo e la nuova trascrizione sostituisce il testo attuale.' +
+        (record.isTranscriptEdited ? ' Le modifiche che hai fatto al testo andranno perse.' : ''),
+      confirm: 'Rigenera',
+    });
+    if (result !== 'confirm') {
+      return;
+    }
 
-  protected async regenerateTranscript(record: RecordDetail): Promise<void> {
     this.busy.set(true);
     try {
       const updated = await firstValueFrom(this.api.regenerateTranscript(record.recordUid));
       this.store.replace(updated);
-      this.regenerateDialog().nativeElement.close();
       // Il record torna "in elaborazione" fino alla nuova trascrizione: la pagina ne mostra l'avanzamento.
       this.show(updated);
     } catch (err) {
       console.error('Rigenerazione della trascrizione non riuscita', err);
-      this.actionError.set(
+      this.snackBar.open(
         err instanceof HttpErrorResponse && err.status === 409
           ? 'La nota è stata aggiornata nel frattempo: ricarica la pagina e riprova.'
           : 'Rigenerazione della trascrizione non riuscita.',
       );
-      this.regenerateDialog().nativeElement.close();
     } finally {
       this.busy.set(false);
     }
   }
 
-  protected confirmDelete(): void {
-    this.actionError.set(null);
-    this.deleteDialog().nativeElement.showModal();
-  }
+  protected async confirmDelete(): Promise<void> {
+    const record = this.record();
+    if (!record || (await openConfirmDialog(this.dialog, DELETE_NOTE_DIALOG)) !== 'confirm') {
+      return;
+    }
 
-  protected async delete(record: RecordDetail): Promise<void> {
     this.busy.set(true);
     try {
       await firstValueFrom(this.api.delete(record.recordUid));
       this.store.remove(record.recordUid);
-      this.deleteDialog().nativeElement.close();
       void this.router.navigate(['/']);
     } catch (err) {
       console.error('Eliminazione del record non riuscita', err);
-      this.actionError.set('Eliminazione non riuscita.');
-      this.deleteDialog().nativeElement.close();
+      this.snackBar.open('Eliminazione non riuscita.');
     } finally {
       this.busy.set(false);
     }

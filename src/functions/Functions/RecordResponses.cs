@@ -2,14 +2,18 @@ using Memoa.Functions.Data.Entities;
 
 namespace Memoa.Functions.Functions;
 
-/// <summary>Record nella lista della homepage.</summary>
+/// <summary>
+/// Record nella lista della homepage. <paramref name="Excerpt"/> è l'inizio del testo (al massimo
+/// <see cref="ListRecordsFunction.ExcerptLength"/> caratteri), null se il record non ha ancora un testo.
+/// </summary>
 public sealed record RecordSummary(
     Guid RecordUid,
     string Title,
     DateTimeOffset OccurredAt,
     string SourceType,
     string Status,
-    bool CanRetry);
+    bool CanRetry,
+    string? Excerpt);
 
 /// <summary>Record nella propria pagina. L'audio si chiede a parte (SAS di lettura).</summary>
 public sealed record RecordDetail(

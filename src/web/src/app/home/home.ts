@@ -1,21 +1,37 @@
-import { Component, ElementRef, inject, OnDestroy, OnInit, signal, viewChild } from '@angular/core';
-import { NgTemplateOutlet } from '@angular/common';
+import { Component, computed, inject, OnDestroy, OnInit } from '@angular/core';
+import { MatButtonModule } from '@angular/material/button';
+import { MatDialog } from '@angular/material/dialog';
+import { MatDividerModule } from '@angular/material/divider';
+import { MatIconModule } from '@angular/material/icon';
+import { MatListModule } from '@angular/material/list';
+import { MatMenuModule } from '@angular/material/menu';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatToolbarModule } from '@angular/material/toolbar';
 import { Router, RouterLink } from '@angular/router';
 import { MsalService } from '@azure/msal-angular';
 import { firstValueFrom } from 'rxjs';
-import { NoteDatePipe } from '../notes/note-date';
+import { dayKey, dayLabel, NoteDatePipe } from '../notes/note-date';
 import { NoteDraft } from '../notes/note-draft';
 import { RecordsApi, RecordSummary } from '../records/records-api';
 import { RecordsStore } from '../records/records-store';
+import { DELETE_NOTE_DIALOG, openConfirmDialog } from '../shared/confirm-dialog';
 import { AUDIO_ACCEPT } from '../uploads/audio-formats';
 import { TEXT_ACCEPT } from '../uploads/text-file';
 
-/** Azione in corso nella modale di un record in errore. */
-type ErrorDialogState = 'idle' | 'busy' | 'confirmDelete' | 'failed';
-
 @Component({
   selector: 'app-home',
-  imports: [RouterLink, NgTemplateOutlet, NoteDatePipe],
+  imports: [
+    RouterLink,
+    NoteDatePipe,
+    MatButtonModule,
+    MatDividerModule,
+    MatIconModule,
+    MatListModule,
+    MatMenuModule,
+    MatProgressSpinnerModule,
+    MatToolbarModule,
+  ],
   templateUrl: './home.html',
   styleUrl: './home.scss',
   host: { class: 'page' },
@@ -25,6 +41,8 @@ export class Home implements OnInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly api = inject(RecordsApi);
   private readonly drafts = inject(NoteDraft);
+  private readonly dialog = inject(MatDialog);
+  private readonly snackBar = inject(MatSnackBar);
   protected readonly store = inject(RecordsStore);
 
   protected readonly accountName = (
@@ -40,12 +58,9 @@ export class Home implements OnInit, OnDestroy {
     .join('');
 
   protected readonly uploadAccept = `${AUDIO_ACCEPT},${TEXT_ACCEPT}`;
-  protected readonly menuOpen = signal(false);
-  protected readonly addOpen = signal(false);
 
-  protected readonly errorRecord = signal<RecordSummary | null>(null);
-  protected readonly errorState = signal<ErrorDialogState>('idle');
-  private readonly errorDialog = viewChild.required<ElementRef<HTMLDialogElement>>('errorDialog');
+  /** Record raggruppati per giorno della nota, nell'ordine della lista (dal più recente). */
+  protected readonly groups = computed(() => groupByDay(this.store.records() ?? []));
 
   ngOnInit(): void {
     this.store.start();
@@ -68,37 +83,69 @@ export class Home implements OnInit, OnDestroy {
     }
   }
 
-  /** I record in errore sono disabilitati, ma il tap apre la modale con "riprova". */
-  protected openError(record: RecordSummary): void {
-    this.errorRecord.set(record);
-    this.errorState.set('idle');
-    this.errorDialog().nativeElement.showModal();
-  }
-
-  protected closeError(): void {
-    this.errorDialog().nativeElement.close();
-  }
-
-  protected async retry(record: RecordSummary): Promise<void> {
-    this.errorState.set('busy');
-    try {
-      this.store.replace(await firstValueFrom(this.api.retry(record.recordUid)));
-      this.closeError();
-    } catch (err) {
-      console.error('Nuovo tentativo non riuscito', err);
-      this.errorState.set('failed');
+  /** I record in errore non si aprono: il tap mostra la finestra con "Riprova" ed "Elimina". */
+  protected async openError(record: RecordSummary): Promise<void> {
+    const result = await openConfirmDialog(this.dialog, {
+      title: 'Errore nell’elaborazione',
+      message: record.canRetry
+        ? 'Si è verificato un errore durante l’elaborazione di questa nota. Vuoi riprovare?'
+        : 'Il file non è valido e non può essere elaborato.',
+      confirm: record.canRetry ? 'Riprova' : undefined,
+      secondary: 'Elimina',
+      cancel: 'Chiudi',
+    });
+    if (result === 'confirm') {
+      await this.retry(record);
+    } else if (result === 'secondary') {
+      await this.delete(record);
     }
   }
 
-  protected async delete(record: RecordSummary): Promise<void> {
-    this.errorState.set('busy');
+  private async retry(record: RecordSummary): Promise<void> {
+    try {
+      this.store.replace(await firstValueFrom(this.api.retry(record.recordUid)));
+    } catch (err) {
+      console.error('Nuovo tentativo non riuscito', err);
+      this.snackBar.open('Operazione non riuscita. Riprova più tardi.');
+    }
+  }
+
+  private async delete(record: RecordSummary): Promise<void> {
+    if ((await openConfirmDialog(this.dialog, DELETE_NOTE_DIALOG)) !== 'confirm') {
+      return;
+    }
     try {
       await firstValueFrom(this.api.delete(record.recordUid));
       this.store.remove(record.recordUid);
-      this.closeError();
     } catch (err) {
       console.error('Eliminazione non riuscita', err);
-      this.errorState.set('failed');
+      this.snackBar.open('Eliminazione non riuscita. Riprova più tardi.');
     }
   }
+}
+
+interface DayGroup {
+  key: string;
+  label: string;
+  records: RecordSummary[];
+}
+
+/**
+ * Un gruppo per giorno, nell'ordine in cui il giorno compare nella lista. Raggruppa per chiave e non
+ * per record consecutivi: un record con la data appena modificata non crea un gruppo doppio.
+ */
+function groupByDay(records: RecordSummary[]): DayGroup[] {
+  const now = new Date();
+  const groups = new Map<string, DayGroup>();
+  for (const record of records) {
+    const date = new Date(record.occurredAt);
+    const key = dayKey(date);
+    let group = groups.get(key);
+    if (!group) {
+      group = { key, label: dayLabel(date, now), records: [] };
+      groups.set(key, group);
+    }
+    group.records.push(record);
+  }
+  return [...groups.values()];
 }

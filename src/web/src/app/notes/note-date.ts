@@ -53,6 +53,26 @@ export function titleFromFileName(name: string): string {
   return (dot > 0 ? name.slice(0, dot) : name).trim().slice(0, 200);
 }
 
+/**
+ * Giorno della nota, per raggruppare la lista: "Oggi", "Ieri" o la data estesa ("2 gennaio 2026"),
+ * nel fuso orario dell'utente.
+ */
+export function dayLabel(date: Date, now: Date = new Date()): string {
+  const day = dayKey(date);
+  if (day === dayKey(now)) {
+    return 'Oggi';
+  }
+  if (day === dayKey(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1))) {
+    return 'Ieri';
+  }
+  return LONG_DATE.format(date);
+}
+
+/** Giorno nel fuso orario dell'utente (yyyy-mm-dd). */
+export function dayKey(date: Date): string {
+  return toInputValue(date).slice(0, 10);
+}
+
 function toInputValue(date: Date): string {
   const pad = (value: number) => String(value).padStart(2, '0');
   return (
@@ -65,11 +85,21 @@ function formatLong(date: Date): string {
   return `${LONG_DATE.format(date)}, ${TIME.format(date)}`;
 }
 
-/** Data della nota nella lista ("1 nov 2026") e, con l'ora, nella pagina del record. */
+/**
+ * Data della nota: breve ("1 nov 2026") nei risultati della ricerca, solo l'ora ("14:35") nella lista
+ * raggruppata per giorno, estesa con l'ora nella pagina del record.
+ */
 @Pipe({ name: 'noteDate' })
 export class NoteDatePipe implements PipeTransform {
-  transform(occurredAt: string, format: 'short' | 'long' = 'short'): string {
+  transform(occurredAt: string, format: 'short' | 'time' | 'long' = 'short'): string {
     const date = new Date(occurredAt);
-    return format === 'long' ? formatLong(date) : SHORT_DATE.format(date);
+    switch (format) {
+      case 'long':
+        return formatLong(date);
+      case 'time':
+        return TIME.format(date);
+      default:
+        return SHORT_DATE.format(date);
+    }
   }
 }

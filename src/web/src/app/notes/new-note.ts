@@ -1,5 +1,15 @@
 import { Component, computed, DestroyRef, inject, input, OnInit, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { DecimalPipe } from '@angular/common';
+import { MatButtonModule } from '@angular/material/button';
+import { MatCardModule } from '@angular/material/card';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
+import { MatListModule } from '@angular/material/list';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatToolbarModule } from '@angular/material/toolbar';
 import { Router, RouterLink } from '@angular/router';
 import { lastValueFrom, Observable, tap } from 'rxjs';
 import { MAX_TEXT_LENGTH, NoteDetails, RecordsApi } from '../records/records-api';
@@ -48,7 +58,20 @@ interface FileItem {
  */
 @Component({
   selector: 'app-new-note',
-  imports: [RouterLink, RecordAudio],
+  imports: [
+    RouterLink,
+    RecordAudio,
+    DecimalPipe,
+    MatButtonModule,
+    MatCardModule,
+    MatFormFieldModule,
+    MatIconModule,
+    MatInputModule,
+    MatListModule,
+    MatProgressBarModule,
+    MatProgressSpinnerModule,
+    MatToolbarModule,
+  ],
   templateUrl: './new-note.html',
   styleUrl: './new-note.scss',
   host: { class: 'page' },

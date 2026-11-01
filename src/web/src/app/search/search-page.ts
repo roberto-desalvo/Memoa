@@ -1,4 +1,11 @@
 import { Component, inject, signal } from '@angular/core';
+import { MatButtonModule } from '@angular/material/button';
+import { MatCardModule } from '@angular/material/card';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatToolbarModule } from '@angular/material/toolbar';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { NoteDatePipe } from '../notes/note-date';
@@ -10,7 +17,17 @@ import { MAX_QUERY_LENGTH, SearchApi, SearchResult } from './search-api';
  */
 @Component({
   selector: 'app-search-page',
-  imports: [RouterLink, NoteDatePipe],
+  imports: [
+    RouterLink,
+    NoteDatePipe,
+    MatButtonModule,
+    MatCardModule,
+    MatFormFieldModule,
+    MatIconModule,
+    MatInputModule,
+    MatProgressSpinnerModule,
+    MatToolbarModule,
+  ],
   templateUrl: './search-page.html',
   styleUrl: './search-page.scss',
   host: { class: 'page' },

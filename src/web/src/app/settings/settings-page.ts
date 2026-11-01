@@ -1,4 +1,9 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
+import { MatCardModule } from '@angular/material/card';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatIconModule } from '@angular/material/icon';
+import { MatSelectModule } from '@angular/material/select';
+import { MatToolbarModule } from '@angular/material/toolbar';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { Language, SettingsApi } from './settings-api';
@@ -10,8 +15,16 @@ import { Theme, ThemePreference } from './theme';
  */
 @Component({
   selector: 'app-settings-page',
-  imports: [RouterLink],
+  imports: [
+    RouterLink,
+    MatCardModule,
+    MatFormFieldModule,
+    MatIconModule,
+    MatSelectModule,
+    MatToolbarModule,
+  ],
   templateUrl: './settings-page.html',
+  styleUrl: './settings-page.scss',
   host: { class: 'page' },
 })
 export class SettingsPage implements OnInit {

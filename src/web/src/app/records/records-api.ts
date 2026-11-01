@@ -17,10 +17,18 @@ export interface RecordSummary {
   sourceType: SourceType;
   status: RecordStatus;
   canRetry: boolean;
+  /**
+   * Inizio del testo (al massimo EXCERPT_LENGTH caratteri), null se il record non ha ancora un testo.
+   * Facoltativo finché le Functions distribuite non lo restituiscono.
+   */
+  excerpt?: string | null;
 }
 
-/** Record nella propria pagina. */
-export interface RecordDetail extends RecordSummary {
+/** Lunghezza dell'estratto nella lista, uguale a quella delle Functions (ListRecordsFunction). */
+export const EXCERPT_LENGTH = 200;
+
+/** Record nella propria pagina: il testo è completo, l'estratto non c'è. */
+export interface RecordDetail extends Omit<RecordSummary, 'excerpt'> {
   errorCode: string | null;
   text: string | null;
   language: string | null;

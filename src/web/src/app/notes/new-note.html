@@ -1,11 +1,11 @@
 @let current = step();
 
-<header class="page-header">
-  <a class="button icon" routerLink="/" aria-label="Torna alle note">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+<mat-toolbar class="page-header">
+  <a mat-icon-button routerLink="/" aria-label="Torna alle note">
+    <mat-icon svgIcon="back" />
   </a>
   <h1>{{ heading() }}</h1>
-</header>
+</mat-toolbar>
 
 @switch (current.kind) {
   @case ('capture') {
@@ -14,33 +14,28 @@
         <app-record-audio (recorded)="onRecorded($event)" />
       }
       @case ('write') {
-        <div class="field">
-          <label for="text">Testo</label>
+        <mat-form-field class="full">
+          <mat-label>Testo</mat-label>
           <textarea
-            id="text"
+            matInput
+            rows="12"
             [maxLength]="maxTextLength"
             [value]="text()"
             (input)="text.set($any($event.target).value)"
           ></textarea>
-          <p class="hint">{{ text().length }} / {{ maxTextLength }}</p>
-        </div>
+          <mat-hint align="end">{{ text().length }} / {{ maxTextLength }}</mat-hint>
+        </mat-form-field>
         <div class="actions">
-          <button
-            type="button"
-            class="primary"
-            [disabled]="!text().trim()"
-            (click)="continueWithText()"
-          >
+          <button mat-flat-button [disabled]="!text().trim()" (click)="continueWithText()">
             Avanti
           </button>
         </div>
       }
       @case ('upload') {
-        <div class="pick">
-          <span class="pick-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24"><path d="M12 15V4M7 9l5-5 5 5M5 20h14" /></svg>
-          </span>
-          <label class="button primary">
+        <mat-card>
+          <mat-card-content class="pick">
+            <mat-icon class="pick-icon" svgIcon="upload" />
+            <button mat-flat-button (click)="fileInput.click()">Scegli i file</button>
             <input
               #fileInput
               type="file"
@@ -48,106 +43,127 @@
               [accept]="uploadAccept"
               (change)="onFileInput(fileInput)"
             />
-            Scegli i file
-          </label>
-          <p class="hint">{{ formats }} · audio fino a 350 MB, testo fino a 10 MB</p>
-          <p class="hint">Ogni file diventa una nota, con il nome del file come titolo.</p>
-        </div>
+            <p class="text-secondary muted">
+              {{ formats }} · audio fino a 350 MB, testo fino a 10 MB
+            </p>
+            <p class="text-secondary muted">
+              Ogni file diventa una nota, con il nome del file come titolo.
+            </p>
+          </mat-card-content>
+        </mat-card>
       }
     }
   }
 
   @case ('details') {
-    <form class="card" (submit)="$event.preventDefault(); save()">
-      <div class="field">
-        <label for="title">Titolo</label>
+    <form (submit)="$event.preventDefault(); save()">
+      <mat-form-field class="full">
+        <mat-label>Titolo</mat-label>
         <input
-          id="title"
+          matInput
           type="text"
           maxlength="200"
           [placeholder]="titlePlaceholder()"
           [value]="title()"
           (input)="title.set($any($event.target).value)"
         />
-        <p class="hint">Se lo lasci vuoto vengono usate data e ora della nota.</p>
-      </div>
-      <div class="field">
-        <label for="date">Data e ora della nota</label>
+        <mat-hint>Se lo lasci vuoto vengono usate data e ora della nota.</mat-hint>
+      </mat-form-field>
+      <mat-form-field class="full">
+        <mat-label>Data e ora della nota</mat-label>
         <input
-          id="date"
+          matInput
           type="datetime-local"
           required
           [value]="date()"
           (input)="date.set($any($event.target).value)"
         />
-      </div>
+      </mat-form-field>
       <div class="actions">
-        <a class="button" routerLink="/">Annulla</a>
-        <button type="submit" class="primary">Salva</button>
+        <a mat-button routerLink="/">Annulla</a>
+        <button mat-flat-button type="submit">Salva</button>
       </div>
     </form>
   }
 
   @case ('saving') {
-    <div class="status" aria-live="polite">
+    <div class="page-state" aria-live="polite">
       @if (current.fraction === null) {
-        <span class="spinner"></span>
+        <mat-spinner diameter="32" aria-hidden="true" />
+      } @else {
+        <mat-progress-bar
+          mode="determinate"
+          aria-label="Avanzamento del caricamento"
+          [value]="current.fraction * 100"
+        />
       }
-      <p>Salvataggio…</p>
-      @if (current.fraction !== null) {
-        <progress [value]="current.fraction" max="1"></progress>
-      }
+      <p class="text-secondary muted">Salvataggio…</p>
     </div>
   }
 
   @case ('failed') {
-    <div class="status" role="alert">
-      <p class="error">Salvataggio non riuscito.</p>
+    <div class="page-state" role="alert">
+      <p class="error"><mat-icon svgIcon="error" />Salvataggio non riuscito.</p>
       <div class="actions">
         @if (mode() === 'write') {
-          <button type="button" (click)="step.set({ kind: 'details' })">Modifica</button>
+          <button mat-button (click)="step.set({ kind: 'details' })">Modifica</button>
         } @else {
-          <a class="button" routerLink="/">Annulla</a>
+          <a mat-button routerLink="/">Annulla</a>
         }
-        <button type="button" class="primary" (click)="submit()">Riprova</button>
+        <button mat-flat-button (click)="submit()">Riprova</button>
       </div>
     </div>
   }
 
   @case ('files') {
-    <ul class="files" aria-live="polite">
+    <mat-list class="files" aria-live="polite">
       @for (item of files(); track $index) {
-        <li>
-          <span class="name">{{ item.file.name }}</span>
+        <mat-list-item [class.failed]="item.status === 'failed' || item.status === 'invalid'">
           @switch (item.status) {
-            @case ('waiting') {
-              <span class="hint">In attesa</span>
-            }
             @case ('saving') {
-              @if (item.fraction !== null) {
-                <progress [value]="item.fraction" max="1"></progress>
-              } @else {
-                <span class="hint">Salvataggio…</span>
-              }
+              <mat-spinner matListItemIcon diameter="24" aria-hidden="true" />
             }
             @case ('done') {
-              <span class="hint">Salvato</span>
+              <mat-icon matListItemIcon svgIcon="check" />
             }
-            @case ('failed') {
-              <span class="error">Salvataggio non riuscito</span>
+            @case ('waiting') {
+              <mat-icon matListItemIcon svgIcon="pending" />
             }
-            @case ('invalid') {
-              <span class="error">{{ item.error }}</span>
+            @default {
+              <mat-icon matListItemIcon svgIcon="error" />
             }
           }
-        </li>
+          <span matListItemTitle>{{ item.file.name }}</span>
+          <span matListItemLine>
+            @switch (item.status) {
+              @case ('waiting') {
+                In attesa
+              }
+              @case ('saving') {
+                Salvataggio…
+                @if (item.fraction !== null) {
+                  {{ item.fraction * 100 | number: '1.0-0' }}%
+                }
+              }
+              @case ('done') {
+                Salvato
+              }
+              @case ('failed') {
+                Salvataggio non riuscito
+              }
+              @case ('invalid') {
+                {{ item.error }}
+              }
+            }
+          </span>
+        </mat-list-item>
       }
-    </ul>
+    </mat-list>
     @if (!filesBusy()) {
       <div class="actions">
-        <a class="button" routerLink="/">Torna alle note</a>
+        <a mat-button routerLink="/">Torna alle note</a>
         @if (hasFailedFiles()) {
-          <button type="button" class="primary" (click)="retryFiles()">Riprova</button>
+          <button mat-flat-button (click)="retryFiles()">Riprova</button>
         }
       </div>
     }
