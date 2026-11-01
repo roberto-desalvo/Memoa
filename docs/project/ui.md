@@ -4,7 +4,7 @@
 
 Principi, schermate e comportamenti dell'interfaccia. Funzionalità e stato di implementazione in [funzionalita.md](funzionalita.md), aspetti tecnici del client in [frontend.md](frontend.md).
 
-Contenuti: [Principi](#principi) · [Regole visive](#regole-visive) · [Homepage](#homepage) · [Nuova nota](#nuova-nota) · [Pagina del record](#pagina-del-record) · [Impostazioni](#impostazioni) · [Informazioni](#informazioni) · [Da fare](#da-fare)
+Contenuti: [Principi](#principi) · [Regole visive](#regole-visive) · [Homepage](#homepage) · [Nuova nota](#nuova-nota) · [Pagina del record](#pagina-del-record) · [Tag](#tag) · [Impostazioni](#impostazioni) · [Informazioni](#informazioni) · [Da fare](#da-fare)
 
 ---
 
@@ -34,6 +34,9 @@ Valgono per ogni schermata. Una nuova schermata o un nuovo componente le rispett
   - **Azione di aggiunta**: un solo FAB (il pulsante + della homepage).
   - **Finestra di conferma**: un solo componente condiviso basato su `MatDialog`, con titolo, testo, azione di conferma (a destra) e "Annulla" (a sinistra).
   - **Messaggi brevi** (salvato, errore temporaneo): `MatSnackBar`.
+  - **Interruttore** (attiva/disattiva): `mat-slide-toggle`, fuori dal collegamento della riga e con `aria-label`.
+  - **Tag di una nota**: `mat-chip-set` di chip non interattivi nella pagina del record; nelle righe delle liste una riga in stile Etichetta con icona e nomi separati da " · ".
+  - **Scelta multipla in una finestra**: `mat-selection-list` dentro `MatDialog`.
 
 ### Spaziature
 
@@ -75,9 +78,9 @@ Valgono per ogni schermata. Una nuova schermata o un nuovo componente le rispett
 
 ## Homepage
 
-- **Intestazione**: logo, nome dell'app e menu utente (avatar con le iniziali su tinta tenue), con nome dell'account, Impostazioni, Informazioni ed Esci. Stesso fondo della pagina.
+- **Intestazione**: logo, nome dell'app e menu utente (avatar con le iniziali su tinta tenue), con nome dell'account, Tag, Impostazioni, Informazioni ed Esci. Stesso fondo della pagina.
 - **Ricerca**: campo in alto, sopra la lista (solo se ci sono note). La ricerca è per significato, anche tra lingue diverse, e parte con Invio. I risultati prendono il posto della lista: il numero di risultati e una riga per frammento trovato, nello stesso stile della lista, con icona del tipo, titolo, data e il testo del frammento (al massimo due righe, poi i puntini di sospensione); il tap apre la nota. Svuotando il campo, o con la ×, torna la lista. Stati: ricerca in corso, nessun risultato, errore con "Riprova".
-- **Lista**: tutte le note, dalla più recente per data della nota (a parità di data, per titolo). Le note sono raggruppate con un'intestazione per gruppo: "Oggi", "Ieri", poi un gruppo per mese (es. "Gennaio 2026"). Ogni gruppo è un blocco bianco con una riga per nota, separate da divisori sottili. Ogni riga mostra a sinistra l'icona del tipo (microfono per l'audio, righe per il testo), poi il titolo e, sotto, un estratto dell'inizio del testo su una riga con i puntini di sospensione (o lo stato, se la nota non è pronta); a destra l'ora (oggi e ieri) o giorno e mese (es. "27 gen") e, per gli audio, la durata.
+- **Lista**: tutte le note, dalla più recente per data della nota (a parità di data, per titolo). Le note sono raggruppate con un'intestazione per gruppo: "Oggi", "Ieri", poi un gruppo per mese (es. "Gennaio 2026"). Ogni gruppo è un blocco bianco con una riga per nota, separate da divisori sottili. Ogni riga mostra a sinistra l'icona del tipo (microfono per l'audio, righe per il testo), poi il titolo e, sotto, un estratto dell'inizio del testo su una riga con i puntini di sospensione (o lo stato, se la nota non è pronta) e gli eventuali tag; a destra l'ora (oggi e ieri) o giorno e mese (es. "27 gen") e, per gli audio, la durata.
   - **Pronta**: apre la pagina del record.
   - **In elaborazione**: appare attenuata con l'etichetta "In elaborazione", ma si apre comunque.
   - **In errore**: appare attenuata con l'etichetta "Errore". Al tap si apre una finestra che spiega l'errore e offre "Riprova" (solo se il record si può riprovare; altrimenti dice che il file non è valido), "Elimina" (con la conferma dell'eliminazione) e "Chiudi".
@@ -103,7 +106,8 @@ Valgono per ogni schermata. Una nuova schermata o un nuovo componente le rispett
 
 ## Pagina del record
 
-- **Intestazione**: titolo, freccia per tornare alle note e menu ⋮ con Rigenera trascrizione ed Elimina. Sotto, data e ora della nota ed eventuale stato ("in elaborazione", "errore").
+- **Intestazione**: titolo, freccia per tornare alle note e menu ⋮ con Cerca nel testo, Modifica, Tag, Rigenera trascrizione ed Elimina. Sotto, data e ora della nota ed eventuale stato ("in elaborazione", "errore"), poi i tag come chip (con un'icona per quelli assegnati in automatico).
+- **Tag automatici**: dopo il passaggio a "pronto" la pagina si ricarica una volta dopo qualche secondo, per mostrare i tag assegnati in automatico.
 - **Audio**: lettore della copia normalizzata, disponibile appena esiste.
 - **Testo**: per una trascrizione, un'etichetta dice "Trascrizione automatica: potrebbe contenere errori" oppure "…, modificata da te".
 - **Elaborazione**: elenco dei passi (Preparazione dell'audio, Trascrizione, Indicizzazione per la ricerca) con quello in corso. La pagina si aggiorna con il polling finché è aperta e visibile.
@@ -112,8 +116,17 @@ Valgono per ogni schermata. Una nuova schermata o un nuovo componente le rispett
 - **Azioni**:
   - **Elimina** (nel menu ⋮): sempre disponibile, con conferma che cita i 14 giorni di recupero dei file.
   - **Rigenera trascrizione** (nel menu ⋮): per gli audio, con conferma che avvisa se le modifiche al testo andranno perse.
+  - **Tag** (nel menu ⋮, solo per i record pronti): finestra con l'elenco dei tag da selezionare e un campo "Nuovo tag" per crearne uno (solo il nome), con Annulla e Salva. Un tag tolto qui non viene più assegnato in automatico alla nota.
   - **Modifica**: pulsante primario in fondo alla pagina, solo per i record pronti. Titolo, data e ora e, se c'è, testo; dopo una modifica del testo la nota viene indicizzata di nuovo.
 - Dopo una modifica del testo o una rigenerazione si resta sulla pagina, che mostra l'avanzamento.
+
+---
+
+## Tag
+
+- **Elenco** (`/tags`, dal menu utente): pulsante primario "Nuovo tag", poi un blocco bianco con una riga per tag in ordine di nome: nome, descrizione su una riga, numero di note ed eventuale "Disattivato"; a destra l'interruttore dell'assegnazione automatica. Il tap sulla riga apre il tag. Stati: nessun tag (con invito a crearne uno), caricamento, errore con "Riprova".
+- **Tag** (`/tags/:tagUid`, e `/tags/new` per crearne uno): campi Nome (massimo 50 caratteri) e Descrizione (massimo 2.000, con contatore e un suggerimento su a cosa serve), pulsante primario Salva (o Crea), menu ⋮ con Elimina (con conferma: il tag viene tolto da tutte le note, le note restano). Sotto, le note con il tag, nello stesso stile della lista.
+- Dopo la creazione o una modifica di nome o descrizione un messaggio avvisa che le note vengono aggiornate a breve.
 
 ---
 

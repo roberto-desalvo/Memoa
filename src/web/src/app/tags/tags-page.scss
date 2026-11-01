@@ -1,0 +1,36 @@
+.actions.top {
+  margin: 0 0 var(--space-4);
+}
+
+// Riga del tag: il collegamento occupa lo spazio libero, l'interruttore resta fuori (non si annidano
+// elementi interattivi).
+.tag-item {
+  display: flex;
+  align-items: center;
+}
+
+.tag-link {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+  min-height: 64px;
+  padding: var(--space-3) var(--space-4);
+}
+
+.title,
+.description {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.toggle {
+  flex: none;
+  padding-inline: var(--space-2) var(--space-4);
+}
+
+.hint {
+  margin-top: var(--space-3);
+}

@@ -19,6 +19,7 @@ param normalizationQueueName string
 param transcriptionQueueName string
 param transcriptionFallbackQueueName string
 param indexingQueueName string
+param taggingQueueName string
 param uploadExpiryQueueName string
 param sqlConnectionString string
 param openAiEndpoint string
@@ -176,6 +177,7 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
         { name: 'Queues__Transcription', value: transcriptionQueueName }
         { name: 'Queues__TranscriptionFallback', value: transcriptionFallbackQueueName }
         { name: 'Queues__Indexing', value: indexingQueueName }
+        { name: 'Queues__Tagging', value: taggingQueueName }
         { name: 'Queues__UploadExpiry', value: uploadExpiryQueueName }
         { name: 'Sql__ConnectionString', value: '${sqlConnectionString};User Id=${identityClientId}' }
         { name: 'OpenAI__Endpoint', value: openAiEndpoint }

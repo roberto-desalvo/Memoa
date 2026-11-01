@@ -4,7 +4,7 @@
 
 Backend su Azure Functions ed elaborazione asincrona dei record con eventi, code, Functions e un Container Apps Job (ripiego della trascrizione).
 
-Contenuti: [Backend](#backend) · [Normalizzazione](#normalizzazione) · [Componenti](#componenti) · [Flusso audio](#flusso-audio) · [Flusso testo](#flusso-testo) · [Riprova e rigenerazione](#riprova-e-rigenerazione) · [Eliminazione](#eliminazione) · [Regole](#regole) · [Event Grid](#event-grid) · [Retry ed errori](#retry-ed-errori) · [Registry delle immagini](#registry-delle-immagini) · [Appendice: alternative scartate](#appendice-alternative-scartate)
+Contenuti: [Backend](#backend) · [Normalizzazione](#normalizzazione) · [Componenti](#componenti) · [Flusso audio](#flusso-audio) · [Flusso testo](#flusso-testo) · [Tag](#tag) · [Riprova e rigenerazione](#riprova-e-rigenerazione) · [Eliminazione](#eliminazione) · [Regole](#regole) · [Event Grid](#event-grid) · [Retry ed errori](#retry-ed-errori) · [Registry delle immagini](#registry-delle-immagini) · [Appendice: alternative scartate](#appendice-alternative-scartate)
 
 ---
 
@@ -50,6 +50,7 @@ Negli esiti `.error.json` il codice d'errore sta nei metadati del blob.
 | `transcription` | `TranscriptionRequest`: URL della copia `.opus` e lingua dell'account | `TranscribeRecord` |
 | `transcription-fallback` | stesso `TranscriptionRequest` | job di trascrizione (Whisper) |
 | `indexing` | RecordUid | `IndexRecord` |
+| `tagging` | `TaggingRequest`: RecordUid oppure TagUid | `TagRecords` |
 | `upload-expiry` | RecordUid, invisibile fino alla scadenza del SAS + 15 minuti | `ExpireAudioUpload` |
 
 ---
@@ -65,7 +66,8 @@ Negli esiti `.error.json` il codice d'errore sta nei metadati del blob.
 5. **`EnqueueTranscription`** (Event Grid): per la copia `.opus` salva percorso e durata e scrive su `transcription`; per l'esito porta il record a "in errore".
 6. **`TranscribeRecord`** (coda): invia la copia ad Azure AI Speech con timeout di 30 s + 10 s per minuto di audio, salva testo (`Text` e `OriginalTranscript`) e lingua nel database e scrive il RecordUid su `indexing`. Se il servizio non risponde entro il timeout, restituisce 429/413 o fallisce all'ultimo tentativo, inoltra il messaggio su `transcription-fallback`.
 7. **Ripiego**: il job di trascrizione (Whisper, solo audio fino a 10 minuti) scrive `.txt` o `.error.json` in `transcripts`. **`EnqueueIndexing`** (Event Grid) salva testo e lingua e scrive su `indexing`, oppure porta il record a "in errore".
-8. **`IndexRecord`** (coda): divide il testo in frammenti, ne calcola gli embedding, li sostituisce in una transazione e porta il record a "pronto".
+8. **`IndexRecord`** (coda): divide il testo in frammenti, ne calcola gli embedding, li sostituisce in una transazione e porta il record a "pronto". Poi scrive il RecordUid su `tagging` (anche per un messaggio duplicato su un record già pronto, così un errore di scrittura sulla coda dopo il salvataggio non fa perdere i tag).
+9. **`TagRecords`** (coda): assegna i tag automatici (vedi [Tag](#tag)).
 
 Dettagli di trascrizione ed embedding in [trascrizione-ai.md](trascrizione-ai.md).
 
@@ -73,7 +75,22 @@ Dettagli di trascrizione ed embedding in [trascrizione-ai.md](trascrizione-ai.md
 
 ## Flusso testo
 
-**`CreateTextRecord`** (HTTP) salva testo, titolo e data nel database e scrive il RecordUid su `indexing`. Da lì prosegue come il punto 8 del flusso audio. Il testo resta nel database, mai su Blob Storage né nelle code.
+**`CreateTextRecord`** (HTTP) salva testo, titolo e data nel database e scrive il RecordUid su `indexing`. Da lì prosegue come i punti 8 e 9 del flusso audio. Il testo resta nel database, mai su Blob Storage né nelle code.
+
+---
+
+## Tag
+
+Tag per utente, con nome (massimo 50 caratteri, univoco per utente) e descrizione facoltativa (massimo 2.000), assegnati in automatico per similarità semantica o a mano dalla pagina del record.
+
+- **Embedding del tag**: calcolato subito dalla Function HTTP (`CreateTag`, `UpdateTag`) su nome e descrizione, alla creazione e quando uno dei due cambia. Se Azure OpenAI non risponde la richiesta fallisce (503) e nulla viene salvato.
+- **Assegnazione automatica** (`TagRecords`, coda `tagging`): un record riceve un tag attivo se almeno uno dei suoi frammenti ha con il tag una similarità coseno pari almeno alla soglia `Tagging__MinSimilarity` (0,4 di partenza, da tarare). Si confrontano solo vettori dello stesso modello già salvati nel database: nessuna chiamata ad Azure OpenAI.
+  - **Per record**: dopo l'indicizzazione, confronto con tutti i tag attivi dell'utente.
+  - **Per tag**: alla creazione, a una modifica di nome o descrizione e alla riattivazione, confronto con tutti i record pronti dell'utente.
+- **Origine dell'assegnazione** (`RecordTags.Source`): `Auto`, `Manual` o `Excluded`. L'assegnazione automatica sostituisce in una transazione solo le righe `Auto`; le manuali restano e un tag tolto dall'utente diventa `Excluded`, quindi non viene riassegnato.
+- **Tag disattivato**: escluso dalle assegnazioni automatiche successive; quelle già fatte restano.
+- **Assegnazione manuale** (`SetRecordTags`, `PUT /records/{uid}/tags`): il client invia tutti i tag visibili della nota. Quelli nuovi si creano prima con `CreateTag`.
+- **Idempotenza**: una riga per coppia (RecordId, TagId); un conflitto tra esecuzioni concorrenti fa riprovare la coda.
 
 ---
 
@@ -91,8 +108,9 @@ Entrambe passano dalla coda di trascrizione, quindi prima Azure AI Speech e poi,
 
 ## Eliminazione
 
-- **`DeleteRecord`** (HTTP): elimina tutti i blob del record, originale compreso, poi le righe (allegati e frammenti a cascata).
-- **`DeleteAccount`** (HTTP, `DELETE /me`): elimina tutti i blob dell'utente (prefisso `<oid>/` in `uploads`, `audio` e `transcripts`, compresi i file rimasti di record già eliminati), poi l'utente applicativo con record, allegati e frammenti a cascata. L'utente in Entra External ID per ora resta: al login successivo trova un account vuoto (vedi [sicurezza-identita.md](sicurezza-identita.md#da-definire)).
+- **`DeleteRecord`** (HTTP): elimina tutti i blob del record, originale compreso, poi le righe (allegati, frammenti e assegnazioni dei tag a cascata).
+- **`DeleteTag`** (HTTP): elimina in una transazione le assegnazioni del tag e il tag; le note restano.
+- **`DeleteAccount`** (HTTP, `DELETE /me`): elimina tutti i blob dell'utente (prefisso `<oid>/` in `uploads`, `audio` e `transcripts`, compresi i file rimasti di record già eliminati), poi le assegnazioni dei tag e l'utente applicativo con record, allegati, frammenti e tag a cascata. L'utente in Entra External ID per ora resta: al login successivo trova un account vuoto (vedi [sicurezza-identita.md](sicurezza-identita.md#da-definire)).
 - Prima i blob, poi il database: se il database fallisce l'utente può riprovare, mentre l'ordine inverso lascerebbe file senza record. Ogni passo è idempotente.
 - **Messaggi in coda**: non vengono rimossi (quelli invisibili, come `upload-expiry`, non si possono leggere). Contengono solo identificativi e URL di blob, e gli handler ignorano i record che non esistono più.
 - I file eliminati restano recuperabili per 14 giorni (soft delete dello storage).
@@ -108,7 +126,7 @@ Entrambe passano dalla coda di trascrizione, quindi prima Azure AI Speech e poi,
 - Ogni passaggio scrive in un contenitore diverso da quello che legge, quindi non ci sono cicli.
 - L'originale non viene mai cancellato né sovrascritto, salvo eliminazione del record o dell'account. Anche i file scartati dalla validazione restano, per poterli analizzare. "Riprova" e rigenerazione eliminano solo i file derivati (copia normalizzata, trascrizione, esiti).
 - Il file di trascrizione su Blob Storage esiste solo quando trascrive il job.
-- Messaggi di coda: solo identificativi o URL di blob (senza SAS), mai testi.
+- Messaggi di coda: solo identificativi o URL di blob (senza SAS), mai testi, nomi o descrizioni dei tag.
 - Idempotenza obbligatoria: Event Grid e code consegnano almeno una volta. Gli handler ignorano i messaggi di record non più "in elaborazione" e le Functions HTTP agiscono solo su record nello stato atteso.
 - Se l'indicizzazione fallisce il testo è già nel database.
 - Nessuna orchestrazione e nessun timer sul database.

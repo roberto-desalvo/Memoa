@@ -8,7 +8,7 @@ public sealed class MemoaDbContext(DbContextOptions<MemoaDbContext> options, Cur
     : DbContext(options)
 {
     /// <summary>
-    /// Nome del filtro globale che limita record, allegati e chunk all'utente autenticato. Senza un
+    /// Nome del filtro globale che limita record, allegati, chunk e tag all'utente autenticato. Senza un
     /// utente (trigger di code ed Event Grid) il filtro non restituisce nulla: quelle funzioni usano
     /// <c>IgnoreQueryFilters([CurrentUserFilter])</c> e filtrano esplicitamente per record.
     /// Il filtro non si applica a SQL scritto a mano.
@@ -23,6 +23,10 @@ public sealed class MemoaDbContext(DbContextOptions<MemoaDbContext> options, Cur
 
     public DbSet<RecordChunk> RecordChunks => Set<RecordChunk>();
 
+    public DbSet<Tag> Tags => Set<Tag>();
+
+    public DbSet<RecordTag> RecordTags => Set<RecordTag>();
+
     // Il filtro deve riferirsi a un membro del contesto per essere valutato a ogni query.
     private Guid? CurrentEntraObjectId => currentUser.EntraObjectId;
 
@@ -36,6 +40,10 @@ public sealed class MemoaDbContext(DbContextOptions<MemoaDbContext> options, Cur
             a => a.Record.User.EntraObjectId == CurrentEntraObjectId);
         modelBuilder.Entity<RecordChunk>().HasQueryFilter(CurrentUserFilter,
             c => c.Record.User.EntraObjectId == CurrentEntraObjectId);
+        modelBuilder.Entity<Tag>().HasQueryFilter(CurrentUserFilter,
+            t => t.User.EntraObjectId == CurrentEntraObjectId);
+        modelBuilder.Entity<RecordTag>().HasQueryFilter(CurrentUserFilter,
+            rt => rt.Record.User.EntraObjectId == CurrentEntraObjectId);
     }
 
     public override int SaveChanges(bool acceptAllChangesOnSuccess)

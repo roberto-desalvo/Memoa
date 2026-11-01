@@ -27,6 +27,7 @@ var normalizationQueueName = 'normalization'
 var transcriptionQueueName = 'transcription'
 var transcriptionFallbackQueueName = 'transcription-fallback'
 var indexingQueueName = 'indexing'
+var taggingQueueName = 'tagging'
 var uploadExpiryQueueName = 'upload-expiry'
 
 var roles = {
@@ -221,6 +222,13 @@ resource indexingQueue 'Microsoft.Storage/storageAccounts/queueServices/queues@2
   name: indexingQueueName
 }
 
+// Scritta dopo l'indicizzazione di un record e alla creazione o modifica di un tag: assegnazione
+// automatica dei tag.
+resource taggingQueue 'Microsoft.Storage/storageAccounts/queueServices/queues@2023-05-01' = {
+  parent: queueService
+  name: taggingQueueName
+}
+
 // Messaggi ritardati scritti alla richiesta del SAS: eliminano i record il cui upload non arriva.
 resource uploadExpiryQueue 'Microsoft.Storage/storageAccounts/queueServices/queues@2023-05-01' = {
   parent: queueService
@@ -341,4 +349,5 @@ output normalizationQueueName string = normalizationQueue.name
 output transcriptionQueueName string = transcriptionQueue.name
 output transcriptionFallbackQueueName string = transcriptionFallbackQueue.name
 output indexingQueueName string = indexingQueue.name
+output taggingQueueName string = taggingQueue.name
 output uploadExpiryQueueName string = uploadExpiryQueue.name

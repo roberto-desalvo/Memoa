@@ -11,9 +11,9 @@ namespace Memoa.Functions.Functions;
 
 /// <summary>
 /// Eliminazione dell'account da parte dell'utente: tutti i suoi blob (prefisso "&lt;oid&gt;/" nei tre
-/// contenitori), poi l'utente applicativo con record, allegati e chunk a cascata, infine l'account di
-/// accesso. I messaggi già in coda non si possono togliere: contengono solo identificativi e URL di blob, e
-/// gli handler ignorano i record che non esistono più.
+/// contenitori), poi le assegnazioni dei tag e l'utente applicativo con record, allegati, chunk e tag a
+/// cascata, infine l'account di accesso. I messaggi già in coda non si possono togliere: contengono solo
+/// identificativi e URL di blob, e gli handler ignorano i record e i tag che non esistono più.
 /// </summary>
 public sealed class DeleteAccountFunction(
     MemoaDbContext db,
@@ -38,6 +38,13 @@ public sealed class DeleteAccountFunction(
         // Prima i blob, come in DeleteRecord: se il database fallisce l'utente resta e può riprovare, mentre
         // il contrario lascerebbe file senza utente. Ogni passo è idempotente.
         await blobs.DeleteUserAsync(entraObjectId, cancellationToken);
+
+        // Nessuna cascata da Tags a RecordTags (vedi RecordTagConfiguration): le assegnazioni vanno eliminate
+        // prima, altrimenti la cascata da Users verso Tags potrebbe fallire.
+        await db.RecordTags
+            .IgnoreQueryFilters([MemoaDbContext.CurrentUserFilter])
+            .Where(rt => rt.Tag.UserId == userId)
+            .ExecuteDeleteAsync(cancellationToken);
 
         await db.Users
             .Where(u => u.Id == userId)

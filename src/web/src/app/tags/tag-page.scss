@@ -1,0 +1,16 @@
+.full {
+  display: block;
+  width: 100%;
+}
+
+form .full + .full {
+  margin-top: var(--space-2);
+}
+
+.records {
+  margin-top: var(--space-5);
+}
+
+.group-label {
+  padding-bottom: var(--space-2);
+}

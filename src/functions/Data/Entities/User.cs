@@ -17,4 +17,6 @@ public sealed class User
     public DateTime CreatedAt { get; set; }
 
     public List<Record> Records { get; set; } = [];
+
+    public List<Tag> Tags { get; set; } = [];
 }

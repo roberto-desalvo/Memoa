@@ -1,5 +1,6 @@
 using Memoa.Functions.Data;
 using Memoa.Functions.Data.Entities;
+using Memoa.Functions.Embeddings;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
@@ -43,10 +44,7 @@ public sealed class SearchFunction(
         }
 
         // Come in IndexRecordFunction: la collezione riporta il modello che ha prodotto il vettore.
-        var embeddings = (await embeddingClient.GenerateEmbeddingsAsync(
-            [query],
-            new EmbeddingGenerationOptions { Dimensions = RecordChunk.EmbeddingDimensions },
-            cancellationToken)).Value;
+        var embeddings = await embeddingClient.GenerateCheckedEmbeddingsAsync([query], cancellationToken);
 
         var model = embeddings.Model;
         var vector = new SqlVector<float>(embeddings[0].ToFloats());

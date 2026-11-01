@@ -74,6 +74,10 @@ builder.Services.AddSingleton(sp =>
     return new AzureOpenAIClient(options.Endpoint, new DefaultAzureCredential())
         .GetEmbeddingClient(options.EmbeddingDeployment);
 });
+builder.Services.AddOptions<TaggingOptions>()
+    .Bind(builder.Configuration.GetSection(TaggingOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
 
 builder.Services.AddOptions<SpeechOptions>()
     .Bind(builder.Configuration.GetSection(SpeechOptions.SectionName))

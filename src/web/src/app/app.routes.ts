@@ -5,11 +5,16 @@ import { Home } from './home/home';
 import { NewNote } from './notes/new-note';
 import { RecordPage } from './records/record-page';
 import { SettingsPage } from './settings/settings-page';
+import { TagPage } from './tags/tag-page';
+import { TagsPage } from './tags/tags-page';
 
 export const routes: Routes = [
   { path: '', component: Home, canActivate: [MsalGuard] },
   { path: 'new/:mode', component: NewNote, canActivate: [MsalGuard] },
   { path: 'records/:recordUid', component: RecordPage, canActivate: [MsalGuard] },
+  { path: 'tags', component: TagsPage, canActivate: [MsalGuard] },
+  { path: 'tags/new', component: TagPage, canActivate: [MsalGuard] },
+  { path: 'tags/:tagUid', component: TagPage, canActivate: [MsalGuard] },
   { path: 'settings', component: SettingsPage, canActivate: [MsalGuard] },
   { path: 'about', component: AboutPage, canActivate: [MsalGuard] },
   { path: '**', redirectTo: '' },

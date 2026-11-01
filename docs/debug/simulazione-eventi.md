@@ -4,7 +4,7 @@
 
 Test manuali delle Functions della pipeline in locale ([backend-elaborazione.md](../project/backend-elaborazione.md)). Configurazione e avvio in [sviluppo-locale.md](sviluppo-locale.md).
 
-Contenuti: [ValidateUpload](#validateupload-file-caricato-nel-contenitore-degli-originali) · [EnqueueTranscription](#enqueuetranscription-esito-della-normalizzazione-nel-contenitore-dellaudio-normalizzato) · [TranscribeRecord](#transcriberecord-coda-di-trascrizione) · [EnqueueIndexing](#enqueueindexing-esito-della-trascrizione-nel-contenitore-delle-trascrizioni) · [IndexRecord](#indexrecord-coda-di-indicizzazione)
+Contenuti: [ValidateUpload](#validateupload-file-caricato-nel-contenitore-degli-originali) · [EnqueueTranscription](#enqueuetranscription-esito-della-normalizzazione-nel-contenitore-dellaudio-normalizzato) · [TranscribeRecord](#transcriberecord-coda-di-trascrizione) · [EnqueueIndexing](#enqueueindexing-esito-della-trascrizione-nel-contenitore-delle-trascrizioni) · [IndexRecord](#indexrecord-coda-di-indicizzazione) · [TagRecords](#tagrecords-coda-dei-tag)
 
 ---
 
@@ -198,10 +198,42 @@ Casi da provare:
 
 | Caso | Come | Risultato atteso |
 |---|---|---|
-| Indicizzazione | Messaggio per un record `Processing` | Record `Ready`, un chunk ogni 2.000 caratteri circa, `EmbeddingModel = text-embedding-3-small` |
-| Duplicato | Reinviare lo stesso messaggio | Messaggio ignorato (record non più `Processing`), chunk invariati |
+| Indicizzazione | Messaggio per un record `Processing` | Record `Ready`, un chunk ogni 2.000 caratteri circa, `EmbeddingModel = text-embedding-3-small`, messaggio `{"recordUid":…}` sulla coda `tagging` |
+| Duplicato | Reinviare lo stesso messaggio | Chunk invariati (record non più `Processing`); il record `Ready` viene riaccodato su `tagging` |
 | Reindicizzazione | Riportare il record a `Processing` e reinviare | Chunk sostituiti, non aggiunti |
 | Record inesistente | `recordUid` casuale | Messaggio ignorato (warning) |
 | Messaggio non valido | Contenuto `abc` in base64 | Messaggio scartato (errore nel log) |
 | Testo vuoto | Record `Processing` con `Text` NULL | Record `Error` con `ErrorCode = indexing_failed` |
 | Tentativi esauriti | `OpenAI__Endpoint` errato in `local.settings.json` | Dopo 5 tentativi record `Error` con `ErrorCode = indexing_failed`, messaggio in `indexing-poison` |
+
+## TagRecords (coda dei tag)
+
+`TagRecords` è attivata dalla coda `tagging`, scritta da `IndexRecord` quando un record diventa pronto e dalle Function HTTP dei tag quando un tag viene creato, cambia nome o descrizione o viene riattivato. Il messaggio è un JSON con uno solo tra `recordUid` e `tagUid`, in base64 come gli altri:
+
+```powershell
+$message = '{"recordUid":"<recordUid>"}'   # oppure '{"tagUid":"<tagUid>"}'
+az storage message put --auth-mode login --account-name <storage-dati-dev> `
+  --queue-name tagging --content ([Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($message)))
+```
+
+Verificare il risultato nel database (la soglia è `Tagging__MinSimilarity`, predefinita 0,4):
+
+```sql
+SELECT r.RecordUid, t.TagUid, t.IsActive, rt.Source, rt.Similarity
+FROM RecordTags rt
+JOIN Records r ON r.Id = rt.RecordId
+JOIN Tags t ON t.Id = rt.TagId
+WHERE r.RecordUid = '<recordUid>' OR t.TagUid = '<tagUid>';
+```
+
+Casi da provare:
+
+| Caso | Come | Risultato atteso |
+|---|---|---|
+| Record | Messaggio per un record `Ready` | Righe `Auto` per i tag attivi con similarità ≥ soglia |
+| Tag | Messaggio per un tag attivo | Righe `Auto` per tutti i record `Ready` simili dell'utente |
+| Scelte dell'utente | Riga `Manual` o `Excluded`, poi reinviare | Righe invariate: nessuna riga `Auto` per quella coppia |
+| Tag disattivato | `IsActive = 0`, poi messaggio per un record | Le righe `Auto` del tag restano, nessuna nuova |
+| Duplicato | Reinviare lo stesso messaggio | Stesse righe, nessun duplicato |
+| Record non pronto | Record `Processing` | Messaggio ignorato |
+| Messaggio non valido | Contenuto `abc` o `{}` | Messaggio scartato (errore nel log) |

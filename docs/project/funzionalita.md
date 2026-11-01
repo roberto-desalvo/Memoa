@@ -63,7 +63,8 @@ Contenuti: [Account](#account) · [Contenuti in ingresso](#contenuti-in-ingresso
 | Ricerca semantica | Ricerca per significato, anche tra lingue diverse (es. query in inglese su note in italiano), dalla homepage: restituisce i frammenti più simili (al massimo 10), ciascuno con il collegamento alla nota. | core | ✅ |
 | Domande sui record (Q&A/RAG) | Risposta in linguaggio naturale con rimando ai record di origine. | avanzata | ⬜ |
 | Riassunti periodici | Riassunti generati periodicamente. | avanzata | ⬜ |
-| Categorie e tag | Categorie e tag liberi. | avanzata | ⬜ |
+| Tag | Tag dell'utente con nome e descrizione (massimo 2.000 caratteri), gestiti dalla pagina Tag: modifica, eliminazione, elenco delle note e interruttore per disattivarli. Assegnati in automatico per similarità semantica tra tag e testo della nota, oppure a mano dalla pagina del record (anche creando un tag nuovo). Un tag tolto a mano non viene riassegnato in automatico. | avanzata | ✅ |
+| Categorie | Categorie delle note. | avanzata | ⬜ |
 
 ---
 

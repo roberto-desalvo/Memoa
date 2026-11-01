@@ -34,8 +34,8 @@ Contenuti: [App](#app) · [Installazione e service worker](#installazione-e-serv
 
 ## Struttura
 
-- Angular 22, componenti standalone, una cartella per funzionalità in `src/web/src/app`: `auth`, `config`, `home`, `notes`, `recording`, `records`, `settings`, `uploads`.
-- **Route**: `/` (elenco), `/new/:mode` (nuova nota), `/records/:recordUid`, `/settings`. Tutte protette da `MsalGuard`.
+- Angular 22, componenti standalone, una cartella per funzionalità in `src/web/src/app`: `auth`, `config`, `home`, `notes`, `recording`, `records`, `settings`, `tags`, `uploads`.
+- **Route**: `/` (elenco), `/new/:mode` (nuova nota), `/records/:recordUid`, `/tags`, `/tags/new`, `/tags/:tagUid`, `/settings`, `/about`. Tutte protette da `MsalGuard`.
 - **Autenticazione**: MSAL (`@azure/msal-angular`) con login a redirect sul tenant Entra External ID dell'ambiente. `MsalInterceptor` aggiunge il token solo alle chiamate verso le Functions, mai verso lo storage.
 - **Configurazione**: letta a runtime da `config.json` (URL delle Functions, authority, client ID, scope, durata massima degli audio). La stessa build vale per dev e prod. Il file è generato dalla pipeline per ogni ambiente.
 - **Durata massima degli audio** (`maxAudioDurationMinutes`, oggi 30 minuti): si imposta in un solo punto, il parametro Bicep `maxAudioDurationMinutes`, che diventa l'impostazione `Audio__MaxDurationMinutes` delle Functions (usata dalla normalizzazione). La pipeline del frontend la legge dalla Function App e la scrive in `config.json`. In locale va riportata a mano in `local.settings.json` e in `public/config.json`.
@@ -77,6 +77,7 @@ Contenuti: [App](#app) · [Installazione e service worker](#installazione-e-serv
 - La lista resta in memoria tra le pagine e viene sostituita solo se cambia. Un errore durante il polling lascia la lista com'è.
 - Nessuna risorsa aggiuntiva. Ritardo pari all'intervallo, funziona solo con l'app aperta.
 - Costo: poche decine di migliaia di esecuzioni al mese, dentro il grant di Flex Consumption.
+- I tag automatici arrivano dopo lo stato "pronto": la pagina del record si ricarica una sola volta, 5 secondi dopo il passaggio a "pronto".
 - Web Push, combinabile con il polling, è da valutare in seguito: avvisa anche ad app chiusa, senza costi Azure, ma su iOS solo con app installata. Inviare solo identificativi.
 
 ---

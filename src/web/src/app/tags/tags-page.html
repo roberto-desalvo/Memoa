@@ -1,0 +1,58 @@
+<mat-toolbar class="page-header">
+  <a mat-icon-button routerLink="/" aria-label="Torna alle note">
+    <mat-icon svgIcon="back" />
+  </a>
+  <h1>Tag</h1>
+</mat-toolbar>
+
+@if (tags(); as tags) {
+  @if (tags.length === 0) {
+    <div class="page-state">
+      <mat-icon svgIcon="tag" />
+      <h2 class="text-body strong">Nessun tag</h2>
+      <p class="text-secondary muted">
+        Crea un tag con una descrizione di cosa rappresenta: verrà assegnato in automatico alle note
+        che ne parlano.
+      </p>
+      <a mat-flat-button routerLink="/tags/new">Nuovo tag</a>
+    </div>
+  } @else {
+    <div class="actions top">
+      <a mat-flat-button routerLink="/tags/new">Nuovo tag</a>
+    </div>
+    <ul class="note-list">
+      @for (tag of tags; track tag.tagUid) {
+        <li class="tag-item">
+          <a class="note-link tag-link" [routerLink]="['/tags', tag.tagUid]">
+            <span class="title strong" [class.muted]="!tag.isActive">{{ tag.name }}</span>
+            @if (tag.description) {
+              <span class="description text-secondary muted">{{ tag.description }}</span>
+            }
+            <span class="text-label muted">
+              {{ countLabel(tag.recordCount) }}{{ tag.isActive ? '' : ' · Disattivato' }}
+            </span>
+          </a>
+          <mat-slide-toggle
+            class="toggle"
+            [checked]="tag.isActive"
+            [disabled]="toggling().has(tag.tagUid)"
+            [attr.aria-label]="'Assegnazione automatica di ' + tag.name"
+            (change)="setActive(tag, $event.checked)"
+          />
+        </li>
+      }
+    </ul>
+    <p class="hint text-secondary muted">
+      Con l’interruttore spento il tag non viene più assegnato in automatico alle nuove note.
+    </p>
+  }
+} @else if (loadFailed()) {
+  <div class="page-state" role="alert">
+    <p class="error"><mat-icon svgIcon="error" />Impossibile caricare i tag.</p>
+    <button mat-flat-button (click)="load()">Riprova</button>
+  </div>
+} @else {
+  <div class="page-state" aria-live="polite">
+    <mat-spinner diameter="32" aria-label="Caricamento dei tag" />
+  </div>
+}

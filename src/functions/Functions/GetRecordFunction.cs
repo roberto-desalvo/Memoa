@@ -19,6 +19,7 @@ public sealed class GetRecordFunction(MemoaDbContext db)
         var record = await db.Records
             .AsNoTracking()
             .Include(r => r.Attachments)
+            .IncludeTags()
             .SingleOrDefaultAsync(r => r.RecordUid == recordUid, cancellationToken);
 
         return record is null

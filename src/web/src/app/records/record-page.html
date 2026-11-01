@@ -64,6 +64,10 @@
         <mat-icon svgIcon="write" />
         <span>Modifica</span>
       </button>
+      <button mat-menu-item (click)="editTags(record)">
+        <mat-icon svgIcon="tag" />
+        <span>Tag</span>
+      </button>
     }
   }
   @if (record()?.canRegenerateTranscript) {
@@ -137,6 +141,24 @@
         <span class="status failed"><mat-icon svgIcon="error" />Errore nell’elaborazione</span>
       }
     </div>
+
+    @if (record.tags?.length) {
+      <mat-chip-set class="tags" aria-label="Tag della nota">
+        @for (tag of record.tags; track tag.tagUid) {
+          <mat-chip>
+            @if (tag.isAutomatic) {
+              <mat-icon
+                matChipAvatar
+                svgIcon="auto"
+                aria-hidden="false"
+                aria-label="Assegnato in automatico:"
+              />
+            }
+            {{ tag.name }}
+          </mat-chip>
+        }
+      </mat-chip-set>
+    }
 
     <!-- Un record in errore si apre comunque: sotto resta ciò che è stato ottenuto (audio, testo). -->
     @if (record.status === 'Error') {

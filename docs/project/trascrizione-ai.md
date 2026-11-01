@@ -43,7 +43,8 @@ Contenuti: [Trascrizione](#trascrizione) · [Ripiego con Whisper](#ripiego-con-w
 - **Chi li calcola**: le Functions, non i job, perché anche la query di ricerca va trasformata in vettore in tempo reale.
 - **Frammenti**: `IndexRecord` divide il testo in frammenti di massimo 2.000 caratteri (circa 500-700 token), tagliati preferibilmente a fine paragrafo, riga o frase, con circa 200 caratteri di sovrapposizione. Ogni frammento ha il proprio embedding in `RecordChunks`.
 - **Vettori**: 1.536 dimensioni, colonna `vector(1536)`. Accanto a ogni vettore si salva il modello restituito dal servizio: cambiarlo richiede di ricalcolare tutti i vettori. Versione del modello fissata (`NoAutoUpgrade`).
-- **Ricerca**: esatta con `VECTOR_DISTANCE`, senza indici vettoriali. Da implementare.
+- **Ricerca**: esatta con `VECTOR_DISTANCE`, senza indici vettoriali, con similarità minima 0,3.
+- **Tag**: lo stesso modello calcola l'embedding di nome e descrizione di ogni tag. Un tag si assegna a un record se almeno un frammento ha similarità coseno pari almeno a `Tagging__MinSimilarity` (0,4 di partenza, da tarare sulle note reali: tra lingue diverse le similarità sono più basse). Dettagli in [backend-elaborazione.md](backend-elaborazione.md#tag).
 - **Autenticazione**: solo Entra ID, ruolo Cognitive Services OpenAI User.
 - **Costo**: 0,02 $ per milione di token, pochi centesimi al mese.
 

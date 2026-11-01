@@ -33,6 +33,10 @@
     <p class="account text-secondary muted">{{ accountName }}</p>
     <mat-divider />
   }
+  <a mat-menu-item routerLink="/tags">
+    <mat-icon svgIcon="tag" />
+    <span>Tag</span>
+  </a>
   <a mat-menu-item routerLink="/settings">
     <mat-icon svgIcon="settings" />
     <span>Impostazioni</span>
@@ -85,6 +89,7 @@
                       [status]="record.status"
                       [detail]="record.occurredAt | noteDate: (group.recent ? 'time' : 'dayMonth')"
                       [text]="record.excerpt"
+                      [tags]="record.tags"
                       [hideSide]="single() && isSelected(record)"
                     />
                   </a>

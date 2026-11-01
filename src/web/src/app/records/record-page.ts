@@ -16,6 +16,7 @@ import {
 import { HttpErrorResponse } from '@angular/common/http';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
+import { MatChipsModule } from '@angular/material/chips';
 import { MatDialog } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
@@ -37,12 +38,19 @@ import {
 import { RecordsStore } from './records-store';
 import { SearchState } from '../search/search-state';
 import { DELETE_NOTE_DIALOG, openConfirmDialog } from '../shared/confirm-dialog';
+import { openRecordTagsDialog } from '../tags/record-tags-dialog';
 
 /**
  * Intervallo del polling di un record in elaborazione: breve, perché l'avanzamento dei passi sembri in
  * tempo reale. Il controllo successivo parte solo dopo la risposta, quindi le richieste non si sovrappongono.
  */
 const POLL_INTERVAL_MS = 1_000;
+
+/**
+ * Attesa della ricarica dopo che il record è diventato pronto: i tag automatici si assegnano subito dopo
+ * l'indicizzazione, quindi arrivano qualche istante dopo lo stato "pronto".
+ */
+const TAGS_RELOAD_DELAY_MS = 5_000;
 
 /** Passi dell'elaborazione mostrati nella pagina, nell'ordine in cui avvengono. */
 const AUDIO_STEPS: readonly ProcessingStep[] = ['Preparing', 'Transcribing', 'Indexing'];
@@ -104,6 +112,7 @@ function foldText(text: string): FoldedText {
     NoteDatePipe,
     MatButtonModule,
     MatCardModule,
+    MatChipsModule,
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
@@ -256,6 +265,7 @@ export class RecordPage implements OnInit, OnDestroy {
 
   private destroyed = false;
   private timer?: ReturnType<typeof setTimeout>;
+  private tagsTimer?: ReturnType<typeof setTimeout>;
 
   private readonly onVisibilityChange = () => {
     if (document.visibilityState === 'visible') {
@@ -286,6 +296,7 @@ export class RecordPage implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.destroyed = true;
     clearTimeout(this.timer);
+    clearTimeout(this.tagsTimer);
     document.removeEventListener('visibilitychange', this.onVisibilityChange);
   }
 
@@ -337,7 +348,27 @@ export class RecordPage implements OnInit, OnDestroy {
       // La lista in memoria resta coerente senza attendere il suo polling.
       this.store.replace(record);
     }
+    if (previous?.status === 'Processing' && record.status === 'Ready') {
+      this.scheduleTagsReload();
+    }
     this.schedule();
+  }
+
+  /** Una sola ricarica, per mostrare i tag assegnati in automatico dopo l'indicizzazione. */
+  private scheduleTagsReload(): void {
+    clearTimeout(this.tagsTimer);
+    this.tagsTimer = setTimeout(async () => {
+      try {
+        const record = await firstValueFrom(this.api.get(this.recordUid()));
+        if (!this.destroyed && !this.editing()) {
+          this.record.set(record);
+          this.store.replace(record);
+        }
+      } catch (err) {
+        // I tag compariranno alla prossima apertura della pagina.
+        console.error('Aggiornamento dei tag non riuscito', err);
+      }
+    }, TAGS_RELOAD_DELAY_MS);
   }
 
   private schedule(): void {
@@ -458,6 +489,15 @@ export class RecordPage implements OnInit, OnDestroy {
       );
     } finally {
       this.busy.set(false);
+    }
+  }
+
+  /** Scelta dei tag della nota; la pagina e la lista mostrano subito quelli salvati. */
+  protected async editTags(record: RecordDetail): Promise<void> {
+    const updated = await openRecordTagsDialog(this.dialog, record);
+    if (updated && !this.destroyed) {
+      this.record.set(updated);
+      this.store.replace(updated);
     }
   }
 

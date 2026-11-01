@@ -4,7 +4,7 @@
 
 Tabelle di Azure SQL Database (EF Core 10). Scelte su database e migration in [dati.md](dati.md). Il codice di riferimento è in `src/functions/Data` (entità in `Entities`, configurazioni in `Configurations`).
 
-Contenuti: [Convenzioni](#convenzioni) · [Users](#users) · [Records](#records) · [Attachments](#attachments) · [RecordChunks](#recordchunks) · [Relazioni e indici](#relazioni-e-indici)
+Contenuti: [Convenzioni](#convenzioni) · [Users](#users) · [Records](#records) · [Attachments](#attachments) · [RecordChunks](#recordchunks) · [Tags](#tags) · [RecordTags](#recordtags) · [Relazioni e indici](#relazioni-e-indici)
 
 ---
 
@@ -13,8 +13,8 @@ Contenuti: [Convenzioni](#convenzioni) · [Users](#users) · [Records](#records)
 - **Chiavi primarie** `int identity`, solo interne al database. Verso l'esterno (blob, code, log, client) si usa solo `RecordUid`.
 - **Enum** salvati come stringhe (varchar). **Date** in UTC (datetime2): `CreatedAt` all'inserimento, `UpdatedAt` a ogni salvataggio.
 - **Cancellazione fisica** con cascata, nessun soft delete nel database. I file su Blob Storage vanno cancellati a parte.
-- **Filtro globale** `CurrentUserFilter` su `Records`, `Attachments` e `RecordChunks`: le query restituiscono solo i dati dell'utente autenticato. Le Functions attivate da code ed Event Grid non hanno un utente: usano `IgnoreQueryFilters([CurrentUserFilter])` e filtrano per record. Il filtro non si applica a SQL scritto a mano.
-- **Dati personali** (`Email`, `Title`, `Text`, `OriginalTranscript`, `Content`): mai nei log, sempre inclusi in esportazione e cancellazione.
+- **Filtro globale** `CurrentUserFilter` su `Records`, `Attachments`, `RecordChunks`, `Tags` e `RecordTags`: le query restituiscono solo i dati dell'utente autenticato. Le Functions attivate da code ed Event Grid non hanno un utente: usano `IgnoreQueryFilters([CurrentUserFilter])` e filtrano per record. Il filtro non si applica a SQL scritto a mano.
+- **Dati personali** (`Email`, `Title`, `Text`, `OriginalTranscript`, `Content`, `Name` e `Description` dei tag): mai nei log, sempre inclusi in esportazione e cancellazione.
 
 ---
 
@@ -90,6 +90,39 @@ I chunk esistono solo dopo un'indicizzazione completata: `IndexRecord` li sostit
 
 ---
 
+## Tags
+
+Tag dell'utente ([backend-elaborazione.md](backend-elaborazione.md#tag)).
+
+| Colonna | Tipo | Note |
+|---|---|---|
+| Id | int identity, PK | |
+| TagUid | uniqueidentifier, univoco | Identificativo pubblico, GUID v7. |
+| UserId | int, FK → Users | |
+| Name | nvarchar(50) | Univoco per utente. |
+| Description | nvarchar(2000), null | Usata con il nome per l'embedding. |
+| IsActive | bit | Se falso il tag non viene più assegnato in automatico. |
+| Embedding | vector(1536) | Embedding di nome e descrizione, ricalcolato quando cambiano. |
+| EmbeddingModel | varchar(100) | Si confronta solo con chunk dello stesso modello. |
+| CreatedAt, UpdatedAt | datetime2 | |
+| RowVersion | rowversion | |
+
+---
+
+## RecordTags
+
+Assegnazione di un tag a un record, oppure la sua esclusione.
+
+| Colonna | Tipo | Note |
+|---|---|---|
+| RecordId | int, FK → Records, PK | |
+| TagId | int, FK → Tags, PK | |
+| Source | varchar(20) | `Auto` (per similarità, ricalcolata) / `Manual` (scelta dall'utente) / `Excluded` (tolta dall'utente, non riassegnata). |
+| Similarity | float, null | Solo per `Auto`. |
+| CreatedAt | datetime2 | |
+
+---
+
 ## Relazioni e indici
 
 | Elemento | Definizione |
@@ -97,8 +130,13 @@ I chunk esistono solo dopo un'indicizzazione completata: `IndexRecord` li sostit
 | Users → Records | 1 → N, cascata |
 | Records → Attachments | 1 → N, cascata |
 | Records → RecordChunks | 1 → N, cascata |
+| Users → Tags | 1 → N, cascata |
+| Records → RecordTags | 1 → N, cascata |
+| Tags → RecordTags | 1 → N, **senza cascata** (SQL Server non accetta due percorsi di cascata da Users): le righe si eliminano prima del tag e prima dell'utente |
 | Indice univoco | `Users (EntraObjectId)` |
 | Indice univoco | `Records (RecordUid)`: ricerca dalla pipeline, inserimento idempotente |
 | Indice | `Records (UserId, OccurredAt)`: vista elenco |
 | Indice | `Attachments (RecordId)`, per convenzione sulla chiave esterna |
 | Indice univoco | `RecordChunks (RecordId, ChunkIndex)`: nessun duplicato se due indicizzazioni si sovrappongono |
+| Indice univoco | `Tags (TagUid)`, `Tags (UserId, Name)` |
+| Chiave primaria | `RecordTags (RecordId, TagId)`, più l'indice `RecordTags (TagId)` |

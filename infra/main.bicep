@@ -229,6 +229,7 @@ module functionApp 'modules/function-app.bicep' = {
     transcriptionQueueName: dataStorage.outputs.transcriptionQueueName
     transcriptionFallbackQueueName: dataStorage.outputs.transcriptionFallbackQueueName
     indexingQueueName: dataStorage.outputs.indexingQueueName
+    taggingQueueName: dataStorage.outputs.taggingQueueName
     uploadExpiryQueueName: dataStorage.outputs.uploadExpiryQueueName
     sqlConnectionString: sql.outputs.managedIdentityConnectionStringPrefix
     openAiEndpoint: openAi.outputs.endpoint

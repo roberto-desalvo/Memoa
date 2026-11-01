@@ -30,6 +30,7 @@ public sealed class UpdateRecordFunction(MemoaDbContext db, ILogger<UpdateRecord
         // Il filtro globale restituisce solo i record dell'utente autenticato.
         var record = await db.Records
             .Include(r => r.Attachments)
+            .IncludeTags()
             .SingleOrDefaultAsync(r => r.RecordUid == recordUid, cancellationToken);
 
         if (record is null)

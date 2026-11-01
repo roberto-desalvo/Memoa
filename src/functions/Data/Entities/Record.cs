@@ -50,6 +50,9 @@ public sealed class Record
     public List<Attachment> Attachments { get; set; } = [];
 
     public List<RecordChunk> Chunks { get; set; } = [];
+
+    /// <summary>Tag assegnati ed esclusi (<see cref="RecordTagSource"/>).</summary>
+    public List<RecordTag> Tags { get; set; } = [];
 }
 
 public enum SourceType

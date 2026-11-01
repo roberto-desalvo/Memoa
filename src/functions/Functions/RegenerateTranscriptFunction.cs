@@ -37,6 +37,7 @@ public sealed class RegenerateTranscriptFunction(
         var record = await db.Records
             .Include(r => r.User)
             .Include(r => r.Attachments)
+            .IncludeTags()
             .SingleOrDefaultAsync(r => r.RecordUid == recordUid, cancellationToken);
 
         if (record is null)

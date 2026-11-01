@@ -104,7 +104,18 @@ function toSummary(record: RecordSummary | RecordDetail): RecordSummary {
   const excerpt =
     'text' in record ? (record.text?.slice(0, EXCERPT_LENGTH) ?? null) : (record.excerpt ?? null);
   const durationSeconds = record.durationSeconds ?? null;
-  return { recordUid, title, occurredAt, sourceType, status, canRetry, excerpt, durationSeconds };
+  const tags = record.tags ?? [];
+  return {
+    recordUid,
+    title,
+    occurredAt,
+    sourceType,
+    status,
+    canRetry,
+    excerpt,
+    durationSeconds,
+    tags,
+  };
 }
 
 function sameRecords(current: RecordSummary[] | null, next: RecordSummary[]): boolean {

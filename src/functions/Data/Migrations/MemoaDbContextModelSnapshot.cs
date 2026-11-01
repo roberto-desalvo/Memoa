@@ -181,6 +181,91 @@ namespace Memoa.Functions.Data.Migrations
                     b.ToTable("RecordChunks");
                 });
 
+            modelBuilder.Entity("Memoa.Functions.Data.Entities.RecordTag", b =>
+                {
+                    b.Property<int>("RecordId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TagId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<double?>("Similarity")
+                        .HasColumnType("float");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
+
+                    b.HasKey("RecordId", "TagId");
+
+                    b.HasIndex("TagId");
+
+                    b.ToTable("RecordTags");
+                });
+
+            modelBuilder.Entity("Memoa.Functions.Data.Entities.Tag", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<SqlVector<float>>("Embedding")
+                        .HasColumnType("vector(1536)");
+
+                    b.Property<string>("EmbeddingModel")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<Guid>("TagUid")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TagUid")
+                        .IsUnique();
+
+                    b.HasIndex("UserId", "Name")
+                        .IsUnique();
+
+                    b.ToTable("Tags");
+                });
+
             modelBuilder.Entity("Memoa.Functions.Data.Entities.User", b =>
                 {
                     b.Property<int>("Id")
@@ -247,16 +332,55 @@ namespace Memoa.Functions.Data.Migrations
                     b.Navigation("Record");
                 });
 
+            modelBuilder.Entity("Memoa.Functions.Data.Entities.RecordTag", b =>
+                {
+                    b.HasOne("Memoa.Functions.Data.Entities.Record", "Record")
+                        .WithMany("Tags")
+                        .HasForeignKey("RecordId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Memoa.Functions.Data.Entities.Tag", "Tag")
+                        .WithMany("RecordTags")
+                        .HasForeignKey("TagId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("Record");
+
+                    b.Navigation("Tag");
+                });
+
+            modelBuilder.Entity("Memoa.Functions.Data.Entities.Tag", b =>
+                {
+                    b.HasOne("Memoa.Functions.Data.Entities.User", "User")
+                        .WithMany("Tags")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Memoa.Functions.Data.Entities.Record", b =>
                 {
                     b.Navigation("Attachments");
 
                     b.Navigation("Chunks");
+
+                    b.Navigation("Tags");
+                });
+
+            modelBuilder.Entity("Memoa.Functions.Data.Entities.Tag", b =>
+                {
+                    b.Navigation("RecordTags");
                 });
 
             modelBuilder.Entity("Memoa.Functions.Data.Entities.User", b =>
                 {
                     b.Navigation("Records");
+
+                    b.Navigation("Tags");
                 });
 #pragma warning restore 612, 618
         }

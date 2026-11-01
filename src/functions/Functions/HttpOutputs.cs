@@ -32,6 +32,20 @@ public sealed class HttpWithTranscriptionOutput
 }
 
 /// <summary>
+/// Risposta HTTP più l'eventuale messaggio per la coda dei tag
+/// (<see cref="Memoa.Functions.Tagging.TaggingRequest"/> in JSON), letta da <see cref="TagRecordsFunction"/>.
+/// Con un messaggio null non si accoda nulla.
+/// </summary>
+public sealed class HttpWithTaggingOutput
+{
+    [HttpResult]
+    public required IActionResult Result { get; init; }
+
+    [QueueOutput("%Queues:Tagging%", Connection = "DataStorage")]
+    public string? TaggingMessage { get; init; }
+}
+
+/// <summary>
 /// Risposta di <see cref="RetryRecordFunction"/>: al più uno dei messaggi, secondo il punto da cui
 /// riparte l'elaborazione.
 /// </summary>

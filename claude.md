@@ -17,7 +17,7 @@ Il documento delle decisioni (`docs/project.md`, indice dei file in `docs/projec
 
 - **Non prendere decisioni architetturali.** Se un task richiede una scelta non documentata (nuova risorsa Azure, nuova libreria importante, cambio di flusso, nuova dipendenza a pagamento), fermati, presenta le opzioni con pro, contro e costi, e chiedi.
 - Non aggiungere risorse o servizi Azure a pagamento senza conferma esplicita.
-- Non modificare `docs/project.md` né i file in `docs/project/`: le decisioni le registra l'utente.
+- Quando implementi qualcosa puoi aggiornare `docs/project.md` e i file in `docs/project/` per allinearli a ciò che hai realizzato o a ciò che l'utente ha deciso. **Segnala sempre all'utente** quali file di documentazione hai modificato e cosa hai cambiato. Non registrare decisioni che l'utente non ha preso: se una scelta non è documentata, chiedi prima (vedi sopra).
 - Preferisci modifiche piccole e verificabili. Spiega cosa hai cambiato e perché.
 
 ## Stack
@@ -53,7 +53,8 @@ Il documento delle decisioni (`docs/project.md`, indice dei file in `docs/projec
 5. Evento "blob creato" → Function: per la copia `.opus` salva durata e percorso nel database e scrive sulla **coda di trascrizione**; per l'esito `.error.json` porta il record a "in errore".
 6. **Function di trascrizione** (attivata dalla coda di trascrizione): invia la copia normalizzata ad **Azure AI Speech** (fast transcription), con timeout di 30 secondi più 10 secondi per minuto di audio, salva testo (in `Text` e `OriginalTranscript`) e lingua **direttamente nel database**, senza file su Blob Storage, e scrive l'identificativo sulla **coda di indicizzazione**.
 7. **Ripiego**: se Azure AI Speech non risponde entro il timeout o si superano i limiti, la Function scrive invece il messaggio sulla **coda di ripiego** (`transcription-fallback`), che avvia il **job di trascrizione** con Whisper self-hosted. Il job accetta solo registrazioni fino a 10 minuti (le più lunghe vengono rifiutate) e scrive il file di testo nel contenitore delle **trascrizioni**. Evento "blob creato" → Function: per la trascrizione `<oid>/<RecordUid>.txt` salva testo e lingua nel database e scrive l'identificativo sulla coda di indicizzazione; per l'esito `<oid>/<RecordUid>.error.json` porta il record a "in errore".
-8. **Function di indicizzazione**: legge il testo dal database, lo divide in frammenti, calcola l'embedding di ciascun frammento, sostituisce in una transazione i frammenti del record e salva lo stato "pronto".
+8. **Function di indicizzazione**: legge il testo dal database, lo divide in frammenti, calcola l'embedding di ciascun frammento, sostituisce in una transazione i frammenti del record e salva lo stato "pronto"; poi scrive l'identificativo sulla **coda dei tag** (`tagging`).
+9. **Function dei tag** (attivata dalla coda dei tag): assegna i tag automatici al record (vedi [Tag](#tag)).
 
 La rigenerazione della trascrizione e il "riprova" seguono lo stesso percorso: coda di trascrizione, prima Azure AI Speech, poi eventualmente il ripiego.
 
@@ -61,9 +62,15 @@ La rigenerazione della trascrizione e il "riprova" seguono lo stesso percorso: c
 
 La Function HTTP salva il testo, con titolo e data della nota, nel database e, parallelamente, scrive sulla coda di indicizzazione. Il testo dei record resta nel database (non su Blob Storage).
 
+### Tag
+
+- Tag per utente nel database, con nome e descrizione (massimo 2.000 caratteri) e un interruttore attivo/disattivo. L'embedding di nome e descrizione lo calcola subito la Function HTTP, alla creazione e a ogni modifica di nome o descrizione.
+- **Assegnazione automatica** dalla coda `tagging` (messaggio: RecordUid oppure TagUid): un record riceve un tag attivo se almeno un suo frammento ha similarità coseno pari almeno alla soglia globale `Tagging__MinSimilarity`. Solo confronti SQL tra vettori dello stesso modello, nessuna chiamata ad Azure OpenAI. Un tag creato, modificato o riattivato viene accodato e applicato ai record esistenti.
+- **Origine dell'assegnazione**: automatica (ricalcolata), manuale (dalla pagina del record, mai toccata dall'automatica) o esclusa (tolta dall'utente, mai riassegnata). Un tag disattivato conserva le assegnazioni esistenti.
+
 ### Regole dell'architettura (vincolanti)
 
-- **Solo le Functions scrivono nel database e sulla coda di indicizzazione.**
+- **Solo le Functions scrivono nel database e sulle code di indicizzazione e dei tag.**
 - Il job di trascrizione legge **solo la propria coda** (ripiego della trascrizione), non scrive su nessuna coda né nel database, e scrive **solo su Blob Storage**.
 - La Function di normalizzazione scrive solo nel contenitore dell'audio normalizzato (copia o esito di errore), non nel database né sulle code: il flusso prosegue dall'evento "blob creato". Una sola normalizzazione alla volta per istanza (spazio temporaneo di Flex Consumption: 0,8 GB).
 - La coda di trascrizione la legge solo la Function; il job di trascrizione ascolta solo la coda di ripiego.
@@ -124,7 +131,7 @@ La Function HTTP salva il testo, con titolo e data della nota, nel database e, p
 - Conservazione dei file di trascrizione dopo il salvataggio nel database.
 - Gestione degli eventi Event Grid non consegnati.
 - Eliminazione dell'utente da Entra External ID quando l'utente elimina l'account (autenticazione delle Functions su Microsoft Graph nel tenant esterno).
-- Funzionalità avanzate (immagini con OCR/HTR, video, Q&A, riassunti, categorie, tag) e relativi modelli.
+- Funzionalità avanzate (immagini con OCR/HTR, video, Q&A, riassunti, categorie) e relativi modelli.
 
 Se un task tocca uno di questi punti, chiedi prima di procedere.
 

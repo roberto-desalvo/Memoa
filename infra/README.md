@@ -15,7 +15,7 @@ Bicep per tutto ciò che lo supporta; qui sotto i passi manuali per il resto.
 | `modules/identities.bicep` | RG | Identità user-assigned di Functions e job di trascrizione |
 | `modules/monitoring.bicep` | RG | Log Analytics (limite giornaliero, 30 giorni) + Application Insights |
 | `modules/static-web-app.bicep` | RG | Static Web Apps Free |
-| `modules/data-storage.bicep` | RG | Storage dati GRS: container `uploads` (originali) / `audio` (normalizzato) / `transcripts`, code `normalization` / `transcription` / `transcription-fallback` / `indexing` / `upload-expiry`, system topic Event Grid, soft delete 14 gg, versioning, lifecycle, blocco CanNotDelete; ruoli del job limitati ai propri contenitori e alla propria coda |
+| `modules/data-storage.bicep` | RG | Storage dati GRS: container `uploads` (originali) / `audio` (normalizzato) / `transcripts`, code `normalization` / `transcription` / `transcription-fallback` / `indexing` / `tagging` / `upload-expiry`, system topic Event Grid, soft delete 14 gg, versioning, lifecycle, blocco CanNotDelete; ruoli del job limitati ai propri contenitori e alla propria coda |
 | `modules/event-subscriptions.bicep` | RG | Sottoscrizioni Event Grid "blob creato", una per contenitore, verso le Functions `ValidateUpload`, `EnqueueTranscription`, `EnqueueIndexing` (solo con `deployEventSubscriptions = true`) |
 | `modules/key-vault.bicep` | RG | Key Vault (RBAC) con il token GHCR, leggibile solo dall'identità del job di trascrizione |
 | `modules/sql.bicep` | RG del server SQL | Database con offerta gratuita su un server esistente condiviso (il server non è gestito da qui) |

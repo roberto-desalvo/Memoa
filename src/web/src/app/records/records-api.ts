@@ -24,6 +24,15 @@ export interface RecordSummary {
   excerpt?: string | null;
   /** Durata dell'audio in secondi, null senza audio o finché non è normalizzato. Facoltativa come excerpt. */
   durationSeconds?: number | null;
+  /** Tag assegnati, in ordine di nome. Facoltativi come excerpt. */
+  tags?: RecordTag[];
+}
+
+/** Tag assegnato a un record, in automatico (per similarità) o dall'utente. */
+export interface RecordTag {
+  tagUid: string;
+  name: string;
+  isAutomatic: boolean;
 }
 
 /** Lunghezza dell'estratto nella lista, uguale a quella delle Functions (ListRecordsFunction). */
@@ -99,5 +108,13 @@ export class RecordsApi {
   /** Rifà la trascrizione automatica dalla copia normalizzata; sostituisce il testo corrente. */
   regenerateTranscript(recordUid: string): Observable<RecordDetail> {
     return this.http.post<RecordDetail>(`${this.baseUrl}/${recordUid}/transcript/regenerate`, null);
+  }
+
+  /**
+   * Tutti i tag che il record deve mostrare: quelli aggiunti diventano manuali, quelli tolti non vengono
+   * più assegnati in automatico.
+   */
+  setTags(recordUid: string, tagUids: string[]): Observable<RecordDetail> {
+    return this.http.put<RecordDetail>(`${this.baseUrl}/${recordUid}/tags`, { tagUids });
   }
 }

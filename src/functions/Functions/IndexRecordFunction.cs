@@ -2,6 +2,7 @@ using Azure.Storage.Queues.Models;
 using Memoa.Functions.Data;
 using Memoa.Functions.Data.Entities;
 using Memoa.Functions.Embeddings;
+using Memoa.Functions.Tagging;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Data.SqlTypes;
 using Microsoft.EntityFrameworkCore;
@@ -14,7 +15,7 @@ namespace Memoa.Functions.Functions;
 /// Ultimo passo di entrambi i flussi, attivato dalla coda di indicizzazione (messaggio: RecordUid in
 /// formato "D", scritto da <see cref="EnqueueIndexingFunction"/> per gli audio e dalla Function HTTP per
 /// i testi): divide il testo del record in frammenti, ne calcola gli embedding e li salva con lo stato
-/// "pronto".
+/// "pronto". Poi accoda il record per l'assegnazione automatica dei tag (<see cref="TagRecordsFunction"/>).
 /// Idempotente: la coda consegna almeno una volta, e i chunk del record vengono sostituiti in una
 /// transazione, mai aggiunti. Il testo è già nel database: se l'indicizzazione fallisce non va perso.
 /// </summary>
@@ -29,8 +30,14 @@ public sealed class IndexRecordFunction(
     /// <summary>Uguale a extensions.queues.maxDequeueCount in host.json.</summary>
     private const int MaxDequeueCount = 5;
 
+    /// <summary>
+    /// Il messaggio per la coda dei tag parte solo se il record è pronto, anche quando lo era già: se la
+    /// scrittura sulla coda fallisce dopo il salvataggio, il nuovo tentativo trova il record pronto e la
+    /// riprova (l'assegnazione dei tag è idempotente).
+    /// </summary>
     [Function("IndexRecord")]
-    public async Task Run(
+    [QueueOutput("%Queues:Tagging%", Connection = "DataStorage")]
+    public async Task<string?> Run(
         [QueueTrigger("%Queues:Indexing%", Connection = "DataStorage")] QueueMessage message,
         CancellationToken cancellationToken)
     {
@@ -38,12 +45,14 @@ public sealed class IndexRecordFunction(
         if (!Guid.TryParseExact(message.MessageText, "D", out var recordUid))
         {
             logger.LogError("Messaggio {MessageId} non valido sulla coda di indicizzazione: scartato", message.MessageId);
-            return;
+            return null;
         }
 
         try
         {
-            await IndexAsync(recordUid, cancellationToken);
+            return await IndexAsync(recordUid, cancellationToken)
+                ? TaggingRequest.ForRecord(recordUid).Serialize()
+                : null;
         }
         catch (Exception ex) when (message.DequeueCount >= MaxDequeueCount && ex is not OperationCanceledException)
         {
@@ -55,7 +64,8 @@ public sealed class IndexRecordFunction(
         }
     }
 
-    private async Task IndexAsync(Guid recordUid, CancellationToken cancellationToken)
+    /// <summary>Indicizza il record; true se il record è pronto (ora o già da prima).</summary>
+    private async Task<bool> IndexAsync(Guid recordUid, CancellationToken cancellationToken)
     {
         var record = await db.Records
             .IgnoreQueryFilters([MemoaDbContext.CurrentUserFilter])
@@ -65,14 +75,14 @@ public sealed class IndexRecordFunction(
         if (record is null)
         {
             logger.LogWarning("Nessun record {RecordUid}: messaggio ignorato", recordUid);
-            return;
+            return false;
         }
 
         // Errore o record già pronto: un messaggio duplicato o tardivo non cambia lo stato.
         if (record.Status != RecordStatus.Processing)
         {
             logger.LogInformation("Record {RecordUid} non più in elaborazione: messaggio ignorato", recordUid);
-            return;
+            return record.Status == RecordStatus.Ready;
         }
 
         // Rigenerazione della trascrizione in corso (RegenerateTranscriptFunction): il testo corrente sta per
@@ -81,7 +91,7 @@ public sealed class IndexRecordFunction(
         if (record.SourceType == SourceType.Audio && record.OriginalTranscript is null && record.Text is not null)
         {
             logger.LogInformation("Record {RecordUid} in attesa della nuova trascrizione: messaggio ignorato", recordUid);
-            return;
+            return false;
         }
 
         // Chi accoda garantisce un testo non vuoto: senza testo non c'è nulla da indicizzare.
@@ -91,22 +101,14 @@ public sealed class IndexRecordFunction(
             record.Status = RecordStatus.Error;
             record.ErrorCode = IndexingFailed;
             await db.SaveChangesAsync(cancellationToken);
-            return;
+            return false;
         }
 
         var contents = TextChunker.Split(record.Text);
 
         // Una sola richiesta per tutti i frammenti (al massimo circa 30 per 50.000 caratteri). Il client
         // riprova da sé sugli errori temporanei e sui 429; gli altri errori fanno riprovare la coda.
-        var embeddings = (await embeddingClient.GenerateEmbeddingsAsync(
-            contents,
-            new EmbeddingGenerationOptions { Dimensions = RecordChunk.EmbeddingDimensions },
-            cancellationToken)).Value;
-
-        if (embeddings.Count != contents.Count || string.IsNullOrEmpty(embeddings.Model))
-        {
-            throw new InvalidOperationException($"Risposta di embedding inattesa per il record {recordUid}");
-        }
+        var embeddings = await embeddingClient.GenerateCheckedEmbeddingsAsync(contents, cancellationToken);
 
         var chunks = embeddings
             .Select(e => new RecordChunk
@@ -143,6 +145,7 @@ public sealed class IndexRecordFunction(
         }, cancellationToken);
 
         logger.LogInformation("Record {RecordUid} indicizzato ({ChunkCount} frammenti)", recordUid, chunks.Count);
+        return true;
     }
 
     /// <summary>

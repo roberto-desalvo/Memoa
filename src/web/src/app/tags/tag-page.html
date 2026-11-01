@@ -1,0 +1,96 @@
+<mat-toolbar class="page-header">
+  <a mat-icon-button routerLink="/tags" aria-label="Torna ai tag">
+    <mat-icon svgIcon="back" />
+  </a>
+  <h1>{{ tagUid() ? tag()?.name : 'Nuovo tag' }}</h1>
+  @if (tag()) {
+    <button mat-icon-button aria-label="Altre azioni" [matMenuTriggerFor]="moreMenu">
+      <mat-icon svgIcon="more" />
+    </button>
+  }
+</mat-toolbar>
+
+<mat-menu #moreMenu xPosition="before">
+  <button mat-menu-item [disabled]="busy()" (click)="confirmDelete()">
+    <mat-icon svgIcon="delete" />
+    <span>Elimina</span>
+  </button>
+</mat-menu>
+
+@if (!tagUid() || tag()) {
+  <form (submit)="$event.preventDefault(); save()">
+    <mat-form-field class="full">
+      <mat-label>Nome</mat-label>
+      <input
+        matInput
+        type="text"
+        required
+        [maxLength]="maxNameLength"
+        [value]="name()"
+        (input)="name.set($any($event.target).value)"
+      />
+    </mat-form-field>
+    <mat-form-field class="full">
+      <mat-label>Descrizione</mat-label>
+      <textarea
+        matInput
+        rows="6"
+        [maxLength]="maxDescriptionLength"
+        [value]="description()"
+        (input)="description.set($any($event.target).value)"
+      ></textarea>
+      <mat-hint
+        >Di cosa parlano le note con questo tag: serve ad assegnarlo in automatico.</mat-hint
+      >
+      <mat-hint align="end">{{ description().length }}/{{ maxDescriptionLength }}</mat-hint>
+    </mat-form-field>
+    @if (actionError(); as message) {
+      <p class="error" role="alert"><mat-icon svgIcon="error" />{{ message }}</p>
+    }
+    <div class="actions">
+      <button mat-flat-button type="submit" [disabled]="busy()">
+        {{ tag() ? 'Salva' : 'Crea' }}
+      </button>
+    </div>
+  </form>
+
+  @if (tag(); as tag) {
+    <section class="records">
+      <h2 class="group-label text-secondary strong muted">
+        {{
+          tag.records.length === 0
+            ? 'Nessuna nota con questo tag'
+            : tag.records.length === 1
+              ? '1 nota con questo tag'
+              : tag.records.length + ' note con questo tag'
+        }}
+      </h2>
+      @if (tag.records.length > 0) {
+        <ul class="note-list">
+          @for (record of tag.records; track record.recordUid) {
+            <li>
+              <a class="note-link" [routerLink]="['/records', record.recordUid]">
+                <app-note-row
+                  [sourceType]="record.sourceType"
+                  [title]="record.title"
+                  [status]="record.status"
+                  [detail]="record.occurredAt | noteDate"
+                  [text]="record.excerpt"
+                  [tags]="record.tags"
+                />
+              </a>
+            </li>
+          }
+        </ul>
+      }
+    </section>
+  }
+} @else if (loadError(); as message) {
+  <div class="page-state" role="alert">
+    <p class="error"><mat-icon svgIcon="error" />{{ message }}</p>
+  </div>
+} @else {
+  <div class="page-state" aria-live="polite">
+    <mat-spinner diameter="32" aria-label="Caricamento del tag" />
+  </div>
+}

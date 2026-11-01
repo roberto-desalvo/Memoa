@@ -15,6 +15,7 @@
     "Queues__Transcription": "transcription",
     "Queues__TranscriptionFallback": "transcription-fallback",
     "Queues__Indexing": "indexing",
+    "Queues__Tagging": "tagging",
     "Queues__UploadExpiry": "upload-expiry",
     "OpenAI__Endpoint": "https://<account-openai-dev>.openai.azure.com/",
     "OpenAI__EmbeddingDeployment": "text-embedding-3-small",
