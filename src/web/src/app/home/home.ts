@@ -1,5 +1,6 @@
 import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
+import { MatChipListboxChange, MatChipsModule } from '@angular/material/chips';
 import { MatDialog } from '@angular/material/dialog';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatIconModule } from '@angular/material/icon';
@@ -7,20 +8,19 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatToolbarModule } from '@angular/material/toolbar';
-import { Router, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import { MsalService } from '@azure/msal-angular';
 import { firstValueFrom } from 'rxjs';
 import { ListGroup, listGroup, NoteDatePipe } from '../notes/note-date';
-import { NoteDraft } from '../notes/note-draft';
-import { RecordsApi, RecordSummary } from '../records/records-api';
+import { RecordsApi, RecordSummary, RecordTag } from '../records/records-api';
 import { RecordsStore } from '../records/records-store';
 import { NoteSearch } from '../search/note-search';
+import { SearchBar } from '../search/search-bar';
 import { AppLogo } from '../shared/app-logo';
 import { deleteNotesDialog, openConfirmDialog } from '../shared/confirm-dialog';
 import { LongPress } from '../shared/long-press';
 import { NoteRow } from '../shared/note-row';
-import { AUDIO_ACCEPT } from '../uploads/audio-formats';
-import { TEXT_ACCEPT } from '../uploads/text-file';
+import { TagFilter } from '../tags/tag-filter';
 
 @Component({
   selector: 'app-home',
@@ -31,7 +31,9 @@ import { TEXT_ACCEPT } from '../uploads/text-file';
     NoteDatePipe,
     NoteRow,
     NoteSearch,
+    SearchBar,
     MatButtonModule,
+    MatChipsModule,
     MatDividerModule,
     MatIconModule,
     MatMenuModule,
@@ -48,12 +50,11 @@ import { TEXT_ACCEPT } from '../uploads/text-file';
 })
 export class Home implements OnInit, OnDestroy {
   private readonly msal = inject(MsalService);
-  private readonly router = inject(Router);
   private readonly api = inject(RecordsApi);
-  private readonly drafts = inject(NoteDraft);
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
   protected readonly store = inject(RecordsStore);
+  private readonly tagFilter = inject(TagFilter);
 
   protected readonly accountName = (
     this.msal.instance.getActiveAccount() ?? this.msal.instance.getAllAccounts()[0]
@@ -67,10 +68,26 @@ export class Home implements OnInit, OnDestroy {
     .map((part) => part[0].toUpperCase())
     .join('');
 
-  protected readonly uploadAccept = `${AUDIO_ACCEPT},${TEXT_ACCEPT}`;
+  /** Tag assegnati ad almeno una nota, in ordine di nome: i filtri sotto la ricerca. */
+  protected readonly tags = computed(() => recordTags(this.store.records() ?? []));
 
-  /** Record raggruppati (oggi, ieri, poi per mese), nell'ordine della lista (dal più recente). */
-  protected readonly groups = computed(() => groupRecords(this.store.records() ?? []));
+  /** Tag scelto tra i filtri, null per tutte le note (anche se il tag scelto non ha più note). */
+  protected readonly selectedTag = computed(() => {
+    const tagUid = this.tagFilter.tagUid();
+    return this.tags().some((t) => t.tagUid === tagUid) ? tagUid : null;
+  });
+
+  /**
+   * Record con il tag scelto raggruppati (oggi, ieri, poi per mese), nell'ordine della lista (dal più
+   * recente).
+   */
+  protected readonly groups = computed(() => {
+    const tagUid = this.selectedTag();
+    const records = this.store.records() ?? [];
+    return groupRecords(
+      tagUid === null ? records : records.filter((r) => r.tags?.some((t) => t.tagUid === tagUid)),
+    );
+  });
 
   /**
    * Record selezionati: il primo con la pressione prolungata, gli altri con un tocco (o un'altra
@@ -131,12 +148,12 @@ export class Home implements OnInit, OnDestroy {
     this.msal.logoutRedirect();
   }
 
-  protected selectFile(input: HTMLInputElement): void {
-    const files = Array.from(input.files ?? []);
-    input.value = '';
-    if (files.length > 0) {
-      this.drafts.set(files);
-      void this.router.navigate(['/new', 'upload']);
+  /** Toccando di nuovo il filtro scelto lo si toglie; "Tutte" resta scelto anche toccandolo di nuovo. */
+  protected selectTag(change: MatChipListboxChange): void {
+    const tagUid: string | null = change.value ?? null;
+    this.tagFilter.tagUid.set(tagUid);
+    if (tagUid === null) {
+      change.source.value = null;
     }
   }
 
@@ -165,6 +182,15 @@ export class Home implements OnInit, OnDestroy {
       );
     }
   }
+}
+
+/** Tag delle note, ciascuno una volta, in ordine di nome. */
+function recordTags(records: RecordSummary[]): RecordTag[] {
+  const tags = new Map<string, RecordTag>();
+  for (const tag of records.flatMap((r) => r.tags ?? [])) {
+    tags.set(tag.tagUid, tag);
+  }
+  return [...tags.values()].sort((a, b) => a.name.localeCompare(b.name));
 }
 
 interface RecordGroup extends ListGroup {

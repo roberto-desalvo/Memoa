@@ -1,30 +1,3 @@
-<form role="search" (submit)="$event.preventDefault(); search()">
-  <mat-form-field class="field search-field" subscriptSizing="dynamic">
-    <mat-icon matPrefix svgIcon="search" />
-    <input
-      matInput
-      type="search"
-      aria-label="Cerca nelle note"
-      placeholder="Cerca nelle note"
-      enterkeyhint="search"
-      [maxLength]="maxQueryLength"
-      [value]="query()"
-      (input)="onInput($any($event.target).value)"
-    />
-    @if (query()) {
-      <button
-        mat-icon-button
-        matSuffix
-        type="button"
-        aria-label="Cancella la ricerca"
-        (click)="clear()"
-      >
-        <mat-icon svgIcon="close" />
-      </button>
-    }
-  </mat-form-field>
-</form>
-
 <div aria-live="polite">
   @if (status() === 'searching') {
     <div class="page-state">
@@ -39,7 +12,12 @@
     @if (results.length === 0) {
       <div class="page-state">
         <p class="text-secondary muted">
-          Nessuna nota abbastanza simile. Prova a descrivere diversamente.
+          @if (filtered()) {
+            Nessuna nota con questo tag tra i risultati. Prova a descrivere diversamente o scegli
+            Tutte.
+          } @else {
+            Nessuna nota abbastanza simile. Prova a descrivere diversamente.
+          }
         </p>
       </div>
     } @else {

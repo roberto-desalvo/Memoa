@@ -1,19 +1,36 @@
 import { Component, DestroyRef, inject, OnInit } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { RouterOutlet } from '@angular/router';
+import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import { SwUpdate } from '@angular/service-worker';
 import { MsalService } from '@azure/msal-angular';
-import { filter, switchMap } from 'rxjs';
+import { filter, first, map, switchMap } from 'rxjs';
 import { Theme } from './settings/theme';
+import { BottomNav } from './shared/bottom-nav';
 
 @Component({
-  imports: [RouterOutlet],
+  imports: [RouterOutlet, BottomNav],
   selector: 'app-root',
-  template: '<router-outlet />',
+  template: `
+    <router-outlet />
+    @if (navigated()) {
+      <app-bottom-nav />
+    }
+  `,
 })
 export class App implements OnInit {
   private readonly msal = inject(MsalService);
+  /**
+   * La barra di navigazione compare dalla prima pagina aperta: prima l'utente può non aver ancora fatto
+   * l'accesso (MsalGuard lo manda al login senza completare la navigazione).
+   */
+  protected readonly navigated = toSignal(
+    inject(Router).events.pipe(
+      first((event) => event instanceof NavigationEnd),
+      map(() => true),
+    ),
+    { initialValue: false },
+  );
   private readonly swUpdate = inject(SwUpdate);
   private readonly snackBar = inject(MatSnackBar);
   private readonly destroyRef = inject(DestroyRef);

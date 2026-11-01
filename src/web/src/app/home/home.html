@@ -10,22 +10,24 @@
     </button>
   </mat-toolbar>
 } @else {
-  <mat-toolbar class="page-header">
-    <app-logo class="logo" />
-    <h1>Memoa</h1>
-    <button
-      mat-icon-button
-      class="user-button"
-      aria-label="Menu utente"
-      [matMenuTriggerFor]="userMenu"
-    >
-      @if (initials) {
-        <span class="avatar" aria-hidden="true">{{ initials }}</span>
-      } @else {
-        <mat-icon svgIcon="account" />
-      }
-    </button>
-  </mat-toolbar>
+  <!-- Intestazione: il campo di ricerca, con l'avatar del menu utente dentro, a destra. -->
+  <header class="page-header search-header">
+    <app-search-bar class="search-bar">
+      <button
+        mat-icon-button
+        type="button"
+        class="user-button"
+        aria-label="Menu utente"
+        [matMenuTriggerFor]="userMenu"
+      >
+        @if (initials) {
+          <span class="avatar" aria-hidden="true">{{ initials }}</span>
+        } @else {
+          <mat-icon svgIcon="account" />
+        }
+      </button>
+    </app-search-bar>
+  </header>
 }
 
 <mat-menu #userMenu xPosition="before">
@@ -33,10 +35,6 @@
     <p class="account text-secondary muted">{{ accountName }}</p>
     <mat-divider />
   }
-  <a mat-menu-item routerLink="/tags">
-    <mat-icon svgIcon="tag" />
-    <span>Tag</span>
-  </a>
   <a mat-menu-item routerLink="/settings">
     <mat-icon svgIcon="settings" />
     <span>Impostazioni</span>
@@ -62,6 +60,21 @@
         </p>
       </div>
     } @else {
+      <!-- Tag delle note come filtri, in una riga che scorre in orizzontale. -->
+      @if (tags().length > 0) {
+        <mat-chip-listbox
+          class="tag-filters"
+          aria-label="Filtra per tag"
+          hideSingleSelectionIndicator
+          [value]="selectedTag()"
+          (change)="selectTag($event)"
+        >
+          <mat-chip-option [value]="null">Tutte</mat-chip-option>
+          @for (tag of tags(); track tag.tagUid) {
+            <mat-chip-option [value]="tag.tagUid">{{ tag.name }}</mat-chip-option>
+          }
+        </mat-chip-listbox>
+      }
       <app-note-search #search />
       @if (!search.active()) {
         @for (group of groups(); track group.key) {
@@ -107,6 +120,10 @@
               }
             </ul>
           </section>
+        } @empty {
+          <div class="page-state">
+            <p class="text-secondary muted">Nessuna nota con questo tag.</p>
+          </div>
         }
       }
     }
@@ -123,8 +140,8 @@
 </main>
 
 <!--
-  Con la selezione attiva uno strato trasparente copre la pagina (ricerca, intestazione, pulsante di
-  aggiunta): sopra restano solo le note, che si aggiungono o tolgono dalla selezione, e il cestino
+  Con la selezione attiva uno strato trasparente copre la pagina (intestazione con la ricerca, filtri,
+  barra di navigazione): sopra restano solo le note, che si aggiungono o tolgono dalla selezione, e il cestino
   (sulla riga o nell'intestazione). Toccando altrove si chiude la selezione. Conta solo un tocco
   iniziato sullo strato, non il rilascio della pressione che ha selezionato la nota.
 -->
@@ -137,24 +154,3 @@
     (contextmenu)="$event.preventDefault(); clearSelection()"
   ></div>
 }
-
-<button mat-fab class="fab" aria-label="Aggiungi una nota" [matMenuTriggerFor]="addMenu">
-  <mat-icon svgIcon="add" />
-</button>
-
-<mat-menu #addMenu yPosition="above" xPosition="before">
-  <a mat-menu-item routerLink="/new/record">
-    <mat-icon svgIcon="mic" />
-    <span>Registra</span>
-  </a>
-  <a mat-menu-item routerLink="/new/write">
-    <mat-icon svgIcon="write" />
-    <span>Scrivi</span>
-  </a>
-  <button mat-menu-item (click)="fileInput.click()">
-    <mat-icon svgIcon="upload" />
-    <span>Carica</span>
-  </button>
-</mat-menu>
-
-<input #fileInput type="file" multiple [accept]="uploadAccept" (change)="selectFile(fileInput)" />

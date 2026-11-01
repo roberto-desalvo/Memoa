@@ -7,6 +7,7 @@ import { DomSanitizer } from '@angular/platform-browser';
  * icone scaricato da servizi esterni. Tutte con lo stesso tratto (24 × 24, linea di 2).
  */
 const ICONS: Record<string, string> = {
+  home: '<path d="M4 10.5 12 4l8 6.5V20h-5v-6h-6v6H4v-9.5Z" />',
   account: '<circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" />',
   search: '<circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" />',
   settings:
