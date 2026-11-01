@@ -18,6 +18,10 @@ const ICONS: Record<string, string> = {
   text: '<path d="M5 7h14M5 12h14M5 17h9" />',
   mic: '<rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" />',
   stop: '<rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" />',
+  pause:
+    '<rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor" />' +
+    '<rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor" />',
+  resume: '<path d="M7 5v14l12-7-12-7Z" fill="currentColor" />',
   write: '<path d="M4 20h4L19 9l-4-4L4 16v4ZM13 7l4 4" />',
   upload: '<path d="M12 15V4M7 9l5-5 5 5M5 20h14" />',
   back: '<path d="M15 5l-7 7 7 7" />',

@@ -23,6 +23,7 @@ export class RecordAudio {
 
   protected readonly supported = AudioRecorder.isSupported();
   protected readonly recording = this.recorder.recording;
+  protected readonly paused = this.recorder.paused;
   protected readonly error = signal<string | null>(null);
   protected readonly elapsed = computed(() => formatDuration(this.recorder.elapsedMs()));
   protected readonly maxDuration = formatDuration(this.recorder.maxDurationMs);
@@ -46,6 +47,14 @@ export class RecordAudio {
     } catch (err) {
       console.error('Avvio della registrazione non riuscito', err);
       this.error.set(startErrorMessage(err));
+    }
+  }
+
+  protected togglePause(): void {
+    if (this.paused()) {
+      this.recorder.resume();
+    } else {
+      this.recorder.pause();
     }
   }
 }

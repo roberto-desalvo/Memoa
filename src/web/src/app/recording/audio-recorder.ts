@@ -10,7 +10,9 @@ const PREFERRED_TYPES = ['audio/webm;codecs=opus', 'audio/ogg;codecs=opus', 'aud
  */
 @Injectable()
 export class AudioRecorder implements OnDestroy {
+  /** Registrazione avviata e non ancora fermata, anche se in pausa. */
   readonly recording = signal(false);
+  readonly paused = signal(false);
   readonly elapsedMs = signal(0);
   /** Durata massima di una registrazione, dalla configurazione. */
   readonly maxDurationMs = inject(APP_CONFIG).maxAudioDurationMinutes * 60 * 1000;
@@ -18,6 +20,10 @@ export class AudioRecorder implements OnDestroy {
   private recorder?: MediaRecorder;
   private stream?: MediaStream;
   private timer?: ReturnType<typeof setInterval>;
+  /** Durata dei tratti già conclusi da una pausa. */
+  private accumulatedMs = 0;
+  /** Inizio del tratto in corso; assente durante la pausa. */
+  private segmentStartedAt?: number;
 
   static isSupported(): boolean {
     return typeof MediaRecorder !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
@@ -54,11 +60,17 @@ export class AudioRecorder implements OnDestroy {
     this.recorder = recorder;
     recorder.start(1000);
 
-    const startedAt = Date.now();
+    this.accumulatedMs = 0;
+    this.segmentStartedAt = Date.now();
     this.elapsedMs.set(0);
+    this.paused.set(false);
     this.recording.set(true);
+    // Il tempo in pausa non conta per la durata massima.
     this.timer = setInterval(() => {
-      const elapsed = Date.now() - startedAt;
+      if (this.segmentStartedAt === undefined) {
+        return;
+      }
+      const elapsed = this.accumulatedMs + Date.now() - this.segmentStartedAt;
       this.elapsedMs.set(elapsed);
       if (elapsed >= this.maxDurationMs) {
         this.stop();
@@ -66,8 +78,29 @@ export class AudioRecorder implements OnDestroy {
     }, 250);
   }
 
+  pause(): void {
+    if (this.recorder?.state !== 'recording' || this.segmentStartedAt === undefined) {
+      return;
+    }
+    this.recorder.pause();
+    this.accumulatedMs += Date.now() - this.segmentStartedAt;
+    this.segmentStartedAt = undefined;
+    this.elapsedMs.set(this.accumulatedMs);
+    this.paused.set(true);
+  }
+
+  resume(): void {
+    if (this.recorder?.state !== 'paused') {
+      return;
+    }
+    this.recorder.resume();
+    this.segmentStartedAt = Date.now();
+    this.paused.set(false);
+  }
+
   stop(): void {
-    if (this.recorder?.state === 'recording') {
+    // Anche in pausa: MediaRecorder si ferma e consegna l'audio registrato fin lì.
+    if (this.recorder && this.recorder.state !== 'inactive') {
       this.recorder.stop();
     }
   }
@@ -86,6 +119,8 @@ export class AudioRecorder implements OnDestroy {
     this.stream?.getTracks().forEach((track) => track.stop());
     this.stream = undefined;
     this.recorder = undefined;
+    this.segmentStartedAt = undefined;
     this.recording.set(false);
+    this.paused.set(false);
   }
 }

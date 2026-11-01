@@ -1,13 +1,21 @@
 <mat-card>
   <mat-card-content class="content">
     @if (supported) {
-      <p class="timer text-title" [class.muted]="!recording()">
+      <p class="timer text-title" [class.muted]="!recording() || paused()">
         {{ elapsed() }} <span class="muted">/ {{ maxDuration }}</span>
       </p>
-      <button mat-flat-button (click)="toggle()">
-        <mat-icon [svgIcon]="recording() ? 'stop' : 'mic'" />
-        {{ recording() ? 'Ferma e salva' : 'Avvia registrazione' }}
-      </button>
+      <div class="actions">
+        @if (recording()) {
+          <button mat-stroked-button (click)="togglePause()">
+            <mat-icon [svgIcon]="paused() ? 'resume' : 'pause'" />
+            {{ paused() ? 'Riprendi' : 'Pausa' }}
+          </button>
+        }
+        <button mat-flat-button (click)="toggle()">
+          <mat-icon [svgIcon]="recording() ? 'stop' : 'mic'" />
+          {{ recording() ? 'Ferma e salva' : 'Avvia registrazione' }}
+        </button>
+      </div>
     } @else {
       <p class="error">
         <mat-icon svgIcon="error" />Il browser non supporta la registrazione audio.
@@ -17,6 +25,8 @@
     <div aria-live="polite">
       @if (error(); as message) {
         <p class="error" role="alert"><mat-icon svgIcon="error" />{{ message }}</p>
+      } @else if (paused()) {
+        <p class="text-secondary muted">Registrazione in pausa.</p>
       } @else if (recording()) {
         <p class="text-secondary muted">Registrazione in corso…</p>
       } @else if (supported) {
