@@ -24,11 +24,12 @@
 }
 
 .count {
-  padding-inline: var(--space-4);
+  margin-top: var(--space-4);
+  padding: var(--space-2) var(--space-1);
 }
 
 .group {
-  margin-top: var(--space-4);
+  margin-top: var(--space-2);
 
   h2 {
     padding: var(--space-2) var(--space-1);
@@ -42,54 +43,6 @@
   margin: 0;
   padding: 0;
   list-style: none;
-}
-
-.record {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
-}
-
-.type {
-  flex: none;
-  color: var(--mat-sys-on-surface-variant);
-}
-
-.body {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: var(--space-1);
-  min-width: 0;
-}
-
-.head {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.title {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.excerpt {
-  display: -webkit-box;
-  overflow: hidden;
-  overflow-wrap: anywhere;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-}
-
-// Record non pronto: titolo attenuato, sempre accompagnato dall'etichetta di stato.
-.dimmed .title {
-  color: var(--mat-sys-on-surface-variant);
 }
 
 .fab {

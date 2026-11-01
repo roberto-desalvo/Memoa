@@ -57,9 +57,29 @@ form .full + .full {
   }
 }
 
+// Caricamento, lettore ed errore hanno la stessa altezza fissa (quella del lettore dei browser), così
+// la card non cambia dimensione quando arriva l'audio.
+$player-height: 56px;
+
+.player {
+  display: flex;
+  align-items: center;
+}
+
+.player > * {
+  width: 100%;
+  height: $player-height;
+}
+
+.audio-loading,
+.player > .error {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
 audio {
   display: block;
-  width: 100%;
 }
 
 // Il testo mantiene a capo e paragrafi così come sono stati scritti o trascritti.

@@ -1,7 +1,5 @@
 import { Component, computed, inject, OnDestroy, OnInit } from '@angular/core';
-import { NgTemplateOutlet } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
-import { MatCardModule } from '@angular/material/card';
 import { MatDialog } from '@angular/material/dialog';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatIconModule } from '@angular/material/icon';
@@ -16,7 +14,9 @@ import { dayKey, dayLabel, NoteDatePipe } from '../notes/note-date';
 import { NoteDraft } from '../notes/note-draft';
 import { RecordsApi, RecordSummary } from '../records/records-api';
 import { RecordsStore } from '../records/records-store';
+import { NoteSearch } from '../search/note-search';
 import { DELETE_NOTE_DIALOG, openConfirmDialog } from '../shared/confirm-dialog';
+import { NoteCard } from '../shared/note-card';
 import { AUDIO_ACCEPT } from '../uploads/audio-formats';
 import { TEXT_ACCEPT } from '../uploads/text-file';
 
@@ -25,9 +25,9 @@ import { TEXT_ACCEPT } from '../uploads/text-file';
   imports: [
     RouterLink,
     NoteDatePipe,
-    NgTemplateOutlet,
+    NoteCard,
+    NoteSearch,
     MatButtonModule,
-    MatCardModule,
     MatDividerModule,
     MatIconModule,
     MatMenuModule,

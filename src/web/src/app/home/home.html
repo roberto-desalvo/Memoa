@@ -15,10 +15,6 @@
     <p class="account text-secondary strong">{{ accountName }}</p>
     <mat-divider />
   }
-  <a mat-menu-item routerLink="/search">
-    <mat-icon svgIcon="search" />
-    <span>Cerca</span>
-  </a>
   <a mat-menu-item routerLink="/settings">
     <mat-icon svgIcon="settings" />
     <span>Impostazioni</span>
@@ -40,33 +36,44 @@
         </p>
       </div>
     } @else {
-      <p class="count text-secondary muted">
-        {{ records.length }} {{ records.length === 1 ? 'nota' : 'note' }}
-      </p>
-      @for (group of groups(); track group.key) {
-        <section class="group">
-          <h2 class="text-secondary strong muted">{{ group.label }}</h2>
-          <ul class="records">
-            @for (record of group.records; track record.recordUid) {
-              <li>
-                <!-- I record in errore non si aprono: il tap mostra la finestra con "Riprova". -->
-                @if (record.status === 'Error') {
-                  <button type="button" class="card-link dimmed" (click)="openError(record)">
-                    <ng-container *ngTemplateOutlet="recordCard; context: { $implicit: record }" />
-                  </button>
-                } @else {
-                  <a
-                    class="card-link"
-                    [class.dimmed]="record.status === 'Processing'"
-                    [routerLink]="['/records', record.recordUid]"
-                  >
-                    <ng-container *ngTemplateOutlet="recordCard; context: { $implicit: record }" />
-                  </a>
-                }
-              </li>
-            }
-          </ul>
-        </section>
+      <app-note-search #search />
+      @if (!search.active()) {
+        <p class="count text-secondary muted">
+          {{ records.length }} {{ records.length === 1 ? 'nota' : 'note' }}
+        </p>
+        @for (group of groups(); track group.key) {
+          <section class="group">
+            <h2 class="text-secondary strong muted">{{ group.label }}</h2>
+            <ul class="records">
+              @for (record of group.records; track record.recordUid) {
+                <li>
+                  <!-- I record in errore non si aprono: il tap mostra la finestra con "Riprova". -->
+                  @if (record.status === 'Error') {
+                    <button type="button" class="card-link" (click)="openError(record)">
+                      <app-note-card
+                        [sourceType]="record.sourceType"
+                        [title]="record.title"
+                        [status]="record.status"
+                        [detail]="record.occurredAt | noteDate: 'time'"
+                        [text]="record.excerpt"
+                      />
+                    </button>
+                  } @else {
+                    <a class="card-link" [routerLink]="['/records', record.recordUid]">
+                      <app-note-card
+                        [sourceType]="record.sourceType"
+                        [title]="record.title"
+                        [status]="record.status"
+                        [detail]="record.occurredAt | noteDate: 'time'"
+                        [text]="record.excerpt"
+                      />
+                    </a>
+                  }
+                </li>
+              }
+            </ul>
+          </section>
+        }
       }
     }
   } @else if (store.loadFailed()) {
@@ -80,36 +87,6 @@
     </div>
   }
 </main>
-
-<ng-template #recordCard let-record>
-  <mat-card>
-    <mat-card-content class="record">
-      <mat-icon
-        class="type"
-        aria-hidden="false"
-        [svgIcon]="record.sourceType === 'Audio' ? 'audio' : 'text'"
-        [attr.aria-label]="record.sourceType === 'Audio' ? 'Nota audio' : 'Nota di testo'"
-      />
-      <span class="body">
-        <span class="head">
-          <span class="title strong">{{ record.title }}</span>
-          @if (record.status === 'Error') {
-            <span class="status failed"><mat-icon svgIcon="error" />Errore</span>
-          } @else if (record.status === 'Processing') {
-            <span class="status"><mat-icon svgIcon="pending" />In elaborazione</span>
-          }
-        </span>
-        <!-- Ora ed estratto: al massimo due righe, poi i puntini; gli a capo diventano spazi. -->
-        <span class="excerpt text-secondary muted">
-          {{ record.occurredAt | noteDate: 'time' }}
-          @if (record.excerpt) {
-            · {{ record.excerpt }}
-          }
-        </span>
-      </span>
-    </mat-card-content>
-  </mat-card>
-</ng-template>
 
 <button mat-fab class="fab" aria-label="Aggiungi una nota" [matMenuTriggerFor]="addMenu">
   <mat-icon svgIcon="add" />

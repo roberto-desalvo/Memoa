@@ -121,10 +121,22 @@
       </mat-card>
     }
 
-    @if (audioUrl(); as url) {
+    <!-- La card del lettore c'è da subito; il caricamento resta finché non arriva l'URL dell'audio. -->
+    @if (record.hasAudio) {
       <mat-card class="section">
-        <mat-card-content>
-          <audio controls preload="metadata" [src]="url"></audio>
+        <mat-card-content class="player">
+          @if (audioFailed()) {
+            <p class="error" role="alert">
+              <mat-icon svgIcon="error" />Impossibile caricare l’audio.
+            </p>
+          } @else if (audioUrl(); as url) {
+            <audio controls preload="metadata" [src]="url" (error)="audioFailed.set(true)"></audio>
+          } @else {
+            <p class="audio-loading text-secondary muted" aria-live="polite">
+              <mat-spinner diameter="24" aria-hidden="true" />
+              Caricamento dell’audio…
+            </p>
+          }
         </mat-card-content>
       </mat-card>
     }

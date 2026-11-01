@@ -71,7 +71,8 @@ Valgono per ogni schermata. Una nuova schermata o un nuovo componente le rispett
 
 ## Homepage
 
-- **Intestazione**: logo e menu utente (avatar con le iniziali), con nome dell'account, Cerca, Impostazioni ed Esci.
+- **Intestazione**: logo e menu utente (avatar con le iniziali), con nome dell'account, Impostazioni ed Esci.
+- **Ricerca**: campo in alto, sopra la lista (solo se ci sono note). La ricerca è per significato, anche tra lingue diverse, e parte con Invio. I risultati prendono il posto della lista: il numero di risultati e una card per frammento trovato, con icona del tipo, titolo, data e il testo del frammento (al massimo due righe, poi i puntini di sospensione); il tap apre la nota. Svuotando il campo, o con la ×, torna la lista. Stati: ricerca in corso, nessun risultato, errore con "Riprova".
 - **Lista**: tutte le note, dalla più recente per data della nota (a parità di data, per titolo), più il numero totale di note. Le note sono raggruppate per giorno della nota, con un'intestazione per gruppo: "Oggi", "Ieri" o la data estesa (es. "2 gennaio 2026"). Ogni nota è una card (8 px tra una card e l'altra) e mostra icona del tipo (audio o testo), titolo, ora e un estratto dell'inizio del testo (al massimo due righe, poi i puntini di sospensione); le note senza testo, come un audio non ancora trascritto, mostrano solo l'ora.
   - **Pronta**: apre la pagina del record.
   - **In elaborazione**: appare attenuata con l'etichetta "In elaborazione", ma si apre comunque.
@@ -123,4 +124,4 @@ Valgono per ogni schermata. Una nuova schermata o un nuovo componente le rispett
 
 - Nome visualizzato (display name) nelle impostazioni: previsto, non implementato.
 - Interfaccia in inglese.
-- Ricerca, esportazione dati, eliminazione account, informativa privacy (vedi [funzionalita.md](funzionalita.md)).
+- Esportazione dati, eliminazione account, informativa privacy (vedi [funzionalita.md](funzionalita.md)).

@@ -116,7 +116,10 @@ p {
   padding: 0 var(--space-4) calc(var(--space-6) + env(safe-area-inset-bottom));
 }
 
-// Intestazione di ogni pagina: freccia indietro (o logo), titolo, azioni.
+// Intestazione di ogni pagina: freccia indietro (o logo), titolo, azioni. Si distingue dal contenuto
+// con una superficie tonale (surface-container) estesa a tutta la larghezza dello schermo, anche
+// quando la colonna è centrata: la border-image con outset dipinge oltre i bordi senza allargare la
+// pagina né creare scroll orizzontale.
 .page-header.mat-toolbar {
   position: sticky;
   top: 0;
@@ -126,7 +129,11 @@ p {
   min-height: 64px;
   margin: 0 calc(-1 * var(--space-4)) var(--space-4);
   padding: env(safe-area-inset-top) var(--space-1) 0;
-  background: var(--mat-sys-surface);
+  color: var(--mat-sys-on-surface);
+  background: var(--mat-sys-surface-container);
+  border-image-source: linear-gradient(var(--mat-sys-surface-container) 0 0);
+  border-image-slice: 0 fill;
+  border-image-outset: 0 100vmax;
 
   h1 {
     flex: 1;

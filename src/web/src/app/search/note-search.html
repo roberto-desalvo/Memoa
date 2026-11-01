@@ -1,0 +1,65 @@
+<form role="search" (submit)="$event.preventDefault(); search()">
+  <mat-form-field class="field" subscriptSizing="dynamic">
+    <mat-icon matPrefix svgIcon="search" />
+    <input
+      matInput
+      type="search"
+      aria-label="Cerca nelle note"
+      placeholder="Cerca per significato, anche in inglese…"
+      enterkeyhint="search"
+      [maxLength]="maxQueryLength"
+      [value]="query()"
+      (input)="onInput($any($event.target).value)"
+    />
+    @if (query()) {
+      <button
+        mat-icon-button
+        matSuffix
+        type="button"
+        aria-label="Cancella la ricerca"
+        (click)="clear()"
+      >
+        <mat-icon svgIcon="close" />
+      </button>
+    }
+  </mat-form-field>
+</form>
+
+<div aria-live="polite">
+  @if (status() === 'searching') {
+    <div class="page-state">
+      <mat-spinner diameter="32" aria-label="Ricerca in corso" />
+    </div>
+  } @else if (status() === 'failed') {
+    <div class="page-state">
+      <p class="error"><mat-icon svgIcon="error" />Impossibile completare la ricerca.</p>
+      <button mat-flat-button (click)="search()">Riprova</button>
+    </div>
+  } @else if (results(); as results) {
+    @if (results.length === 0) {
+      <div class="page-state">
+        <p class="text-secondary muted">
+          Nessuna nota abbastanza simile. Prova a descrivere diversamente.
+        </p>
+      </div>
+    } @else {
+      <p class="count text-secondary muted">
+        {{ results.length }} {{ results.length === 1 ? 'risultato' : 'risultati' }}
+      </p>
+      <ul class="results">
+        @for (result of results; track $index) {
+          <li>
+            <a class="card-link" [routerLink]="['/records', result.recordUid]">
+              <app-note-card
+                [sourceType]="result.sourceType"
+                [title]="result.title"
+                [detail]="result.occurredAt | noteDate"
+                [text]="result.content"
+              />
+            </a>
+          </li>
+        }
+      </ul>
+    }
+  }
+</div>

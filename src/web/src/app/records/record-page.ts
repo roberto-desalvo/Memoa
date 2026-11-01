@@ -70,6 +70,8 @@ export class RecordPage implements OnInit, OnDestroy {
   protected readonly record = signal<RecordDetail | null>(null);
   protected readonly loadError = signal<string | null>(null);
   protected readonly audioUrl = signal<string | null>(null);
+  /** L'URL dell'audio non è arrivato o il browser non è riuscito a leggere il file. */
+  protected readonly audioFailed = signal(false);
 
   protected readonly editing = signal(false);
   protected readonly editTitle = signal('');
@@ -133,8 +135,23 @@ export class RecordPage implements OnInit, OnDestroy {
     this.show(record);
     // L'audio si può ascoltare già durante la trascrizione.
     if (record.hasAudio && !this.audioUrl()) {
+      await this.loadAudio(record);
+    }
+  }
+
+  /**
+   * Chiede il SAS di lettura dell'audio. Nel frattempo la card del lettore è già visibile con il
+   * caricamento; se la richiesta fallisce la card mostra l'errore e, se il record è in elaborazione, il
+   * polling successivo riprova.
+   */
+  private async loadAudio(record: RecordDetail): Promise<void> {
+    try {
       const { url } = await firstValueFrom(this.api.audio(record.recordUid));
+      this.audioFailed.set(false);
       this.audioUrl.set(url);
+    } catch (err) {
+      console.error('Caricamento dell’audio non riuscito', err);
+      this.audioFailed.set(true);
     }
   }
 
