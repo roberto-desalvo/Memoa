@@ -76,4 +76,16 @@ public sealed class WhisperOptions
     /// </summary>
     [Range(1, 64)]
     public int? Threads { get; set; }
+
+    /// <summary>
+    /// Prompt iniziale per lingua: Whisper imita lo stile del testo che lo precede, quindi un esempio
+    /// punteggiato lo spinge a usare la punteggiatura. Va tenuto breve e neutro: con audio silenzioso o
+    /// rumoroso Whisper può ripeterne dei frammenti. Una lingua senza prompt (o con prompt vuoto) si
+    /// trascrive senza.
+    /// </summary>
+    public Dictionary<string, string> Prompts { get; set; } = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["it"] = "Allora... oggi è stata una giornata lunga, ma alla fine è andata bene! E domani, invece, cosa farò? Vedremo.",
+        ["en"] = "So... today was a long day, but in the end it went well! And tomorrow, though, what will I do? We'll see.",
+    };
 }

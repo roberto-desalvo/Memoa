@@ -47,16 +47,25 @@ public sealed class WhisperEngine(Ffmpeg ffmpeg, IOptions<WhisperOptions> option
 
         try
         {
-            await using var processor = CreateProcessor();
-
-            var (detected, probability) = processor.DetectLanguageWithProbability(
-                samples.AsSpan(0, Math.Min(samples.Length, DetectionSamples)),
-                CandidateLanguages);
+            string? detected;
+            float probability;
+            await using (var detector = CreateProcessor(builder => builder))
+            {
+                (detected, probability) = detector.DetectLanguageWithProbability(
+                    samples.AsSpan(0, Math.Min(samples.Length, DetectionSamples)),
+                    CandidateLanguages);
+            }
 
             var language = detected is not null && probability >= options.Value.LanguageProbabilityThreshold
                 ? detected
                 : fallbackLanguage;
-            processor.ChangeLanguage(language);
+
+            // Il prompt dipende dalla lingua, nota solo dopo il rilevamento, e si imposta nel builder:
+            // serve un secondo processore. Il modello resta caricato una sola volta nella factory.
+            var prompt = options.Value.Prompts.GetValueOrDefault(language);
+            await using var processor = CreateProcessor(builder => string.IsNullOrWhiteSpace(prompt)
+                ? builder.WithLanguage(language)
+                : builder.WithLanguage(language).WithPrompt(prompt));
 
             var text = new StringBuilder();
             await foreach (var segment in processor.ProcessAsync(samples, cancellationToken))
@@ -77,10 +86,16 @@ public sealed class WhisperEngine(Ffmpeg ffmpeg, IOptions<WhisperOptions> option
     /// <summary>
     /// Whisper.net non legge il modello in FromPath ma in modo differito: i controlli sul file e il log
     /// con dimensione e memoria precedono il primo uso. Le WhisperModelLoadException successive le
-    /// riconosce <see cref="TranscribeAsync"/>.
+    /// riconosce <see cref="TranscribeAsync"/>. Controlli e log solo al primo processore.
     /// </summary>
-    private WhisperProcessor CreateProcessor()
+    private WhisperProcessor CreateProcessor(Func<WhisperProcessorBuilder, WhisperProcessorBuilder> configure)
     {
+        var threads = options.Value.Threads ?? Environment.ProcessorCount;
+        if (factory.IsValueCreated)
+        {
+            return configure(factory.Value.CreateBuilder().WithThreads(threads)).Build();
+        }
+
         var modelPath = options.Value.ModelPath;
         var model = new FileInfo(modelPath);
         if (!model.Exists)
@@ -100,8 +115,6 @@ public sealed class WhisperEngine(Ffmpeg ffmpeg, IOptions<WhisperOptions> option
             throw new TranscriptionException(Transcript.ModelLoadFailed, $"Modello non trovato in {modelPath}.", cause);
         }
 
-        var threads = options.Value.Threads ?? Environment.ProcessorCount;
-
         // Valori tecnici per distinguere un file troncato o non GGML da memoria insufficiente, e per
         // confrontare le vCPU viste dal processo con il limite del container (cpu.max) e le istruzioni
         // CPU usate da whisper.cpp.
@@ -111,9 +124,7 @@ public sealed class WhisperEngine(Ffmpeg ffmpeg, IOptions<WhisperOptions> option
 
         try
         {
-            var processor = factory.Value.CreateBuilder()
-                .WithThreads(threads)
-                .Build();
+            var processor = configure(factory.Value.CreateBuilder().WithThreads(threads)).Build();
             logger.LogInformation("Runtime di whisper.cpp: {RuntimeInfo}", WhisperFactory.GetRuntimeInfo());
             return processor;
         }

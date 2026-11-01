@@ -6,7 +6,7 @@ Container Apps Job (worker .NET 10 + ffmpeg + Whisper.net) avviato dallo scaler 
 2. Scarica la copia normalizzata da `audio/<oid>/<RecordUid>.opus` in una cartella temporanea.
 3. `ffmpeg` la decodifica in PCM float32 mono a 16 kHz.
 4. Whisper rileva la lingua sui primi 30 secondi, scegliendo solo tra italiano e inglese. Se la probabilità è sotto `Whisper__LanguageProbabilityThreshold` (predefinita 0,5) usa `fallbackLanguage`, la lingua dell'account.
-5. Trascrive nella lingua scelta e scrive **uno** dei due blob nel contenitore `transcripts`, solo se nessuno dei due esiste già (scrittura condizionale):
+5. Trascrive nella lingua scelta, con un prompt iniziale punteggiato in quella lingua (`Whisper__Prompts__it`, `Whisper__Prompts__en`; predefiniti in `JobOptions.cs`) che spinge Whisper a usare la punteggiatura, e scrive **uno** dei due blob nel contenitore `transcripts`, solo se nessuno dei due esiste già (scrittura condizionale):
 
 | Blob | Quando | Metadati |
 |---|---|---|
@@ -47,7 +47,7 @@ Il job dipende solo da `ITranscriptionEngine` (`Engine/`): riceve il file Opus e
 
 Il modello è `ggml-large-v3-turbo-q5_0.bin` (circa 550 MB), incluso nell'immagine dal `Dockerfile`: scaricato da Hugging Face a una revisione fissata e verificato con lo SHA-256. Per cambiarlo vanno aggiornati URL, checksum e `Whisper__ModelPath`.
 
-Velocità e qualità sull'italiano su CPU sono da misurare: con 2 vCPU (dev) una registrazione di 30 minuti potrebbe avvicinarsi al `replicaTimeout` di 60 minuti.
+Velocità e qualità sull'italiano su CPU sono da misurare: con 4 vCPU (dev e prod) una registrazione di 30 minuti potrebbe avvicinarsi al `replicaTimeout` di 60 minuti.
 
 ## Configurazione
 
@@ -63,7 +63,7 @@ Variabili d'ambiente impostate da `infra/modules/queue-job.bicep`:
 | `AZURE_CLIENT_ID` | Client ID dell'identità `id-memoa-<env>-transcriber` |
 | `APPLICATIONINSIGHTS_CONNECTION_STRING` | Facoltativa: senza, i log restano sulla console |
 
-Impostata dal `Dockerfile`: `Whisper__ModelPath`. Facoltative: `Whisper__LanguageProbabilityThreshold`, `Whisper__Threads` (predefinito: le vCPU viste dal processo, che in Container Apps possono superare quelle del job), `Job__MaxDequeueCount`, `Job__VisibilityTimeout` (formato `hh:mm:ss`, deve superare il `replicaTimeout`), `Job__FfmpegPath`.
+Impostata dal `Dockerfile`: `Whisper__ModelPath`. Facoltative: `Whisper__LanguageProbabilityThreshold`, `Whisper__Threads` (predefinito: le vCPU viste dal processo, che in Container Apps possono superare quelle del job), `Whisper__Prompts__<lingua>` (stringa vuota per trascrivere senza prompt), `Job__MaxDequeueCount`, `Job__VisibilityTimeout` (formato `hh:mm:ss`, deve superare il `replicaTimeout`), `Job__FfmpegPath`.
 
 ## Esecuzione in locale
 

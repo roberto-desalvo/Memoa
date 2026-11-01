@@ -27,8 +27,8 @@ param githubRepository = 'roberto-desalvo/Memoa'
 param normalizerCpu = '1.0'
 param normalizerMemory = '2Gi'
 
-param transcriberCpu = '2.0'
-param transcriberMemory = '4Gi'
+param transcriberCpu = '4.0'
+param transcriberMemory = '8Gi'
 
 param extraAllowedOrigins = [
   'http://localhost:4200'
