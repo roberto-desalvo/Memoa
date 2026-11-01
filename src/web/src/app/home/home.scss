@@ -46,3 +46,23 @@
     background: var(--accent-soft);
   }
 }
+
+// Strato trasparente sopra la pagina mentre una nota è selezionata; sopra c'è solo il cestino.
+.selection-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+}
+
+li {
+  position: relative;
+}
+
+// Cestino della nota selezionata, al posto di data e durata.
+.row-delete {
+  position: absolute;
+  top: 50%;
+  right: var(--space-2);
+  z-index: 31;
+  transform: translateY(-50%);
+}

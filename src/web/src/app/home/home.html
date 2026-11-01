@@ -1,27 +1,14 @@
-<!-- Con un record selezionato (pressione prolungata) l'intestazione mostra le azioni sul record. -->
-@if (selected()) {
-  <mat-toolbar class="page-header">
-    <button mat-icon-button aria-label="Annulla la selezione" (click)="clearSelection()">
-      <mat-icon svgIcon="close" />
-    </button>
-    <h1>1 nota selezionata</h1>
-    <button mat-icon-button aria-label="Elimina la nota" (click)="deleteSelected()">
-      <mat-icon svgIcon="delete" />
-    </button>
-  </mat-toolbar>
-} @else {
-  <mat-toolbar class="page-header">
-    <img class="logo" src="favicon.svg" alt="" width="32" height="32" />
-    <h1>Memoa</h1>
-    <button mat-icon-button aria-label="Menu utente" [matMenuTriggerFor]="userMenu">
-      @if (initials) {
-        <span class="avatar" aria-hidden="true">{{ initials }}</span>
-      } @else {
-        <mat-icon svgIcon="account" />
-      }
-    </button>
-  </mat-toolbar>
-}
+<mat-toolbar class="page-header">
+  <img class="logo" src="favicon.svg" alt="" width="32" height="32" />
+  <h1>Memoa</h1>
+  <button mat-icon-button aria-label="Menu utente" [matMenuTriggerFor]="userMenu">
+    @if (initials) {
+      <span class="avatar" aria-hidden="true">{{ initials }}</span>
+    } @else {
+      <mat-icon svgIcon="account" />
+    }
+  </button>
+</mat-toolbar>
 
 <mat-menu #userMenu xPosition="before">
   @if (accountName) {
@@ -68,9 +55,7 @@
                       class="note-link"
                       [class.selected]="record.recordUid === selected()?.recordUid"
                       appLongPress
-                      [blockClicks]="!!selected()"
                       (longPress)="select(record)"
-                      (blockedClick)="clearSelection()"
                       (click)="openError(record)"
                     >
                       <app-note-row
@@ -81,6 +66,7 @@
                           record.occurredAt | noteDate: (group.recent ? 'time' : 'dayMonth')
                         "
                         [text]="record.excerpt"
+                        [hideSide]="record.recordUid === selected()?.recordUid"
                       />
                     </button>
                   } @else {
@@ -88,9 +74,7 @@
                       class="note-link"
                       [class.selected]="record.recordUid === selected()?.recordUid"
                       appLongPress
-                      [blockClicks]="!!selected()"
                       (longPress)="select(record)"
-                      (blockedClick)="clearSelection()"
                       [routerLink]="['/records', record.recordUid]"
                     >
                       <app-note-row
@@ -101,8 +85,19 @@
                           record.occurredAt | noteDate: (group.recent ? 'time' : 'dayMonth')
                         "
                         [text]="record.excerpt"
+                        [hideSide]="record.recordUid === selected()?.recordUid"
                       />
                     </a>
+                  }
+                  @if (record.recordUid === selected()?.recordUid) {
+                    <button
+                      mat-icon-button
+                      class="row-delete"
+                      aria-label="Elimina la nota"
+                      (click)="deleteSelected()"
+                    >
+                      <mat-icon svgIcon="delete" />
+                    </button>
                   }
                 </li>
               }
@@ -122,6 +117,21 @@
     </div>
   }
 </main>
+
+<!--
+  Con una nota selezionata uno strato trasparente copre la pagina (ricerca, intestazione, pulsante di
+  aggiunta): toccando ovunque tranne il cestino si chiude la selezione. Conta solo un tocco iniziato
+  sullo strato, non il rilascio della pressione che ha selezionato la nota.
+-->
+@if (selected()) {
+  <div
+    class="selection-scrim"
+    aria-hidden="true"
+    (pointerdown)="scrimArmed = true"
+    (click)="scrimArmed && clearSelection()"
+    (contextmenu)="$event.preventDefault(); clearSelection()"
+  ></div>
+}
 
 <button mat-fab class="fab" aria-label="Aggiungi una nota" [matMenuTriggerFor]="addMenu">
   <mat-icon svgIcon="add" />

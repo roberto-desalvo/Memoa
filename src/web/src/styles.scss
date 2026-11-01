@@ -221,10 +221,14 @@ p {
   padding: env(safe-area-inset-top) var(--space-1) 0;
   color: var(--mat-sys-on-surface);
   background: var(--mat-sys-surface);
+  // Il fondo copre tutta la larghezza dello schermo su qualunque dispositivo, anche quando la colonna
+  // della pagina è più stretta: border-image disegnato fuori dal riquadro, senza allargare la pagina né
+  // dipendere dalla barra di scorrimento.
+  border-image: linear-gradient(var(--mat-sys-surface) 0 0) fill 0 / 0 / 0 100vw;
 
-  // Su telefono e tablet (anche in orizzontale) l'intestazione occupa tutta la larghezza dello schermo,
-  // fuori dalla colonna della pagina. Solo sui dispositivi touch, dove la barra di scorrimento non
-  // occupa spazio e 100vw coincide con la larghezza visibile.
+  // Su telefono e tablet (anche in orizzontale) anche il contenuto va ai bordi dello schermo. Solo sui
+  // dispositivi touch, dove la barra di scorrimento non occupa spazio e 100vw coincide con la larghezza
+  // visibile.
   @media (hover: none) and (pointer: coarse) {
     margin-inline: calc(50% - 50vw);
     padding-inline: calc(var(--space-1) + env(safe-area-inset-left))

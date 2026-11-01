@@ -80,7 +80,11 @@ export class Home implements OnInit, OnDestroy {
     this.store.stop();
   }
 
+  /** Lo strato sopra la pagina chiude la selezione solo con un tocco iniziato su di esso. */
+  protected scrimArmed = false;
+
   protected select(record: RecordSummary): void {
+    this.scrimArmed = false;
     this.selectedUid.set(record.recordUid);
   }
 

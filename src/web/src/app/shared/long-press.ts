@@ -1,4 +1,4 @@
-import { DestroyRef, Directive, ElementRef, inject, input, output } from '@angular/core';
+import { DestroyRef, Directive, ElementRef, inject, output } from '@angular/core';
 
 /** Durata della pressione che seleziona la voce. */
 const LONG_PRESS_MS = 500;
@@ -7,8 +7,7 @@ const MOVE_TOLERANCE_PX = 10;
 
 /**
  * Pressione prolungata su una voce della lista (o clic destro con il mouse). Il clic che segue la
- * pressione non apre la voce, e mentre `blockClicks` è attivo (c'è una voce selezionata) nessun clic
- * la apre: emette invece `blockedClick`. Il clic si intercetta in fase di cattura, prima di RouterLink.
+ * pressione non apre la voce: si intercetta in fase di cattura, prima di RouterLink.
  */
 @Directive({
   selector: '[appLongPress]',
@@ -23,9 +22,7 @@ const MOVE_TOLERANCE_PX = 10;
   },
 })
 export class LongPress {
-  readonly blockClicks = input(false);
   readonly longPress = output<void>();
-  readonly blockedClick = output<void>();
 
   private timer?: ReturnType<typeof setTimeout>;
   private origin?: { x: number; y: number };
@@ -34,15 +31,10 @@ export class LongPress {
   constructor() {
     const element = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
     const onClick = (event: MouseEvent) => {
-      if (!this.fired && !this.blockClicks()) {
-        return;
-      }
-      event.preventDefault();
-      event.stopPropagation();
       if (this.fired) {
         this.fired = false;
-      } else {
-        this.blockedClick.emit();
+        event.preventDefault();
+        event.stopPropagation();
       }
     };
     element.addEventListener('click', onClick, true);

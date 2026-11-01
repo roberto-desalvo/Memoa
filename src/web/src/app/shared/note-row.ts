@@ -29,12 +29,14 @@ import { RecordStatus, SourceType } from '../records/records-api';
         <span class="text text-secondary muted" [style.--lines]="lines()">{{ text() }}</span>
       }
     </span>
-    <span class="side text-secondary muted">
-      <span>{{ detail() }}</span>
-      @if (duration()) {
-        <span [attr.aria-label]="'Durata ' + duration()">{{ duration() }}</span>
-      }
-    </span>
+    @if (!hideSide()) {
+      <span class="side text-secondary muted">
+        <span>{{ detail() }}</span>
+        @if (duration()) {
+          <span [attr.aria-label]="'Durata ' + duration()">{{ duration() }}</span>
+        }
+      </span>
+    }
   `,
   styles: `
     :host {
@@ -98,4 +100,6 @@ export class NoteRow {
   readonly text = input<string | null | undefined>(null);
   /** Righe di testo mostrate prima dei puntini. */
   readonly lines = input(1);
+  /** Nasconde data e durata, per lasciare il posto a un'azione sopra la riga (il cestino in homepage). */
+  readonly hideSide = input(false);
 }
