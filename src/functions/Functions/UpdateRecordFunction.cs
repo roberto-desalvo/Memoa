@@ -60,9 +60,12 @@ public sealed class UpdateRecordFunction(MemoaDbContext db, ILogger<UpdateRecord
                 return new HttpWithIndexingOutput { Result = RecordInput.InvalidText() };
             }
 
-            // Senza testo (audio non ancora trascritto) o durante l'elaborazione il testo non si modifica:
+            // Senza testo (audio non ancora trascritto), durante l'elaborazione o dopo una rigenerazione
+            // della trascrizione non riuscita (OriginalTranscript null) il testo non si modifica:
             // l'indicizzazione in corso lo sovrascriverebbe o ne verrebbe sovrascritta.
-            if (record.Text is null || record.Status == RecordStatus.Processing)
+            if (record.Text is null
+                || record.Status == RecordStatus.Processing
+                || (record.SourceType == SourceType.Audio && record.OriginalTranscript is null))
             {
                 return new HttpWithIndexingOutput
                 {

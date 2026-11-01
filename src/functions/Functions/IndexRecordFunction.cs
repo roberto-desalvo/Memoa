@@ -75,6 +75,15 @@ public sealed class IndexRecordFunction(
             return;
         }
 
+        // Rigenerazione della trascrizione in corso (RegenerateTranscriptFunction): il testo corrente sta per
+        // essere sostituito e EnqueueIndexing accoderà di nuovo il record se cambia. Un messaggio tardivo
+        // porterebbe il record a "pronto" e la nuova trascrizione verrebbe ignorata.
+        if (record.SourceType == SourceType.Audio && record.OriginalTranscript is null && record.Text is not null)
+        {
+            logger.LogInformation("Record {RecordUid} in attesa della nuova trascrizione: messaggio ignorato", recordUid);
+            return;
+        }
+
         // Chi accoda garantisce un testo non vuoto: senza testo non c'è nulla da indicizzare.
         if (string.IsNullOrWhiteSpace(record.Text))
         {

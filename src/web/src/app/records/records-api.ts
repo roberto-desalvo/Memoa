@@ -24,6 +24,11 @@ export interface RecordDetail extends RecordSummary {
   language: string | null;
   hasAudio: boolean;
   durationSeconds: number | null;
+  /** Il testo è la trascrizione automatica di un audio. */
+  isTranscript: boolean;
+  /** La trascrizione automatica è stata modificata dall'utente. */
+  isTranscriptEdited: boolean;
+  canRegenerateTranscript: boolean;
 }
 
 /** Titolo e data della nota, chiesti per tutte le modalità di aggiunta. */
@@ -75,5 +80,10 @@ export class RecordsApi {
 
   retry(recordUid: string): Observable<RecordDetail> {
     return this.http.post<RecordDetail>(`${this.baseUrl}/${recordUid}/retry`, null);
+  }
+
+  /** Rifà la trascrizione automatica dalla copia normalizzata; sostituisce il testo corrente. */
+  regenerateTranscript(recordUid: string): Observable<RecordDetail> {
+    return this.http.post<RecordDetail>(`${this.baseUrl}/${recordUid}/transcript/regenerate`, null);
   }
 }

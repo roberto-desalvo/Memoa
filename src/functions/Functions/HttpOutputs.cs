@@ -17,7 +17,21 @@ public sealed class HttpWithIndexingOutput
 }
 
 /// <summary>
-/// Risposta di <see cref="RetryRecordFunction"/>: al più uno dei due messaggi, secondo il punto da cui
+/// Risposta HTTP più l'eventuale messaggio per la coda di trascrizione
+/// (<see cref="Memoa.Shared.Pipeline.TranscriptionRequest"/> in JSON, come in
+/// <see cref="EnqueueTranscriptionFunction"/>). Con un messaggio null non si accoda nulla.
+/// </summary>
+public sealed class HttpWithTranscriptionOutput
+{
+    [HttpResult]
+    public required IActionResult Result { get; init; }
+
+    [QueueOutput("%Queues:Transcription%", Connection = "DataStorage")]
+    public string? TranscriptionMessage { get; init; }
+}
+
+/// <summary>
+/// Risposta di <see cref="RetryRecordFunction"/>: al più uno dei messaggi, secondo il punto da cui
 /// riparte l'elaborazione.
 /// </summary>
 public sealed class RetryOutput
@@ -28,6 +42,9 @@ public sealed class RetryOutput
     /// <summary>URL dell'originale, senza SAS (come in <see cref="ValidateUploadFunction"/>).</summary>
     [QueueOutput("%Queues:Normalization%", Connection = "DataStorage")]
     public string? NormalizationMessage { get; init; }
+
+    [QueueOutput("%Queues:Transcription%", Connection = "DataStorage")]
+    public string? TranscriptionMessage { get; init; }
 
     [QueueOutput("%Queues:Indexing%", Connection = "DataStorage")]
     public string? IndexingMessage { get; init; }

@@ -118,8 +118,12 @@ public sealed partial class EnqueueIndexingFunction(
 
         if (record.OriginalTranscript is null)
         {
+            // Prima trascrizione, oppure rigenerazione (RegenerateTranscriptFunction azzera OriginalTranscript
+            // e lascia il testo corrente, già indicizzato): se il testo non cambia l'indicizzazione non serve.
+            var unchanged = record.Text == text && await HasChunksAsync(record, cancellationToken);
+
             // OriginalTranscript resta la trascrizione automatica; Text è quella corrente, che l'utente
-            // potrà modificare.
+            // potrà modificare. La rigenerazione sostituisce entrambe.
             record.OriginalTranscript = text;
             record.Text = text;
 
@@ -136,8 +140,20 @@ public sealed partial class EnqueueIndexingFunction(
                 record.Language = record.User.PreferredLanguage;
             }
 
+            if (unchanged)
+            {
+                record.Status = RecordStatus.Ready;
+                record.ErrorCode = null;
+            }
+
             // Una modifica concorrente del record (RowVersion) solleva un'eccezione: Event Grid riprova.
             await db.SaveChangesAsync(cancellationToken);
+
+            if (unchanged)
+            {
+                logger.LogInformation("Record {RecordUid}: trascrizione rigenerata invariata, indicizzazione non necessaria", record.RecordUid);
+                return null;
+            }
         }
 
         // Si accoda anche alle consegne successive finché il record è in elaborazione: la prima può aver
@@ -145,6 +161,15 @@ public sealed partial class EnqueueIndexingFunction(
         logger.LogInformation("Record {RecordUid} accodato per l'indicizzazione", record.RecordUid);
         return record.RecordUid.ToString("D");
     }
+
+    /// <summary>
+    /// True se il testo corrente è già indicizzato: IndexRecordFunction salva i chunk insieme allo stato
+    /// "pronto", quindi esistono solo dopo un'indicizzazione completata.
+    /// </summary>
+    private Task<bool> HasChunksAsync(Record record, CancellationToken cancellationToken) =>
+        db.RecordChunks
+            .IgnoreQueryFilters([MemoaDbContext.CurrentUserFilter])
+            .AnyAsync(c => c.RecordId == record.Id, cancellationToken);
 
     private async Task<string?> SaveErrorAsync(
         Record record,

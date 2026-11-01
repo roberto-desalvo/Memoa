@@ -2,6 +2,7 @@ using Memoa.Functions.Authentication;
 using Memoa.Functions.Data;
 using Memoa.Functions.Data.Entities;
 using Memoa.Functions.Storage;
+using Memoa.Shared.Pipeline;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
@@ -15,6 +16,8 @@ namespace Memoa.Functions.Functions;
 /// <list type="bullet">
 /// <item>record con testo (testo scritto, o audio la cui indicizzazione è fallita): si rifà solo
 /// l'indicizzazione, senza perdere il testo e le eventuali correzioni dell'utente;</item>
+/// <item>audio con testo ma senza OriginalTranscript (rigenerazione della trascrizione non riuscita, vedi
+/// <see cref="RegenerateTranscriptFunction"/>): si rifà la trascrizione della copia normalizzata;</item>
 /// <item>audio senza testo: si riparte dalla normalizzazione dell'originale, dopo aver eliminato copia
 /// normalizzata, trascrizione ed esiti di errore, che altrimenti farebbero saltare il record ai job.</item>
 /// </list>
@@ -33,6 +36,7 @@ public sealed class RetryRecordFunction(
     {
         // Il filtro globale restituisce solo i record dell'utente autenticato.
         var record = await db.Records
+            .Include(r => r.User)
             .Include(r => r.Attachments)
             .SingleOrDefaultAsync(r => r.RecordUid == recordUid, cancellationToken);
 
@@ -48,13 +52,20 @@ public sealed class RetryRecordFunction(
         }
 
         var previousError = record.ErrorCode;
-        var reindex = record.Text is not null;
+        var step = record.Text is null ? RetryStep.Normalization
+            : record.SourceType == SourceType.Audio && record.OriginalTranscript is null && attachment?.NormalizedBlobPath is not null
+                ? RetryStep.Transcription
+                : RetryStep.Indexing;
 
-        if (!reindex)
+        if (step == RetryStep.Normalization)
         {
             await blobs.DeleteDerivedAsync(currentUser.RequiredEntraObjectId, recordUid, cancellationToken);
             attachment!.NormalizedBlobPath = null;
             attachment.DurationSeconds = null;
+        }
+        else if (step == RetryStep.Transcription)
+        {
+            await blobs.DeleteTranscriptAsync(currentUser.RequiredEntraObjectId, recordUid, cancellationToken);
         }
 
         record.Status = RecordStatus.Processing;
@@ -71,13 +82,26 @@ public sealed class RetryRecordFunction(
 
         logger.LogInformation(
             "Record {RecordUid} riprovato dopo l'errore {ErrorCode}: {Step}",
-            recordUid, previousError, reindex ? "indicizzazione" : "normalizzazione");
+            recordUid, previousError, step);
 
         return new RetryOutput
         {
             Result = new OkObjectResult(RecordResponses.ToDetail(record)),
-            IndexingMessage = reindex ? record.RecordUid.ToString("D") : null,
-            NormalizationMessage = reindex ? null : blobs.UploadBlobUrl(attachment!.OriginalBlobPath),
+            IndexingMessage = step == RetryStep.Indexing ? record.RecordUid.ToString("D") : null,
+            NormalizationMessage = step == RetryStep.Normalization ? blobs.UploadBlobUrl(attachment!.OriginalBlobPath) : null,
+            TranscriptionMessage = step == RetryStep.Transcription
+                ? new TranscriptionRequest(
+                    blobs.NormalizedBlobUrl(attachment!.NormalizedBlobPath!),
+                    record.User.PreferredLanguage).Serialize()
+                : null,
         };
+    }
+
+    /// <summary>Passo da cui riparte l'elaborazione.</summary>
+    private enum RetryStep
+    {
+        Normalization,
+        Transcription,
+        Indexing,
     }
 }

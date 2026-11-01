@@ -76,6 +76,19 @@
     }
 
     @if (record.text) {
+      @if (record.isTranscript) {
+        <p class="transcript-label">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="9" y="3" width="6" height="11" rx="3" />
+            <path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
+          </svg>
+          {{
+            record.isTranscriptEdited
+              ? 'Trascrizione automatica, modificata da te'
+              : 'Trascrizione automatica: potrebbe contenere errori'
+          }}
+        </p>
+      }
       <article class="text">{{ record.text }}</article>
     }
 
@@ -85,11 +98,35 @@
 
     <div class="actions">
       <button type="button" class="danger" (click)="confirmDelete()">Elimina</button>
+      @if (record.canRegenerateTranscript) {
+        <button type="button" (click)="confirmRegenerate()">Rigenera trascrizione</button>
+      }
       @if (record.status === 'Ready') {
         <button type="button" class="primary" (click)="startEdit(record)">Modifica</button>
       }
     </div>
   }
+
+  <dialog #regenerateDialog>
+    <h2>Rigenerare la trascrizione?</h2>
+    <p>
+      L’audio viene trascritto di nuovo e la nuova trascrizione sostituisce il testo attuale.
+      @if (record.isTranscriptEdited) {
+        Le modifiche che hai fatto al testo andranno perse.
+      }
+    </p>
+    <div class="actions">
+      <button type="button" [disabled]="busy()" (click)="regenerateDialog.close()">Annulla</button>
+      <button
+        type="button"
+        class="primary"
+        [disabled]="busy()"
+        (click)="regenerateTranscript(record)"
+      >
+        Rigenera
+      </button>
+    </div>
+  </dialog>
 
   <dialog #deleteDialog>
     <h2>Eliminare la nota?</h2>

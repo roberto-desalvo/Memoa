@@ -23,7 +23,10 @@ public sealed record RecordDetail(
     string? Language,
     bool HasAudio,
     int? DurationSeconds,
-    bool CanRetry);
+    bool CanRetry,
+    bool IsTranscript,
+    bool IsTranscriptEdited,
+    bool CanRegenerateTranscript);
 
 internal static class RecordResponses
 {
@@ -43,9 +46,17 @@ internal static class RecordResponses
                 && hasAttachment
                 && errorCode is not (ValidateUploadFunction.FileEmpty or ValidateUploadFunction.FileTooLarge)));
 
+    /// <summary>
+    /// La trascrizione di un audio pronto si può rigenerare dalla copia normalizzata (vedi
+    /// <see cref="RegenerateTranscriptFunction"/>).
+    /// </summary>
+    public static bool CanRegenerateTranscript(RecordStatus status, SourceType sourceType, string? normalizedBlobPath) =>
+        status == RecordStatus.Ready && sourceType == SourceType.Audio && normalizedBlobPath is not null;
+
     public static RecordDetail ToDetail(Record record)
     {
         var audio = record.Attachments.FirstOrDefault(a => a.Kind == AttachmentKind.Audio);
+        var isTranscript = record.SourceType == SourceType.Audio && record.Text is not null;
 
         return new RecordDetail(
             record.RecordUid,
@@ -58,6 +69,10 @@ internal static class RecordResponses
             record.Language,
             audio?.NormalizedBlobPath is not null,
             audio?.DurationSeconds,
-            CanRetry(record.Status, record.SourceType, record.ErrorCode, record.Text is not null, audio is not null));
+            CanRetry(record.Status, record.SourceType, record.ErrorCode, record.Text is not null, audio is not null),
+            isTranscript,
+            // OriginalTranscript è null solo durante una rigenerazione (o se è fallita): il testo resta quello di prima.
+            isTranscript && record.OriginalTranscript is not null && record.Text != record.OriginalTranscript,
+            CanRegenerateTranscript(record.Status, record.SourceType, audio?.NormalizedBlobPath));
     }
 }

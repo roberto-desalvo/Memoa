@@ -38,6 +38,8 @@ export class RecordPage implements OnInit {
   protected readonly maxTextLength = MAX_TEXT_LENGTH;
 
   private readonly deleteDialog = viewChild.required<ElementRef<HTMLDialogElement>>('deleteDialog');
+  private readonly regenerateDialog =
+    viewChild.required<ElementRef<HTMLDialogElement>>('regenerateDialog');
 
   async ngOnInit(): Promise<void> {
     try {
@@ -113,6 +115,32 @@ export class RecordPage implements OnInit {
           ? 'La nota è stata aggiornata nel frattempo: ricarica la pagina e riprova.'
           : 'Salvataggio non riuscito.',
       );
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  protected confirmRegenerate(): void {
+    this.actionError.set(null);
+    this.regenerateDialog().nativeElement.showModal();
+  }
+
+  protected async regenerateTranscript(record: RecordDetail): Promise<void> {
+    this.busy.set(true);
+    try {
+      const updated = await firstValueFrom(this.api.regenerateTranscript(record.recordUid));
+      this.store.replace(updated);
+      this.regenerateDialog().nativeElement.close();
+      // Il record torna "in elaborazione" nella lista fino alla nuova trascrizione.
+      void this.router.navigate(['/']);
+    } catch (err) {
+      console.error('Rigenerazione della trascrizione non riuscita', err);
+      this.actionError.set(
+        err instanceof HttpErrorResponse && err.status === 409
+          ? 'La nota è stata aggiornata nel frattempo: ricarica la pagina e riprova.'
+          : 'Rigenerazione della trascrizione non riuscita.',
+      );
+      this.regenerateDialog().nativeElement.close();
     } finally {
       this.busy.set(false);
     }

@@ -18,6 +18,10 @@ public sealed class RecordBlobService(BlobServiceClient blobServiceClient, IOpti
     public string UploadBlobUrl(string originalBlobPath) =>
         Container(containers.Value.Uploads).GetBlobClient(originalBlobPath).Uri.ToString();
 
+    /// <summary>URL della copia normalizzata, senza SAS: va nel messaggio della coda di trascrizione.</summary>
+    public string NormalizedBlobUrl(string normalizedBlobPath) =>
+        Container(containers.Value.Audio).GetBlobClient(normalizedBlobPath).Uri.ToString();
+
     /// <summary>True se il client ha completato l'upload dell'originale.</summary>
     public async Task<bool> UploadExistsAsync(Guid entraObjectId, Guid recordUid, CancellationToken cancellationToken) =>
         await Container(containers.Value.Uploads)
@@ -32,6 +36,14 @@ public sealed class RecordBlobService(BlobServiceClient blobServiceClient, IOpti
         Task.WhenAll(
             DeleteAsync(containers.Value.Audio, NormalizedAudio.AudioBlobName(entraObjectId, recordUid), cancellationToken),
             DeleteAsync(containers.Value.Audio, NormalizedAudio.ErrorBlobName(entraObjectId, recordUid), cancellationToken),
+            DeleteTranscriptAsync(entraObjectId, recordUid, cancellationToken));
+
+    /// <summary>
+    /// Elimina trascrizione ed esito di errore del job di trascrizione, che altrimenti salterebbe il record:
+    /// serve per trascrivere di nuovo la copia normalizzata.
+    /// </summary>
+    public Task DeleteTranscriptAsync(Guid entraObjectId, Guid recordUid, CancellationToken cancellationToken) =>
+        Task.WhenAll(
             DeleteAsync(containers.Value.Transcripts, Transcript.TextBlobName(entraObjectId, recordUid), cancellationToken),
             DeleteAsync(containers.Value.Transcripts, Transcript.ErrorBlobName(entraObjectId, recordUid), cancellationToken));
 
