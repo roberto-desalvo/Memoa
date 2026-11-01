@@ -15,6 +15,11 @@ export interface AppConfig {
     /** Scope dell'API (AUTH_API_SCOPE_<ENV>). */
     apiScope: string;
   };
+  /**
+   * Durata massima di un audio in minuti, per la registrazione e per i file caricati. Deve
+   * corrispondere al limite della normalizzazione (AudioValidation.MaxDuration nelle Functions).
+   */
+  maxAudioDurationMinutes: number;
 }
 
 export const APP_CONFIG = new InjectionToken<AppConfig>('APP_CONFIG');

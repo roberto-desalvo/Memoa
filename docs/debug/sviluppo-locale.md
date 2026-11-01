@@ -56,6 +56,7 @@ Copiare `src/web/config.example.json` in `src/web/public/config.json`:
 | `auth.authority` | `AUTH_AUTHORITY_DEV` **senza** il suffisso `/v2.0` |
 | `auth.clientId` | `AUTH_WEB_CLIENT_ID_DEV` |
 | `auth.apiScope` | `AUTH_API_SCOPE_DEV` |
+| `maxAudioDurationMinutes` | `30`, come il limite della normalizzazione |
 
 `http://localhost:4200` è già tra i redirect URI della registrazione del frontend in dev (`infra/identity/main.dev.bicepparam`). L'app `Memoa (dev)` deve essere collegata al flusso utente del tenant esterno.
 

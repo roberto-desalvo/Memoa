@@ -47,13 +47,16 @@ jobs:
           AUTH_AUTHORITY: ${{ vars.AUTH_AUTHORITY }}
           AUTH_WEB_CLIENT_ID: ${{ vars.AUTH_WEB_CLIENT_ID }}
           AUTH_API_SCOPE: ${{ vars.AUTH_API_SCOPE }}
+          # Deve corrispondere al limite della normalizzazione (AudioValidation.MaxDuration).
+          MAX_AUDIO_DURATION_MINUTES: ${{ vars.MAX_AUDIO_DURATION_MINUTES || '30' }}
         run: |
           jq -n \
             --arg apiBaseUrl "$API_BASE_URL" \
             --arg authority "${AUTH_AUTHORITY%/v2.0}" \
             --arg clientId "$AUTH_WEB_CLIENT_ID" \
             --arg apiScope "$AUTH_API_SCOPE" \
-            '{apiBaseUrl: $apiBaseUrl, auth: {authority: $authority, clientId: $clientId, apiScope: $apiScope}}' \
+            --argjson maxAudioDurationMinutes "$MAX_AUDIO_DURATION_MINUTES" \
+            '{apiBaseUrl: $apiBaseUrl, auth: {authority: $authority, clientId: $clientId, apiScope: $apiScope}, maxAudioDurationMinutes: $maxAudioDurationMinutes}' \
             > site/config.json
 
       - uses: Azure/static-web-apps-deploy@v1

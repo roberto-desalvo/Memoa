@@ -2,7 +2,7 @@ import { Component, computed, inject, output, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
-import { AudioRecorder, MAX_RECORDING_MS } from './audio-recorder';
+import { AudioRecorder } from './audio-recorder';
 
 /**
  * Registrazione dal microfono. Emette l'audio quando la registrazione si ferma; titolo, data e
@@ -25,7 +25,7 @@ export class RecordAudio {
   protected readonly recording = this.recorder.recording;
   protected readonly error = signal<string | null>(null);
   protected readonly elapsed = computed(() => formatDuration(this.recorder.elapsedMs()));
-  protected readonly maxDuration = formatDuration(MAX_RECORDING_MS);
+  protected readonly maxDuration = formatDuration(this.recorder.maxDurationMs);
 
   protected async toggle(): Promise<void> {
     if (this.recording()) {

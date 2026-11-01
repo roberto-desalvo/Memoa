@@ -12,6 +12,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { Router, RouterLink } from '@angular/router';
 import { lastValueFrom, Observable, tap } from 'rxjs';
+import { APP_CONFIG } from '../config/app-config';
 import { MAX_TEXT_LENGTH, NoteDetails, RecordsApi } from '../records/records-api';
 import { RecordAudio } from '../recording/record-audio';
 import {
@@ -20,6 +21,7 @@ import {
   audioContentType,
   MAX_AUDIO_SIZE_BYTES,
 } from '../uploads/audio-formats';
+import { exceedsMaxDuration } from '../uploads/audio-duration';
 import { AudioUploadService } from '../uploads/audio-upload.service';
 import { isTextFile, readTextFile, TEXT_ACCEPT, TEXT_FORMATS_LABEL } from '../uploads/text-file';
 import {
@@ -88,6 +90,7 @@ export class NewNote implements OnInit {
   private readonly uploads = inject(AudioUploadService);
   private readonly drafts = inject(NoteDraft);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly maxAudioDurationMinutes = inject(APP_CONFIG).maxAudioDurationMinutes;
 
   /** Dal percorso /new/:mode. */
   readonly mode = input.required<NewNoteMode>();
@@ -237,7 +240,7 @@ export class NewNote implements OnInit {
       }
 
       this.updateFile(index, { status: 'saving' });
-      const content = await readContent(item.file);
+      const content = await readContent(item.file, this.maxAudioDurationMinutes);
       if ('error' in content) {
         this.updateFile(index, { status: 'invalid', error: content.error });
         continue;
@@ -293,7 +296,10 @@ function fileDate(file: File): Date {
 }
 
 /** Contenuto di un file caricato, oppure il messaggio d'errore per l'utente. */
-async function readContent(file: File): Promise<Content | { error: string }> {
+async function readContent(
+  file: File,
+  maxDurationMinutes: number,
+): Promise<Content | { error: string }> {
   if (isTextFile(file)) {
     const result = await readTextFile(file);
     return 'error' in result ? result : { kind: 'text', text: result.text };
@@ -308,6 +314,9 @@ async function readContent(file: File): Promise<Content | { error: string }> {
   }
   if (file.size > MAX_AUDIO_SIZE_BYTES) {
     return { error: 'Il file supera il limite di 350 MB.' };
+  }
+  if (await exceedsMaxDuration(file, maxDurationMinutes)) {
+    return { error: `L'audio supera la durata massima di ${maxDurationMinutes} minuti.` };
   }
   return { kind: 'audio', audio: file, contentType };
 }

@@ -1,7 +1,5 @@
-import { Injectable, OnDestroy, signal } from '@angular/core';
-
-/** Durata massima di una registrazione. */
-export const MAX_RECORDING_MS = 30 * 60 * 1000;
+import { inject, Injectable, OnDestroy, signal } from '@angular/core';
+import { APP_CONFIG } from '../config/app-config';
 
 // Preferenza Opus/WebM, fallback MP4/AAC per i Safari precedenti alla 18.4.
 const PREFERRED_TYPES = ['audio/webm;codecs=opus', 'audio/ogg;codecs=opus', 'audio/mp4'];
@@ -14,6 +12,8 @@ const PREFERRED_TYPES = ['audio/webm;codecs=opus', 'audio/ogg;codecs=opus', 'aud
 export class AudioRecorder implements OnDestroy {
   readonly recording = signal(false);
   readonly elapsedMs = signal(0);
+  /** Durata massima di una registrazione, dalla configurazione. */
+  readonly maxDurationMs = inject(APP_CONFIG).maxAudioDurationMinutes * 60 * 1000;
 
   private recorder?: MediaRecorder;
   private stream?: MediaStream;
@@ -60,7 +60,7 @@ export class AudioRecorder implements OnDestroy {
     this.timer = setInterval(() => {
       const elapsed = Date.now() - startedAt;
       this.elapsedMs.set(elapsed);
-      if (elapsed >= MAX_RECORDING_MS) {
+      if (elapsed >= this.maxDurationMs) {
         this.stop();
       }
     }, 250);
