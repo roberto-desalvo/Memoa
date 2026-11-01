@@ -57,6 +57,7 @@ Valgono per ogni schermata. Una nuova schermata o un nuovo componente le rispett
 
 - **Un solo colore d'accento**, il colore primario del tema, riservato alle azioni principali (pulsante primario, FAB, elemento attivo, focus).
 - Tutto il resto in **neutri**: sfondo, superfici, bordi, testo principale e attenuato.
+- Unica eccezione: il **logo dell'app** (foglio con onda sonora, lo stesso della favicon), a colori nell'intestazione della homepage e nel diario vuoto.
 - Il colore di errore del tema si usa solo per gli errori, sempre insieme a testo e icona.
 - Tema chiaro e scuro con gli stessi ruoli di colore: nessun colore scritto direttamente nei componenti, solo token del tema.
 

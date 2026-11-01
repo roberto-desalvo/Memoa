@@ -1,5 +1,6 @@
 <mat-toolbar class="page-header">
-  <mat-icon class="logo" svgIcon="logo" />
+  <!-- Logo dell'app: unico elemento a colori oltre alle azioni principali. -->
+  <img class="logo" src="favicon.svg" alt="" width="32" height="32" />
   <h1>Memoa</h1>
   <button mat-icon-button aria-label="Menu utente" [matMenuTriggerFor]="userMenu">
     @if (initials) {
@@ -29,7 +30,7 @@
   @if (store.records(); as records) {
     @if (records.length === 0) {
       <div class="page-state">
-        <mat-icon svgIcon="logo" />
+        <img src="favicon.svg" alt="" width="48" height="48" />
         <h2 class="text-body strong">Il tuo diario è vuoto</h2>
         <p class="text-secondary muted">
           Registra un pensiero, scrivi una nota o carica un file. Tocca + per iniziare.
