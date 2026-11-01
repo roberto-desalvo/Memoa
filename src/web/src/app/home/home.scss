@@ -8,8 +8,15 @@
   margin-inline: var(--space-3) var(--space-1);
 }
 
-// Iniziali dell'utente nel pulsante del menu: tinta tenue dell'accento.
+// Logo e avatar allineati al margine del contenuto della pagina (16 px dal bordo).
+.user-button {
+  margin-inline-end: var(--space-2);
+}
+
+// Iniziali dell'utente nel pulsante del menu: tinta tenue dell'accento. Il pulsante è pensato per
+// un'icona da 24 px: il margine negativo centra il cerchio da 40 px.
 .avatar {
+  margin: -8px;
   display: grid;
   place-items: center;
   width: 40px;

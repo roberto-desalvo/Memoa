@@ -15,6 +15,7 @@ import { NoteDraft } from '../notes/note-draft';
 import { RecordsApi, RecordSummary } from '../records/records-api';
 import { RecordsStore } from '../records/records-store';
 import { NoteSearch } from '../search/note-search';
+import { AppLogo } from '../shared/app-logo';
 import { DELETE_NOTE_DIALOG, openConfirmDialog } from '../shared/confirm-dialog';
 import { LongPress } from '../shared/long-press';
 import { NoteRow } from '../shared/note-row';
@@ -25,6 +26,7 @@ import { TEXT_ACCEPT } from '../uploads/text-file';
   selector: 'app-home',
   imports: [
     RouterLink,
+    AppLogo,
     LongPress,
     NoteDatePipe,
     NoteRow,
