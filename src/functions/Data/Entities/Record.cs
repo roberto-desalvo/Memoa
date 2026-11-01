@@ -1,3 +1,5 @@
+using Microsoft.Data.SqlTypes;
+
 namespace Memoa.Functions.Data.Entities;
 
 /// <summary>Record del diario, comune a tutte le origini.</summary>
@@ -20,6 +22,16 @@ public sealed class Record
 
     /// <summary>Titolo mostrato nella lista, scelto dall'utente. Dato personale: mai nei log.</summary>
     public string Title { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Embedding del titolo, confrontato insieme ai frammenti (in OR) nella ricerca e con l'embedding del nome
+    /// dei tag. Lo calcola l'indicizzazione, oppure UpdateRecordFunction quando cambia il titolo di un record
+    /// pronto; null finché non è calcolato.
+    /// </summary>
+    public SqlVector<float>? TitleEmbedding { get; set; }
+
+    /// <summary>Modello che ha prodotto <see cref="TitleEmbedding"/>; null insieme al vettore.</summary>
+    public string? TitleEmbeddingModel { get; set; }
 
     public SourceType SourceType { get; set; }
 

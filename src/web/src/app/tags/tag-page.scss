@@ -7,16 +7,23 @@ form .full + .full {
   margin-top: var(--space-2);
 }
 
-.records {
-  margin-top: var(--space-5);
+.assigning {
+  margin-bottom: var(--space-4);
 }
 
-.assigning {
-  margin-top: var(--space-5);
+.section {
+  margin-bottom: var(--space-4);
+}
 
-  + .records {
-    margin-top: var(--space-2);
-  }
+// La descrizione mantiene a capo e paragrafi così come sono stati scritti.
+.description {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.records {
+  margin-top: var(--space-5);
 }
 
 .group-label {

@@ -21,6 +21,7 @@ internal sealed class TagConfiguration : IEntityTypeConfiguration<Tag>
         builder.Property(t => t.Name).HasMaxLength(Tag.MaxNameLength);
         builder.Property(t => t.Description).HasMaxLength(Tag.MaxDescriptionLength);
         builder.Property(t => t.Embedding).HasColumnType($"vector({RecordChunk.EmbeddingDimensions})");
+        builder.Property(t => t.NameEmbedding).HasColumnType($"vector({RecordChunk.EmbeddingDimensions})");
         builder.Property(t => t.EmbeddingModel).HasMaxLength(100).IsUnicode(false);
         builder.Property(t => t.RowVersion).IsRowVersion();
     }

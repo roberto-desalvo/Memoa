@@ -14,8 +14,8 @@ using OpenAI.Embeddings;
 namespace Memoa.Functions.Functions;
 
 /// <summary>
-/// Gestione dei tag dell'utente. L'embedding di nome e descrizione si calcola subito, alla creazione e a
-/// ogni modifica di nome o descrizione; poi il tag va sulla coda dei tag (<see cref="TagRecordsFunction"/>),
+/// Gestione dei tag dell'utente. Gli embedding (nome e descrizione insieme, e il solo nome) si calcolano
+/// subito, alla creazione e a ogni modifica di nome o descrizione; poi il tag va sulla coda dei tag (<see cref="TagRecordsFunction"/>),
 /// che lo applica ai record già esistenti. Ogni risposta riporta lo stato di assegnazione del tag
 /// (<see cref="TagStatus"/>). Nomi e descrizioni non finiscono mai nei log.
 /// </summary>

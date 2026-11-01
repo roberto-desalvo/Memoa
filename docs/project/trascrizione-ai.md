@@ -41,10 +41,10 @@ Contenuti: [Trascrizione](#trascrizione) · [Ripiego con Whisper](#ripiego-con-w
 **Decisione**: Azure OpenAI `text-embedding-3-small`, deployment Data Zone Standard (EU) in West Europe, così l'elaborazione resta in UE. Non usare "Global Standard".
 
 - **Chi li calcola**: le Functions, non i job, perché anche la query di ricerca va trasformata in vettore in tempo reale.
-- **Frammenti**: `IndexRecord` divide il testo in frammenti di massimo 2.000 caratteri (circa 500-700 token), tagliati preferibilmente a fine paragrafo, riga o frase, con circa 200 caratteri di sovrapposizione. Ogni frammento ha il proprio embedding in `RecordChunks`.
+- **Frammenti**: `IndexRecord` divide il testo in frammenti di massimo 2.000 caratteri (circa 500-700 token), tagliati preferibilmente a fine paragrafo, riga o frase, con circa 200 caratteri di sovrapposizione. Ogni frammento ha il proprio embedding in `RecordChunks`; nella stessa richiesta si calcola l'embedding del titolo (`Records.TitleEmbedding`).
 - **Vettori**: 1.536 dimensioni, colonna `vector(1536)`. Accanto a ogni vettore si salva il modello restituito dal servizio: cambiarlo richiede di ricalcolare tutti i vettori. Versione del modello fissata (`NoAutoUpgrade`).
-- **Ricerca**: esatta con `VECTOR_DISTANCE`, senza indici vettoriali, con similarità minima 0,3.
-- **Tag**: lo stesso modello calcola l'embedding di nome e descrizione di ogni tag. Un tag si assegna a un record se almeno un frammento ha similarità coseno pari almeno a `Tagging__MinSimilarity` (0,4 di partenza, da tarare sulle note reali: tra lingue diverse le similarità sono più basse). Dettagli in [backend-elaborazione.md](backend-elaborazione.md#tag).
+- **Ricerca**: esatta con `VECTOR_DISTANCE`, senza indici vettoriali, con similarità minima 0,3. Due confronti in OR: la query con ogni frammento e con il titolo della nota; il titolo conta sul primo frammento della nota, che vale la similarità maggiore tra le due.
+- **Tag**: lo stesso modello calcola, in una richiesta, l'embedding di nome e descrizione di ogni tag e quello del solo nome. Un tag si assegna a un record se almeno un frammento ha con nome e descrizione, oppure il titolo ha con il nome, similarità coseno pari almeno a `Tagging__MinSimilarity` (0,4 di partenza, da tarare sulle note reali: tra lingue diverse le similarità sono più basse). Dettagli in [backend-elaborazione.md](backend-elaborazione.md#tag).
 - **Autenticazione**: solo Entra ID, ruolo Cognitive Services OpenAI User.
 - **Costo**: 0,02 $ per milione di token, pochi centesimi al mese.
 

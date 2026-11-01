@@ -13,8 +13,9 @@ namespace Memoa.Functions.Functions;
 
 /// <summary>
 /// Assegnazione automatica dei tag, attivata dalla coda dei tag (<see cref="TaggingRequest"/>): un record
-/// riceve un tag attivo se almeno uno dei suoi frammenti ha con il tag una similarità coseno non inferiore a
-/// <see cref="TaggingOptions.MinSimilarity"/>. Si confrontano solo vettori dello stesso modello, già salvati
+/// riceve un tag attivo se almeno uno dei suoi frammenti ha con il tag (nome e descrizione) una similarità
+/// coseno non inferiore a <see cref="TaggingOptions.MinSimilarity"/>, oppure se la raggiunge il suo titolo con
+/// il nome del tag. Si confrontano solo vettori dello stesso modello, già salvati
 /// nel database: nessuna chiamata ad Azure OpenAI.
 /// Si ricalcolano solo le assegnazioni automatiche: quelle manuali e le esclusioni scelte dall'utente non
 /// cambiano, e un tag escluso non viene riassegnato. Idempotente: le assegnazioni automatiche coinvolte
@@ -91,6 +92,10 @@ public sealed class TagRecordsFunction(
             .IgnoreQueryFilters([MemoaDbContext.CurrentUserFilter])
             .Where(c => c.RecordId == record.Id);
 
+        var titles = db.Records
+            .IgnoreQueryFilters([MemoaDbContext.CurrentUserFilter])
+            .Where(r => r.Id == record.Id);
+
         var scores = await db.Tags
             .IgnoreQueryFilters([MemoaDbContext.CurrentUserFilter])
             .Where(t => t.UserId == record.UserId && t.IsActive)
@@ -98,15 +103,20 @@ public sealed class TagRecordsFunction(
             {
                 t.Id,
                 // Null se il record non ha chunk dello stesso modello del tag.
-                Distance = chunks
+                ContentDistance = chunks
                     .Where(c => c.EmbeddingModel == t.EmbeddingModel)
                     .Min(c => (double?)EF.Functions.VectorDistance(CosineMetric, c.Embedding, t.Embedding)),
+                // Null se manca l'embedding del titolo o del nome, o se sono di modelli diversi.
+                TitleDistance = titles
+                    .Where(r => r.TitleEmbeddingModel == t.EmbeddingModel)
+                    .Min(r => (double?)EF.Functions.VectorDistance(CosineMetric, r.TitleEmbedding!.Value, t.NameEmbedding!.Value)),
             })
             .ToListAsync(cancellationToken);
 
         var maxDistance = 1 - options.Value.MinSimilarity;
         var activeTagIds = scores.Select(s => s.Id).ToList();
         var matches = scores
+            .Select(s => (s.Id, Distance: MinDistance(s.ContentDistance, s.TitleDistance)))
             .Where(s => s.Distance <= maxDistance)
             .Select(s => (RecordId: record.Id, TagId: s.Id, Distance: s.Distance!.Value))
             .ToList();
@@ -128,7 +138,7 @@ public sealed class TagRecordsFunction(
         var tag = await db.Tags
             .IgnoreQueryFilters([MemoaDbContext.CurrentUserFilter])
             .Where(t => t.TagUid == tagUid)
-            .Select(t => new { t.Id, t.UserId, t.IsActive, t.Embedding, t.EmbeddingModel, t.AssignmentPendingSince })
+            .Select(t => new { t.Id, t.UserId, t.IsActive, t.Embedding, t.NameEmbedding, t.EmbeddingModel, t.AssignmentPendingSince })
             .SingleOrDefaultAsync(cancellationToken);
 
         if (tag is null)
@@ -165,6 +175,30 @@ public sealed class TagRecordsFunction(
             })
             .Where(r => r.Distance <= maxDistance)
             .ToListAsync(cancellationToken);
+
+        // In OR con i frammenti: il nome del tag con il titolo dei record. Un tag creato prima dell'embedding
+        // del nome si confronta solo con i frammenti, finché non viene modificato.
+        if (tag.NameEmbedding is { } nameEmbedding)
+        {
+            var titleRows = await db.Records
+                .IgnoreQueryFilters([MemoaDbContext.CurrentUserFilter])
+                .Where(r => r.UserId == tag.UserId
+                    && r.Status == RecordStatus.Ready
+                    && r.TitleEmbeddingModel == tag.EmbeddingModel)
+                .Select(r => new
+                {
+                    RecordId = r.Id,
+                    Distance = EF.Functions.VectorDistance(CosineMetric, r.TitleEmbedding!.Value, nameEmbedding),
+                })
+                .Where(r => r.Distance <= maxDistance)
+                .ToListAsync(cancellationToken);
+
+            rows = rows
+                .Concat(titleRows)
+                .GroupBy(r => r.RecordId)
+                .Select(g => g.MinBy(r => r.Distance)!)
+                .ToList();
+        }
 
         var matches = rows.Select(r => (r.RecordId, TagId: tag.Id, r.Distance)).ToList();
 
@@ -252,6 +286,10 @@ public sealed class TagRecordsFunction(
             logger.LogError(ex, "Impossibile chiudere l'attesa dell'assegnazione dei tag");
         }
     }
+
+    /// <summary>Distanza minore tra i due confronti in OR; null se nessuno dei due è possibile.</summary>
+    private static double? MinDistance(double? contentDistance, double? titleDistance) =>
+        titleDistance < contentDistance || contentDistance is null ? titleDistance : contentDistance;
 
     private Task EndRecordPendingAsync(Expression<Func<Record, bool>> predicate, CancellationToken cancellationToken) =>
         db.Records

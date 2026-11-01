@@ -20,6 +20,8 @@ internal sealed class RecordConfiguration : IEntityTypeConfiguration<Record>
         builder.HasIndex(r => new { r.UserId, r.OccurredAt });
 
         builder.Property(r => r.Title).HasMaxLength(Record.MaxTitleLength);
+        builder.Property(r => r.TitleEmbedding).HasColumnType($"vector({RecordChunk.EmbeddingDimensions})");
+        builder.Property(r => r.TitleEmbeddingModel).HasMaxLength(100).IsUnicode(false);
         builder.Property(r => r.SourceType).HasConversion<string>().HasMaxLength(20).IsUnicode(false);
         builder.Property(r => r.Status).HasConversion<string>().HasMaxLength(20).IsUnicode(false);
         builder.Property(r => r.ErrorCode).HasMaxLength(50).IsUnicode(false);

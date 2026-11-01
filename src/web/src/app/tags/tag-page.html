@@ -3,7 +3,7 @@
     <mat-icon svgIcon="back" />
   </a>
   <h1>{{ tagUid() ? tag()?.name : 'Nuovo tag' }}</h1>
-  @if (tag()) {
+  @if (tag() && !editing()) {
     <button mat-icon-button aria-label="Altre azioni" [matMenuTriggerFor]="moreMenu">
       <mat-icon svgIcon="more" />
     </button>
@@ -11,13 +11,19 @@
 </mat-toolbar>
 
 <mat-menu #moreMenu xPosition="before">
+  @if (tag(); as tag) {
+    <button mat-menu-item (click)="startEdit(tag)">
+      <mat-icon svgIcon="write" />
+      <span>Modifica</span>
+    </button>
+  }
   <button mat-menu-item [disabled]="busy()" (click)="confirmDelete()">
     <mat-icon svgIcon="delete" />
     <span>Elimina</span>
   </button>
 </mat-menu>
 
-@if (!tagUid() || tag()) {
+@if (!tagUid() || editing()) {
   <form (submit)="$event.preventDefault(); save()">
     <mat-form-field class="full">
       <mat-label>Nome</mat-label>
@@ -48,48 +54,64 @@
       <p class="error" role="alert"><mat-icon svgIcon="error" />{{ message }}</p>
     }
     <div class="actions">
+      @if (tag()) {
+        <button mat-button type="button" [disabled]="busy()" (click)="editing.set(false)">
+          Annulla
+        </button>
+      } @else {
+        <a mat-button routerLink="/tags">Annulla</a>
+      }
       <button mat-flat-button type="submit" [disabled]="busy()">
         {{ tag() ? 'Salva' : 'Crea' }}
       </button>
     </div>
   </form>
-
-  @if (tag(); as tag) {
-    @if (tag.status === 'Assigning') {
-      <p class="status assigning" aria-live="polite">
-        <mat-icon svgIcon="pending" />Assegnazione alle note in corso
-      </p>
-    }
-    <section class="records">
-      <h2 class="group-label text-secondary strong muted">
-        {{
-          tag.records.length === 0
-            ? 'Nessuna nota con questo tag'
-            : tag.records.length === 1
-              ? '1 nota con questo tag'
-              : tag.records.length + ' note con questo tag'
-        }}
-      </h2>
-      @if (tag.records.length > 0) {
-        <ul class="note-list">
-          @for (record of tag.records; track record.recordUid) {
-            <li>
-              <a class="note-link" [routerLink]="['/records', record.recordUid]">
-                <app-note-row
-                  [sourceType]="record.sourceType"
-                  [title]="record.title"
-                  [status]="record.status"
-                  [detail]="record.occurredAt | noteDate"
-                  [text]="record.excerpt"
-                  [tags]="record.tags"
-                />
-              </a>
-            </li>
-          }
-        </ul>
-      }
-    </section>
+} @else if (tag(); as tag) {
+  @if (tag.status === 'Assigning') {
+    <p class="status assigning" aria-live="polite">
+      <mat-icon svgIcon="pending" />Assegnazione alle note in corso
+    </p>
   }
+  <mat-card class="section">
+    <mat-card-content>
+      @if (tag.description) {
+        <p class="description text-body">{{ tag.description }}</p>
+      } @else {
+        <p class="text-secondary muted">
+          Nessuna descrizione: il tag viene assegnato in automatico in base al solo nome.
+        </p>
+      }
+    </mat-card-content>
+  </mat-card>
+  <section class="records">
+    <h2 class="group-label text-secondary strong muted">
+      {{
+        tag.records.length === 0
+          ? 'Nessuna nota con questo tag'
+          : tag.records.length === 1
+            ? '1 nota con questo tag'
+            : tag.records.length + ' note con questo tag'
+      }}
+    </h2>
+    @if (tag.records.length > 0) {
+      <ul class="note-list">
+        @for (record of tag.records; track record.recordUid) {
+          <li>
+            <a class="note-link" [routerLink]="['/records', record.recordUid]">
+              <app-note-row
+                [sourceType]="record.sourceType"
+                [title]="record.title"
+                [status]="record.status"
+                [detail]="record.occurredAt | noteDate"
+                [text]="record.excerpt"
+                [tags]="record.tags"
+              />
+            </a>
+          </li>
+        }
+      </ul>
+    }
+  </section>
 } @else if (loadError(); as message) {
   <div class="page-state" role="alert">
     <p class="error"><mat-icon svgIcon="error" />{{ message }}</p>

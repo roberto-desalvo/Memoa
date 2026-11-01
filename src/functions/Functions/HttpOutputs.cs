@@ -46,6 +46,22 @@ public sealed class HttpWithTaggingOutput
 }
 
 /// <summary>
+/// Risposta di <see cref="UpdateRecordFunction"/>: il messaggio di indicizzazione se è cambiato il testo,
+/// quello dei tag se è cambiato solo il titolo di un record pronto.
+/// </summary>
+public sealed class UpdateRecordOutput
+{
+    [HttpResult]
+    public required IActionResult Result { get; init; }
+
+    [QueueOutput("%Queues:Indexing%", Connection = "DataStorage")]
+    public string? IndexingMessage { get; init; }
+
+    [QueueOutput("%Queues:Tagging%", Connection = "DataStorage")]
+    public string? TaggingMessage { get; init; }
+}
+
+/// <summary>
 /// Risposta di <see cref="RetryRecordFunction"/>: al più uno dei messaggi, secondo il punto da cui
 /// riparte l'elaborazione.
 /// </summary>

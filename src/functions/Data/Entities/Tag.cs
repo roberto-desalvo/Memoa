@@ -35,7 +35,17 @@ public sealed class Tag
     /// <summary>Embedding di nome e descrizione, ricalcolato quando cambiano.</summary>
     public SqlVector<float> Embedding { get; set; }
 
-    /// <summary>Modello che ha prodotto il vettore: si confronta solo con chunk dello stesso modello.</summary>
+    /// <summary>
+    /// Embedding del solo nome, confrontato con il titolo dei record (in OR con <see cref="Embedding"/> e i
+    /// frammenti). Calcolato con <see cref="Embedding"/>; null per i tag creati prima della sua introduzione,
+    /// finché non vengono modificati.
+    /// </summary>
+    public SqlVector<float>? NameEmbedding { get; set; }
+
+    /// <summary>
+    /// Modello che ha prodotto <see cref="Embedding"/> e <see cref="NameEmbedding"/>: si confronta solo con
+    /// vettori dello stesso modello.
+    /// </summary>
     public string EmbeddingModel { get; set; } = string.Empty;
 
     /// <summary>

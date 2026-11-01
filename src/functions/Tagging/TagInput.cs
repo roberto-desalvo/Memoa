@@ -38,14 +38,16 @@ internal static class TagInput
         new ObjectResult(new { error = "embedding_unavailable" }) { StatusCode = StatusCodes.Status503ServiceUnavailable };
 
     /// <summary>
-    /// Calcola l'embedding del tag da nome e descrizione, il testo che i frammenti dei record devono
-    /// ricordare perché il tag venga assegnato.
+    /// Calcola in una sola richiesta l'embedding di nome e descrizione, il testo che i frammenti dei record
+    /// devono ricordare, e quello del solo nome, da confrontare con il titolo dei record. Senza descrizione i
+    /// due testi coincidono e basta un vettore.
     /// </summary>
     public static async Task SetEmbeddingAsync(this Tag tag, EmbeddingClient client, CancellationToken cancellationToken)
     {
-        var text = tag.Description is null ? tag.Name : $"{tag.Name}\n{tag.Description}";
-        var embeddings = await client.GenerateCheckedEmbeddingsAsync([text], cancellationToken);
-        tag.Embedding = new SqlVector<float>(embeddings[0].ToFloats());
+        string[] inputs = tag.Description is null ? [tag.Name] : [$"{tag.Name}\n{tag.Description}", tag.Name];
+        var embeddings = await client.GenerateCheckedEmbeddingsAsync(inputs, cancellationToken);
+        tag.Embedding = new SqlVector<float>(embeddings.Single(e => e.Index == 0).ToFloats());
+        tag.NameEmbedding = new SqlVector<float>(embeddings.Single(e => e.Index == inputs.Length - 1).ToFloats());
         tag.EmbeddingModel = embeddings.Model;
     }
 }

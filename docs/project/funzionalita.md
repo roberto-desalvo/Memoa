@@ -60,7 +60,7 @@ Contenuti: [Account](#account) · [Contenuti in ingresso](#contenuti-in-ingresso
 |---|---|---|---|
 | Vista elenco | Record ordinati per data della nota e raggruppati in oggi, ieri e poi per mese, con titolo, data o ora, durata degli audio, stato e un estratto dell'inizio del testo. I record in elaborazione si aprono, quelli in errore offrono "riprova". La pagina del record mostra il testo e l'audio normalizzato riproducibile. | core | ✅ |
 | Modifica ed eliminazione | Titolo, data e testo modificabili dalla pagina del record, inclusa la correzione della trascrizione (l'originale resta salvato). Eliminazione del record con tutti i suoi file. | core | ✅ |
-| Ricerca semantica | Ricerca per significato, anche tra lingue diverse (es. query in inglese su note in italiano), dalla homepage: restituisce i frammenti più simili (al massimo 10), ciascuno con il collegamento alla nota. | core | ✅ |
+| Ricerca semantica | Ricerca per significato, anche tra lingue diverse (es. query in inglese su note in italiano), dalla homepage, sul testo e sul titolo delle note: restituisce i frammenti più simili (al massimo 10), ciascuno con il collegamento alla nota. | core | ✅ |
 | Domande sui record (Q&A/RAG) | Risposta in linguaggio naturale con rimando ai record di origine. | avanzata | ⬜ |
 | Riassunti periodici | Riassunti generati periodicamente. | avanzata | ⬜ |
 | Tag | Tag dell'utente con nome e descrizione (massimo 2.000 caratteri), gestiti dalla pagina Tag: modifica, eliminazione, elenco delle note e interruttore per disattivarli. Assegnati in automatico per similarità semantica tra tag e testo della nota, oppure a mano dalla pagina del record (anche creando un tag nuovo). Un tag tolto a mano non viene riassegnato in automatico. | avanzata | ✅ |

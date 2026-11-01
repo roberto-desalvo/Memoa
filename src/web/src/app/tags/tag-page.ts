@@ -1,6 +1,7 @@
 import { Component, inject, input, OnDestroy, OnInit, signal } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { MatButtonModule } from '@angular/material/button';
+import { MatCardModule } from '@angular/material/card';
 import { MatDialog } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
@@ -25,11 +26,12 @@ import {
 } from './tags-api';
 
 /**
- * Pagina di un tag: nome e descrizione modificabili, eliminazione e note a cui il tag è assegnato.
- * Senza tagUid (percorso /tags/new) crea un tag nuovo. Dopo la creazione o una modifica di nome o
- * descrizione il tag viene applicato alle note esistenti in background: finché è in assegnazione la pagina
- * lo mostra e si aggiorna con il polling, come quella di una nota in elaborazione. Il polling aggiorna stato
- * e note, mai i campi che l'utente sta modificando.
+ * Pagina di un tag: descrizione, note a cui il tag è assegnato, modifica ed eliminazione dal menu, come
+ * nella pagina di una nota; nome e descrizione diventano modificabili solo dopo "Modifica".
+ * Senza tagUid (percorso /tags/new) mostra subito il form per creare un tag nuovo. Dopo la creazione o una
+ * modifica di nome o descrizione il tag viene applicato alle note esistenti in background: finché è in
+ * assegnazione la pagina lo mostra e si aggiorna con il polling, come quella di una nota in elaborazione.
+ * Il polling aggiorna stato e note, mai i campi che l'utente sta modificando.
  */
 @Component({
   selector: 'app-tag-page',
@@ -38,6 +40,7 @@ import {
     NoteDatePipe,
     NoteRow,
     MatButtonModule,
+    MatCardModule,
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
@@ -60,6 +63,7 @@ export class TagPage implements OnInit, OnDestroy {
 
   protected readonly tag = signal<TagDetail | null>(null);
   protected readonly loadError = signal<string | null>(null);
+  protected readonly editing = signal(false);
   protected readonly name = signal('');
   protected readonly description = signal('');
   protected readonly busy = signal(false);
@@ -100,8 +104,6 @@ export class TagPage implements OnInit, OnDestroy {
     try {
       const tag = await firstValueFrom(this.api.get(this.tagUid()!));
       this.tag.set(tag);
-      this.name.set(tag.name);
-      this.description.set(tag.description ?? '');
       this.schedule();
     } catch (err) {
       console.error('Caricamento del tag non riuscito', err);
@@ -111,6 +113,13 @@ export class TagPage implements OnInit, OnDestroy {
           : 'Impossibile caricare il tag.',
       );
     }
+  }
+
+  protected startEdit(tag: TagDetail): void {
+    this.name.set(tag.name);
+    this.description.set(tag.description ?? '');
+    this.actionError.set(null);
+    this.editing.set(true);
   }
 
   protected async save(): Promise<void> {
@@ -142,14 +151,13 @@ export class TagPage implements OnInit, OnDestroy {
         changes.description = description;
       }
       if (Object.keys(changes).length === 0) {
+        this.editing.set(false);
         return;
       }
 
       const updated = await firstValueFrom(this.api.update(tag.tagUid, changes));
       this.tag.set({ ...tag, ...updated });
-      this.name.set(updated.name);
-      this.description.set(updated.description ?? '');
-      this.snackBar.open('Salvato.');
+      this.editing.set(false);
       // Nome o descrizione cambiati: il tag è in assegnazione.
       this.schedule();
     } catch (err) {
@@ -171,7 +179,7 @@ export class TagPage implements OnInit, OnDestroy {
     }
   }
 
-  /** Aggiorna stato e note del tag; nome e descrizione nei campi restano quelli che l'utente sta scrivendo. */
+  /** Aggiorna stato e note del tag; nome e descrizione nei campi, se è in modifica, restano quelli dell'utente. */
   private async poll(): Promise<void> {
     clearTimeout(this.timer);
     try {
