@@ -79,6 +79,9 @@ resource job 'Microsoft.App/jobs@2025-01-01' = {
                 accountName: dataStorageName
                 queueName: queueName
                 queueLength: '1'
+                // Il predefinito ("all") conta anche i messaggi invisibili, cioè in elaborazione o in
+                // attesa di retry: ogni pollingInterval avvierebbe esecuzioni che non trovano nulla.
+                queueLengthStrategy: 'visibleonly'
               }
               identity: identityId
             }

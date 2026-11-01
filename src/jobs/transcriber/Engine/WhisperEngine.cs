@@ -100,21 +100,39 @@ public sealed class WhisperEngine(Ffmpeg ffmpeg, IOptions<WhisperOptions> option
             throw new TranscriptionException(Transcript.ModelLoadFailed, $"Modello non trovato in {modelPath}.", cause);
         }
 
-        // Valori tecnici per distinguere un file troncato o non GGML da memoria insufficiente.
+        var threads = options.Value.Threads ?? Environment.ProcessorCount;
+
+        // Valori tecnici per distinguere un file troncato o non GGML da memoria insufficiente, e per
+        // confrontare le vCPU viste dal processo con il limite del container (cpu.max) e le istruzioni
+        // CPU usate da whisper.cpp.
         logger.LogInformation(
-            "Caricamento del modello {ModelPath}: {ModelBytes} byte, memoria disponibile {AvailableMemoryBytes} byte, {ProcessorCount} vCPU",
-            modelPath, model.Length, GC.GetGCMemoryInfo().TotalAvailableMemoryBytes, Environment.ProcessorCount);
+            "Caricamento del modello {ModelPath}: {ModelBytes} byte, memoria disponibile {AvailableMemoryBytes} byte, {ProcessorCount} vCPU, cpu.max {CpuMax}, {Threads} thread",
+            modelPath, model.Length, GC.GetGCMemoryInfo().TotalAvailableMemoryBytes, Environment.ProcessorCount, ReadCpuMax(), threads);
 
         try
         {
-            // In un container Environment.ProcessorCount rispetta il limite di vCPU del job.
-            return factory.Value.CreateBuilder()
-                .WithThreads(Environment.ProcessorCount)
+            var processor = factory.Value.CreateBuilder()
+                .WithThreads(threads)
                 .Build();
+            logger.LogInformation("Runtime di whisper.cpp: {RuntimeInfo}", WhisperFactory.GetRuntimeInfo());
+            return processor;
         }
         catch (Exception ex)
         {
             throw new TranscriptionException(Transcript.ModelLoadFailed, $"Caricamento del modello {modelPath} non riuscito.", ex);
+        }
+    }
+
+    /// <summary>Quota CPU del container (cgroup v2), es. "200000 100000" per 2 vCPU o "max 100000".</summary>
+    private static string ReadCpuMax()
+    {
+        try
+        {
+            return File.ReadAllText("/sys/fs/cgroup/cpu.max").Trim();
+        }
+        catch (Exception)
+        {
+            return "n/d";
         }
     }
 

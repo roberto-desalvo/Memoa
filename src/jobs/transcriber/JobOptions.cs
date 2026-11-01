@@ -68,4 +68,12 @@ public sealed class WhisperOptions
     /// </summary>
     [Range(0.0, 1.0)]
     public double LanguageProbabilityThreshold { get; set; } = 0.5;
+
+    /// <summary>
+    /// Thread di whisper.cpp; se assente, Environment.ProcessorCount. In Container Apps
+    /// ProcessorCount può superare le vCPU assegnate al job: più thread delle vCPU rallentano
+    /// l'inferenza.
+    /// </summary>
+    [Range(1, 64)]
+    public int? Threads { get; set; }
 }

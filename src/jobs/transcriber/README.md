@@ -63,7 +63,7 @@ Variabili d'ambiente impostate da `infra/modules/queue-job.bicep`:
 | `AZURE_CLIENT_ID` | Client ID dell'identità `id-memoa-<env>-transcriber` |
 | `APPLICATIONINSIGHTS_CONNECTION_STRING` | Facoltativa: senza, i log restano sulla console |
 
-Impostata dal `Dockerfile`: `Whisper__ModelPath`. Facoltative: `Whisper__LanguageProbabilityThreshold`, `Job__MaxDequeueCount`, `Job__VisibilityTimeout` (formato `hh:mm:ss`, deve superare il `replicaTimeout`), `Job__FfmpegPath`.
+Impostata dal `Dockerfile`: `Whisper__ModelPath`. Facoltative: `Whisper__LanguageProbabilityThreshold`, `Whisper__Threads` (predefinito: le vCPU viste dal processo, che in Container Apps possono superare quelle del job), `Job__MaxDequeueCount`, `Job__VisibilityTimeout` (formato `hh:mm:ss`, deve superare il `replicaTimeout`), `Job__FfmpegPath`.
 
 ## Esecuzione in locale
 
