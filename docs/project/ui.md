@@ -4,7 +4,7 @@
 
 Principi, schermate e comportamenti dell'interfaccia. Funzionalità e stato di implementazione in [funzionalita.md](funzionalita.md), aspetti tecnici del client in [frontend.md](frontend.md).
 
-Contenuti: [Principi](#principi) · [Regole visive](#regole-visive) · [Homepage](#homepage) · [Nuova nota](#nuova-nota) · [Pagina del record](#pagina-del-record) · [Impostazioni](#impostazioni) · [Da fare](#da-fare)
+Contenuti: [Principi](#principi) · [Regole visive](#regole-visive) · [Homepage](#homepage) · [Nuova nota](#nuova-nota) · [Pagina del record](#pagina-del-record) · [Impostazioni](#impostazioni) · [Informazioni](#informazioni) · [Da fare](#da-fare)
 
 ---
 
@@ -75,7 +75,7 @@ Valgono per ogni schermata. Una nuova schermata o un nuovo componente le rispett
 
 ## Homepage
 
-- **Intestazione**: logo, nome dell'app e menu utente (avatar con le iniziali su tinta tenue), con nome dell'account, Impostazioni ed Esci. Stesso fondo della pagina.
+- **Intestazione**: logo, nome dell'app e menu utente (avatar con le iniziali su tinta tenue), con nome dell'account, Impostazioni, Informazioni ed Esci. Stesso fondo della pagina.
 - **Ricerca**: campo in alto, sopra la lista (solo se ci sono note). La ricerca è per significato, anche tra lingue diverse, e parte con Invio. I risultati prendono il posto della lista: il numero di risultati e una riga per frammento trovato, nello stesso stile della lista, con icona del tipo, titolo, data e il testo del frammento (al massimo due righe, poi i puntini di sospensione); il tap apre la nota. Svuotando il campo, o con la ×, torna la lista. Stati: ricerca in corso, nessun risultato, errore con "Riprova".
 - **Lista**: tutte le note, dalla più recente per data della nota (a parità di data, per titolo). Le note sono raggruppate con un'intestazione per gruppo: "Oggi", "Ieri", poi un gruppo per mese (es. "Gennaio 2026"). Ogni gruppo è un blocco bianco con una riga per nota, separate da divisori sottili. Ogni riga mostra a sinistra l'icona del tipo (microfono per l'audio, righe per il testo), poi il titolo e, sotto, un estratto dell'inizio del testo su una riga con i puntini di sospensione (o lo stato, se la nota non è pronta); a destra l'ora (oggi e ieri) o giorno e mese (es. "27 gen") e, per gli audio, la durata.
   - **Pronta**: apre la pagina del record.
@@ -124,8 +124,15 @@ Valgono per ogni schermata. Una nuova schermata o un nuovo componente le rispett
 
 ---
 
+## Informazioni
+
+- **Account**: nome ed email dell'account.
+- **Elimina account**: pulsante distruttivo con descrizione dei dati eliminati (note, registrazioni audio, trascrizioni, impostazioni). La conferma avvisa che verranno eliminati tutti i dati, che l'operazione non si può annullare e che i file restano recuperabili per 14 giorni. Durante l'eliminazione il pulsante è disattivato; poi l'app esce dall'account. In caso di errore, un messaggio invita a riprovare.
+
+---
+
 ## Da fare
 
 - Nome visualizzato (display name) nelle impostazioni: previsto, non implementato.
 - Interfaccia in inglese.
-- Esportazione dati, eliminazione account, informativa privacy (vedi [funzionalita.md](funzionalita.md)).
+- Esportazione dati e informativa privacy (vedi [funzionalita.md](funzionalita.md)), probabilmente nella pagina Informazioni.

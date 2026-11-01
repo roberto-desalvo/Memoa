@@ -123,6 +123,7 @@ La Function HTTP salva il testo, con titolo e data della nota, nel database e, p
 - Best practice e architettura interna della PWA.
 - Conservazione dei file di trascrizione dopo il salvataggio nel database.
 - Gestione degli eventi Event Grid non consegnati.
+- Eliminazione dell'utente da Entra External ID quando l'utente elimina l'account (autenticazione delle Functions su Microsoft Graph nel tenant esterno).
 - Funzionalità avanzate (immagini con OCR/HTR, video, Q&A, riassunti, categorie, tag) e relativi modelli.
 
 Se un task tocca uno di questi punti, chiedi prima di procedere.

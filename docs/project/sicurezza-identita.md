@@ -62,6 +62,9 @@ Contenuti: [Autenticazione](#autenticazione) · [Identità gestite](#identità-g
 ## Da definire
 
 - Cifratura dei dati a riposo con chiavi proprie in Key Vault (da discutere).
+- **Eliminazione dell'utente da Entra External ID** quando l'utente elimina l'account. Oggi `DeleteAccount` elimina solo i dati dell'app: nel tenant restano email e credenziali di accesso. Serve una chiamata a Microsoft Graph nel tenant esterno con il permesso applicativo `User.DeleteRestore.All`; il punto di estensione nel codice è `IIdentityAccountService`. L'identità gestita delle Functions sta nel tenant della sottoscrizione, quindi le opzioni sono:
+  - **federazione**: app multi-tenant nel tenant della sottoscrizione con una federated credential che si fida dell'identità delle Functions, installata in ogni tenant esterno. Nessun segreto, ma non è confermato che i tenant esterni accettino app multi-tenant di altri tenant: va provato su dev;
+  - **segreto in Key Vault**: app nel tenant esterno con un client secret (massimo 2 anni, poi va ruotato) letto dalle Functions. Funziona di sicuro, ma aggiunge una credenziale da gestire.
 
 ---
 

@@ -73,7 +73,7 @@ Contenuti: [Account](#account) · [Contenuti in ingresso](#contenuti-in-ingresso
 |---|---|---|---|
 | Informativa privacy | Informativa GDPR. Deve indicare, tra l'altro, che i file cancellati restano recuperabili per 14 giorni. | core | ⬜ |
 | Esportazione dati | Esportazione di tutti i propri dati. | core | ⬜ |
-| Eliminazione account | Cancellazione dell'account e di tutti i dati: database, tutti i contenitori blob e i messaggi in coda. | core | ⬜ |
+| Eliminazione account | Cancellazione dell'account e di tutti i dati: database, tutti i contenitori blob e i messaggi in coda. Dalla pagina Informazioni, con conferma. | core | 🟡 database e blob eliminati, messaggi in coda ignorati dagli handler; l'utente in Entra External ID resta (da definire) |
 
 ---
 

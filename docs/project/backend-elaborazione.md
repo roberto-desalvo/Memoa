@@ -4,7 +4,7 @@
 
 Backend su Azure Functions ed elaborazione asincrona dei record con eventi, code, Functions e un Container Apps Job (ripiego della trascrizione).
 
-Contenuti: [Backend](#backend) · [Normalizzazione](#normalizzazione) · [Componenti](#componenti) · [Flusso audio](#flusso-audio) · [Flusso testo](#flusso-testo) · [Riprova e rigenerazione](#riprova-e-rigenerazione) · [Regole](#regole) · [Event Grid](#event-grid) · [Retry ed errori](#retry-ed-errori) · [Registry delle immagini](#registry-delle-immagini) · [Appendice: alternative scartate](#appendice-alternative-scartate)
+Contenuti: [Backend](#backend) · [Normalizzazione](#normalizzazione) · [Componenti](#componenti) · [Flusso audio](#flusso-audio) · [Flusso testo](#flusso-testo) · [Riprova e rigenerazione](#riprova-e-rigenerazione) · [Eliminazione](#eliminazione) · [Regole](#regole) · [Event Grid](#event-grid) · [Retry ed errori](#retry-ed-errori) · [Registry delle immagini](#registry-delle-immagini) · [Appendice: alternative scartate](#appendice-alternative-scartate)
 
 ---
 
@@ -86,6 +86,17 @@ Dettagli di trascrizione ed embedding in [trascrizione-ai.md](trascrizione-ai.md
 - **`RegenerateTranscript`** (HTTP, audio "pronto"): elimina trascrizione ed esito del ripiego, azzera `OriginalTranscript` e accoda di nuovo su `transcription`. Il testo corrente resta finché non arriva quello nuovo. L'indicizzazione si rifà solo se il testo cambia.
 
 Entrambe passano dalla coda di trascrizione, quindi prima Azure AI Speech e poi, se serve, il ripiego.
+
+---
+
+## Eliminazione
+
+- **`DeleteRecord`** (HTTP): elimina tutti i blob del record, originale compreso, poi le righe (allegati e frammenti a cascata).
+- **`DeleteAccount`** (HTTP, `DELETE /me`): elimina tutti i blob dell'utente (prefisso `<oid>/` in `uploads`, `audio` e `transcripts`, compresi i file rimasti di record già eliminati), poi l'utente applicativo con record, allegati e frammenti a cascata. L'utente in Entra External ID per ora resta: al login successivo trova un account vuoto (vedi [sicurezza-identita.md](sicurezza-identita.md#da-definire)).
+- Prima i blob, poi il database: se il database fallisce l'utente può riprovare, mentre l'ordine inverso lascerebbe file senza record. Ogni passo è idempotente.
+- **Messaggi in coda**: non vengono rimossi (quelli invisibili, come `upload-expiry`, non si possono leggere). Contengono solo identificativi e URL di blob, e gli handler ignorano i record che non esistono più.
+- I file eliminati restano recuperabili per 14 giorni (soft delete dello storage).
+- **Limiti noti**: un record ancora in elaborazione può far scrivere un blob alla pipeline dopo l'eliminazione, e il file resta; dopo l'eliminazione dell'account, una richiesta da un'altra scheda aperta ricrea un utente applicativo vuoto.
 
 ---
 
