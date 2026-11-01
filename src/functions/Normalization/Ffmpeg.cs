@@ -61,9 +61,9 @@ public sealed class Ffmpeg
     /// Converte la prima traccia audio. La conversione si interrompe poco oltre la durata massima:
     /// i file senza durata nell'header (WebM del browser) vengono poi scartati controllando la copia.
     /// </summary>
-    public async Task TranscodeToOpusAsync(string inputPath, string outputPath, CancellationToken cancellationToken)
+    public async Task TranscodeToOpusAsync(string inputPath, string outputPath, TimeSpan maxDuration, CancellationToken cancellationToken)
     {
-        var limit = (AudioValidation.MaxDuration.TotalSeconds + 1).ToString(CultureInfo.InvariantCulture);
+        var limit = (maxDuration.TotalSeconds + 1).ToString(CultureInfo.InvariantCulture);
 
         string[] arguments =
         [

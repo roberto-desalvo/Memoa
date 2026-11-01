@@ -37,7 +37,8 @@ Contenuti: [App](#app) · [Installazione e service worker](#installazione-e-serv
 - Angular 22, componenti standalone, una cartella per funzionalità in `src/web/src/app`: `auth`, `config`, `home`, `notes`, `recording`, `records`, `settings`, `uploads`.
 - **Route**: `/` (elenco), `/new/:mode` (nuova nota), `/records/:recordUid`, `/settings`. Tutte protette da `MsalGuard`.
 - **Autenticazione**: MSAL (`@azure/msal-angular`) con login a redirect sul tenant Entra External ID dell'ambiente. `MsalInterceptor` aggiunge il token solo alle chiamate verso le Functions, mai verso lo storage.
-- **Configurazione**: letta a runtime da `config.json` (URL delle Functions, authority, client ID, scope). La stessa build vale per dev e prod. Il file è generato dalla pipeline per ogni ambiente.
+- **Configurazione**: letta a runtime da `config.json` (URL delle Functions, authority, client ID, scope, durata massima degli audio). La stessa build vale per dev e prod. Il file è generato dalla pipeline per ogni ambiente.
+- **Durata massima degli audio** (`maxAudioDurationMinutes`, oggi 30 minuti): si imposta in un solo punto, il parametro Bicep `maxAudioDurationMinutes`, che diventa l'impostazione `Audio__MaxDurationMinutes` delle Functions (usata dalla normalizzazione). La pipeline del frontend la legge dalla Function App e la scrive in `config.json`. In locale va riportata a mano in `local.settings.json` e in `public/config.json`.
 
 ---
 
@@ -47,7 +48,7 @@ Contenuti: [App](#app) · [Installazione e service worker](#installazione-e-serv
 
 - Formato scelto con `MediaRecorder.isTypeSupported()`, in ordine: `audio/webm;codecs=opus`, `audio/ogg;codecs=opus`, `audio/mp4`. Il fallback MP4/AAC serve ai Safari precedenti alla 18.4.
 - Il Blob prende il tipo effettivamente scelto dal browser. Nessun bitrate personalizzato.
-- Durata massima di 30 minuti: allo scadere la registrazione si ferma.
+- Durata massima da `maxAudioDurationMinutes` (30 minuti): allo scadere la registrazione si ferma.
 - Uscendo dalla pagina la registrazione in corso viene scartata.
 - La normalizzazione risolve due problemi dei file registrati dal browser: non sono navigabili (seek) e hanno bitrate diversi tra browser.
 - Riproduzione su Safari da verificare.
@@ -56,7 +57,9 @@ Contenuti: [App](#app) · [Installazione e service worker](#installazione-e-serv
 
 ## Upload
 
-- **Audio**: primo filtro nel browser per estensione (MP3, M4A/AAC, WAV, FLAC, Ogg/Opus, WebM, AMR/3GP) e dimensione (350 MB). Il formato reale lo verifica `ffmpeg` in `NormalizeRecord`.
+- **Audio**: primo filtro nel browser per estensione (MP3, M4A/AAC, WAV, FLAC, Ogg/Opus, WebM, AMR/3GP), dimensione (350 MB) e durata (`maxAudioDurationMinutes`). Il formato reale e la durata li verifica `ffmpeg` in `NormalizeRecord`.
+  - La durata si legge dai metadati con un elemento `<audio>`, senza caricare il file. Se il browser non riconosce il formato (es. AMR/3GP) o la durata non è nell'header (WebM registrati da un browser) il controllo si salta e decide la normalizzazione.
+  - Margine del 5%: per gli MP3 a bitrate variabile senza header Xing/VBRI la durata è stimata. Nel margine decide la normalizzazione.
   - Il tipo MIME salvato sul blob si ricava dall'estensione, perché il browser non lo indica in modo affidabile per AMR, 3GP e Opus.
   - Upload diretto su Blob Storage con il SAS restituito da `CreateAudioUpload`. Sopra 8 MB il file va a blocchi (Put Block + Put Block List), con 3 tentativi per blocco sugli errori di rete e del server.
   - Il blob esiste, e quindi parte l'evento, solo alla conferma della lista dei blocchi.

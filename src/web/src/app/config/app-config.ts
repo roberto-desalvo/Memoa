@@ -16,8 +16,8 @@ export interface AppConfig {
     apiScope: string;
   };
   /**
-   * Durata massima di un audio in minuti, per la registrazione e per i file caricati. Deve
-   * corrispondere al limite della normalizzazione (AudioValidation.MaxDuration nelle Functions).
+   * Durata massima di un audio in minuti, per la registrazione e per i file caricati. Nel deploy la
+   * pipeline la copia dall'impostazione Audio__MaxDurationMinutes delle Functions (da Bicep).
    */
   maxAudioDurationMinutes: number;
 }

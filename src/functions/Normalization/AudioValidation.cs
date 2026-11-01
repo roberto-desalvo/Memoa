@@ -6,8 +6,6 @@ namespace Memoa.Functions.Normalization;
 /// </summary>
 public static class AudioValidation
 {
-    public static readonly TimeSpan MaxDuration = TimeSpan.FromMinutes(30);
-
     public const string FormatNotSupported = "format_not_supported";
     public const string VideoNotSupported = "video_not_supported";
     public const string NoAudio = "no_audio";
@@ -33,7 +31,7 @@ public static class AudioValidation
     ];
 
     /// <summary>Controlli sul file caricato, prima della conversione. Null se il file è accettato.</summary>
-    public static string? ValidateSource(AudioProbe probe)
+    public static string? ValidateSource(AudioProbe probe, TimeSpan maxDuration)
     {
         if (!AllowedFormats.Contains(probe.FormatName))
         {
@@ -51,14 +49,14 @@ public static class AudioValidation
         }
 
         // Se la durata non è nell'header si verifica sulla copia normalizzata.
-        return probe.DurationSeconds > MaxDuration.TotalSeconds ? AudioTooLong : null;
+        return probe.DurationSeconds > maxDuration.TotalSeconds ? AudioTooLong : null;
     }
 
     /// <summary>Controlli sulla copia normalizzata, che ha sempre una durata affidabile.</summary>
-    public static string? ValidateNormalized(AudioProbe probe) => probe.DurationSeconds switch
+    public static string? ValidateNormalized(AudioProbe probe, TimeSpan maxDuration) => probe.DurationSeconds switch
     {
         null or <= 0 => AudioEmpty,
-        var seconds when seconds > MaxDuration.TotalSeconds => AudioTooLong,
+        var seconds when seconds > maxDuration.TotalSeconds => AudioTooLong,
         _ => null,
     };
 }

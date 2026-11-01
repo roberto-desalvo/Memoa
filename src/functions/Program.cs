@@ -56,6 +56,10 @@ builder.Services.AddSingleton<BlobSasService>();
 builder.Services.AddSingleton<UploadExpiryScheduler>();
 builder.Services.AddSingleton<RecordBlobService>();
 
+builder.Services.AddOptions<AudioOptions>()
+    .Bind(builder.Configuration.GetSection(AudioOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
 builder.Services.AddOptions<FfmpegOptions>()
     .Bind(builder.Configuration.GetSection(FfmpegOptions.SectionName));
 builder.Services.AddSingleton<Ffmpeg>();

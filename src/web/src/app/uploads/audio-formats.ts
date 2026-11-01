@@ -20,10 +20,32 @@ const AUDIO_TYPES_BY_EXTENSION: Record<string, string> = {
   '3gp': 'audio/3gpp',
 };
 
-/** Valore per l'attributo `accept` dell'input file. */
-export const AUDIO_ACCEPT = Object.keys(AUDIO_TYPES_BY_EXTENSION)
-  .map((extension) => `.${extension}`)
-  .join(',');
+/**
+ * Tipi MIME con cui i telefoni possono indicare i formati ammessi, oltre a quelli della tabella.
+ * Sui telefoni il selettore filtra per tipo MIME: Android converte le estensioni con una propria
+ * tabella (per `.m4a` diversa dal tipo che assegna al file), quindi senza questi alias i file M4A
+ * non sono selezionabili.
+ */
+const AUDIO_MIME_ALIASES = [
+  'audio/x-m4a',
+  'audio/m4a',
+  'audio/mp4a-latm',
+  'audio/x-aac',
+  'audio/aacp',
+  'audio/x-wav',
+  'audio/wave',
+  'audio/vnd.wave',
+  'audio/x-flac',
+  'audio/x-opus+ogg',
+  'audio/amr-wb',
+  'video/3gpp',
+];
+
+/** Valore per l'attributo `accept` dell'input file: estensioni (per il desktop) e tipi MIME. */
+export const AUDIO_ACCEPT = [
+  ...Object.keys(AUDIO_TYPES_BY_EXTENSION).map((extension) => `.${extension}`),
+  ...new Set([...Object.values(AUDIO_TYPES_BY_EXTENSION), ...AUDIO_MIME_ALIASES]),
+].join(',');
 
 /** Etichetta leggibile dei formati, per i messaggi all'utente. */
 export const AUDIO_FORMATS_LABEL = 'MP3, M4A, AAC, WAV, FLAC, OGG, Opus, WebM, AMR, 3GP';

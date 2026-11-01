@@ -43,6 +43,10 @@ param transcriberMemory string = '8Gi'
 @description('Giorni dopo i quali i file audio (originali e normalizzati) passano al tier Cool.')
 param audioCoolAfterDays int = 90
 
+@description('Durata massima di un audio in minuti, per la registrazione e per i file caricati: unico punto in cui si imposta (Functions e, tramite la pipeline, config.json del frontend).')
+@minValue(1)
+param maxAudioDurationMinutes int = 30
+
 @description('Crea le sottoscrizioni Event Grid verso le Functions. Richiede che il codice delle Functions sia già distribuito.')
 param deployEventSubscriptions bool = false
 
@@ -230,6 +234,7 @@ module functionApp 'modules/function-app.bicep' = {
     openAiEndpoint: openAi.outputs.endpoint
     embeddingDeploymentName: openAi.outputs.embeddingDeploymentName
     speechEndpoint: speech.outputs.endpoint
+    maxAudioDurationMinutes: maxAudioDurationMinutes
     authAuthority: authAuthority
     authAudience: authAudience
   }

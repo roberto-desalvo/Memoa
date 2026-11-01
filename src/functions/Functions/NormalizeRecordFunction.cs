@@ -27,6 +27,7 @@ public sealed class NormalizeRecordFunction(
     Ffmpeg ffmpeg,
     IOptions<DataStorageOptions> storage,
     IOptions<ContainerOptions> containers,
+    IOptions<AudioOptions> audio,
     ILogger<NormalizeRecordFunction> logger)
 {
     /// <summary>Uguale a extensions.queues.maxDequeueCount in host.json.</summary>
@@ -116,20 +117,20 @@ public sealed class NormalizeRecordFunction(
             return AudioValidation.FormatNotSupported;
         }
 
-        var sourceError = AudioValidation.ValidateSource(sourceProbe);
+        var sourceError = AudioValidation.ValidateSource(sourceProbe, audio.Value.MaxDuration);
         if (sourceError is not null)
         {
             return sourceError;
         }
 
-        await ffmpeg.TranscodeToOpusAsync(inputPath, outputPath, cancellationToken);
+        await ffmpeg.TranscodeToOpusAsync(inputPath, outputPath, audio.Value.MaxDuration, cancellationToken);
         // L'originale non serve più: libera lo spazio temporaneo prima del caricamento.
         File.Delete(inputPath);
 
         var outputProbe = await ffmpeg.ProbeAsync(outputPath, cancellationToken)
             ?? throw new InvalidOperationException("ffmpeg non riesce a leggere la copia normalizzata.");
 
-        var outputError = AudioValidation.ValidateNormalized(outputProbe);
+        var outputError = AudioValidation.ValidateNormalized(outputProbe, audio.Value.MaxDuration);
         if (outputError is not null)
         {
             return outputError;

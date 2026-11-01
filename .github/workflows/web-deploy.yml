@@ -37,7 +37,13 @@ jobs:
           if [ -z "$swa_name" ]; then echo "::error::Nessuna Static Web App in $RESOURCE_GROUP"; exit 1; fi
           swa_token=$(az staticwebapp secrets list -g "$RESOURCE_GROUP" -n "$swa_name" --query properties.apiKey -o tsv)
           echo "::add-mask::$swa_token"
+          # Il limite di durata degli audio si imposta solo in Bicep: si legge dalla Function App.
+          func_name=$(az functionapp list -g "$RESOURCE_GROUP" --query "[0].name" -o tsv)
+          max_audio_minutes=$(az functionapp config appsettings list -g "$RESOURCE_GROUP" -n "$func_name" \
+            --query "[?name=='Audio__MaxDurationMinutes'].value | [0]" -o tsv)
+          if ! [[ "$max_audio_minutes" =~ ^[0-9]+$ ]]; then echo "::error::Audio__MaxDurationMinutes mancante sulla Function App: distribuire prima l'infrastruttura"; exit 1; fi
           echo "api_base_url=https://$func_host/api" >> "$GITHUB_OUTPUT"
+          echo "max_audio_minutes=$max_audio_minutes" >> "$GITHUB_OUTPUT"
           echo "swa_token=$swa_token" >> "$GITHUB_OUTPUT"
 
       # Stessa forma di src/web/config.example.json. L'authority del frontend è senza il suffisso /v2.0.
@@ -47,8 +53,7 @@ jobs:
           AUTH_AUTHORITY: ${{ vars.AUTH_AUTHORITY }}
           AUTH_WEB_CLIENT_ID: ${{ vars.AUTH_WEB_CLIENT_ID }}
           AUTH_API_SCOPE: ${{ vars.AUTH_API_SCOPE }}
-          # Deve corrispondere al limite della normalizzazione (AudioValidation.MaxDuration).
-          MAX_AUDIO_DURATION_MINUTES: ${{ vars.MAX_AUDIO_DURATION_MINUTES || '30' }}
+          MAX_AUDIO_DURATION_MINUTES: ${{ steps.azure.outputs.max_audio_minutes }}
         run: |
           jq -n \
             --arg apiBaseUrl "$API_BASE_URL" \

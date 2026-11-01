@@ -5,6 +5,7 @@ using Azure.Storage.Blobs;
 using Azure.Storage.Queues.Models;
 using Memoa.Functions.Data;
 using Memoa.Functions.Data.Entities;
+using Memoa.Functions.Normalization;
 using Memoa.Functions.Storage;
 using Memoa.Functions.Transcription;
 using Memoa.Shared.Pipeline;
@@ -32,6 +33,7 @@ public sealed class TranscribeRecordFunction(
     ITranscriber transcriber,
     TranscriptStore transcripts,
     IOptions<ContainerOptions> containers,
+    IOptions<AudioOptions> audioOptions,
     ILogger<TranscribeRecordFunction> logger)
 {
     /// <summary>Uguale a extensions.queues.maxDequeueCount in host.json.</summary>
@@ -41,9 +43,6 @@ public sealed class TranscribeRecordFunction(
     // per 10 minuti di audio.
     private static readonly TimeSpan BaseTimeout = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan TimeoutPerAudioMinute = TimeSpan.FromSeconds(10);
-
-    /// <summary>Durata usata per il timeout se manca quella della copia normalizzata: il massimo accettato.</summary>
-    private const int MaxDurationSeconds = 30 * 60;
 
     [Function("TranscribeRecord")]
     public async Task<TranscriptionOutput> Run(
@@ -140,7 +139,9 @@ public sealed class TranscribeRecordFunction(
             FallbackMessage = new TranscriptionRequest(blobUri.ToUri().ToString(), record.User.PreferredLanguage).Serialize(),
         };
 
-        var timeout = BaseTimeout + TimeoutPerAudioMinute * ((attachment.DurationSeconds ?? MaxDurationSeconds) / 60.0);
+        // Se manca la durata della copia normalizzata si usa il massimo accettato.
+        var durationMinutes = attachment.DurationSeconds / 60.0 ?? audioOptions.Value.MaxDurationMinutes;
+        var timeout = BaseTimeout + TimeoutPerAudioMinute * durationMinutes;
         var stopwatch = Stopwatch.StartNew();
         TranscriptionResult result;
 
