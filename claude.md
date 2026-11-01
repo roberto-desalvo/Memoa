@@ -11,13 +11,13 @@ Vincoli non negoziabili:
 - **Utenti**: al massimo 10 nella fase iniziale.
 - **GDPR**: tutti i dati in UE, regione **West Europe**.
 
-Il documento delle decisioni (`project.md`) è la fonte di verità per funzionalità e scelte tecniche. Se qualcosa in questo file è in conflitto con `project.md`, vale `project.md` e va segnalato.
+Il documento delle decisioni (`docs/project.md`, indice dei file in `docs/project/`) è la fonte di verità per funzionalità e scelte tecniche. Se qualcosa in questo file è in conflitto con `project.md`, vale `project.md` e va segnalato.
 
 ## Come lavorare
 
 - **Non prendere decisioni architetturali.** Se un task richiede una scelta non documentata (nuova risorsa Azure, nuova libreria importante, cambio di flusso, nuova dipendenza a pagamento), fermati, presenta le opzioni con pro, contro e costi, e chiedi.
 - Non aggiungere risorse o servizi Azure a pagamento senza conferma esplicita.
-- Non modificare `project.md`: le decisioni le registra l'utente.
+- Non modificare `docs/project.md` né i file in `docs/project/`: le decisioni le registra l'utente.
 - Preferisci modifiche piccole e verificabili. Spiega cosa hai cambiato e perché.
 
 ## Stack
@@ -40,7 +40,7 @@ Il documento delle decisioni (`project.md`) è la fonte di verità per funzional
 | IaC | Bicep |
 | CI/CD | GitHub Actions |
 | Monitoraggio | OpenTelemetry + Application Insights |
-| Segreti | Azure Key Vault + identità gestite |
+| Segreti | Azure Key Vault (solo credenziali non sostituibili, oggi il token GHCR letto dai job) + identità gestite user-assigned, una per componente |
 
 ## Architettura dell'elaborazione
 
@@ -53,7 +53,7 @@ Il documento delle decisioni (`project.md`) è la fonte di verità per funzional
 5. Evento "blob creato" → Function: per la copia `.opus` salva durata e percorso nel database e scrive sulla **coda di trascrizione**; per l'esito `.error.json` porta il record a "in errore".
 6. **Function di trascrizione** (attivata dalla coda di trascrizione): invia la copia normalizzata ad **Azure AI Speech** (fast transcription), con timeout di 30 secondi più 10 secondi per minuto di audio, salva testo (in `Text` e `OriginalTranscript`) e lingua **direttamente nel database**, senza file su Blob Storage, e scrive l'identificativo sulla **coda di indicizzazione**.
 7. **Ripiego**: se Azure AI Speech non risponde entro il timeout o si superano i limiti, la Function scrive invece il messaggio sulla **coda di ripiego** (`transcription-fallback`), che avvia il **job di trascrizione** con Whisper self-hosted. Il job accetta solo registrazioni fino a 10 minuti (le più lunghe vengono rifiutate) e scrive il file di testo nel contenitore delle **trascrizioni**. Evento "blob creato" → Function: per la trascrizione `<oid>/<RecordUid>.txt` salva testo e lingua nel database e scrive l'identificativo sulla coda di indicizzazione; per l'esito `<oid>/<RecordUid>.error.json` porta il record a "in errore".
-8. **Function di indicizzazione**: legge il testo dal database, calcola l'embedding, salva embedding e stato "pronto".
+8. **Function di indicizzazione**: legge il testo dal database, lo divide in frammenti, calcola l'embedding di ciascun frammento, sostituisce in una transazione i frammenti del record e salva lo stato "pronto".
 
 La rigenerazione della trascrizione e il "riprova" seguono lo stesso percorso: coda di trascrizione, prima Azure AI Speech, poi eventualmente il ripiego.
 
@@ -93,7 +93,7 @@ La Function HTTP salva il testo, con titolo e data della nota, nel database e, p
 - **Nei log mai** contenuti dei record, trascrizioni, email, token o altri dati personali: solo identificativi. Verificare cosa raccolgono in automatico le strumentazioni (testo delle query SQL, URL con parametri, indirizzi IP) e disattivare o filtrare ciò che espone dati.
 - **Nei messaggi di coda solo identificativi o URL di blob**, mai testi o trascrizioni.
 - Mai dati personali nei parametri URL o nelle query string.
-- Comunicazione tra servizi con **identità gestite**; in Key Vault solo le credenziali non sostituibili. **Mai segreti nel repository**, nei file di configurazione versionati o nei log.
+- Comunicazione tra servizi con **identità gestite user-assigned**, una per componente (Functions, job di normalizzazione, job di trascrizione, deploy), nessuna system-assigned; in Key Vault solo le credenziali non sostituibili. **Mai segreti nel repository**, nei file di configurazione versionati o nei log.
 - Principio del minimo privilegio: ogni identità ha solo i permessi che le servono (es. i job non hanno accesso in scrittura alle code né ad Azure SQL).
 - Ogni Function HTTP verifica il token e opera **solo sui dati dell'utente autenticato**.
 - Le funzionalità di esportazione ed eliminazione account devono coprire tutti i dati dell'utente: database, tutti i contenitori blob e i messaggi in coda.
@@ -120,7 +120,6 @@ La Function HTTP salva il testo, con titolo e data della nota, nel database e, p
 
 - Struttura del repository, versioni di .NET e Angular, framework di test, convenzioni di codice.
 - Best practice e architettura interna della PWA.
-- Ripartizione tra identità gestite user-assigned e system-assigned.
 - Conservazione dei file di trascrizione dopo il salvataggio nel database.
 - Gestione degli eventi Event Grid non consegnati.
 - Funzionalità avanzate (immagini con OCR/HTR, video, Q&A, riassunti, categorie, tag) e relativi modelli.

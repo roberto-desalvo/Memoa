@@ -162,8 +162,8 @@ module keyVault 'modules/key-vault.bicep' = {
     name: take('kv-${compactName}', 24)
     enablePurgeProtection: environmentName == 'prod'
     ghcrToken: ghcrToken
+    // Solo i job: il token GHCR serve per il pull delle immagini private.
     secretReaderIdentityNames: [
-      functionIdentityName
       normalizerIdentityName
       transcriberIdentityName
     ]
@@ -244,7 +244,6 @@ module functionApp 'modules/function-app.bicep' = {
     openAiEndpoint: openAi.outputs.endpoint
     embeddingDeploymentName: openAi.outputs.embeddingDeploymentName
     speechEndpoint: speech.outputs.endpoint
-    keyVaultUri: keyVault.outputs.uri
     authAuthority: authAuthority
     authAudience: authAudience
   }

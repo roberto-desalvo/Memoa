@@ -27,8 +27,6 @@ param embeddingDeploymentName string
 @description('Endpoint di Azure AI Speech con il sottodominio personalizzato.')
 param speechEndpoint string
 
-param keyVaultUri string
-
 @description('Authority del tenant Entra External ID (https://<sottodominio>.ciamlogin.com/<tenant-id>/v2.0).')
 param authAuthority string
 
@@ -119,7 +117,7 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
   tags: tags
   kind: 'functionapp,linux'
   identity: {
-    type: 'SystemAssigned, UserAssigned'
+    type: 'UserAssigned'
     userAssignedIdentities: {
       '${identityId}': {}
     }
@@ -127,7 +125,6 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
   properties: {
     serverFarmId: plan.id
     httpsOnly: true
-    keyVaultReferenceIdentity: identityId
     functionAppConfig: {
       deployment: {
         storage: {
@@ -181,7 +178,6 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
         { name: 'OpenAI__Endpoint', value: openAiEndpoint }
         { name: 'OpenAI__EmbeddingDeployment', value: embeddingDeploymentName }
         { name: 'Speech__Endpoint', value: speechEndpoint }
-        { name: 'KeyVault__Uri', value: keyVaultUri }
         // Validazione dei token di accesso emessi da Entra External ID (middleware delle Functions).
         { name: 'Auth__Authority', value: authAuthority }
         { name: 'Auth__Audience', value: authAudience }
@@ -196,4 +192,3 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
 
 output name string = functionApp.name
 output defaultHostname string = functionApp.properties.defaultHostName
-output systemPrincipalId string = functionApp.identity.principalId

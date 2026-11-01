@@ -1,8 +1,9 @@
-<svg width="100%" viewBox="0 0 680 740" role="img" xmlns="http://www.w3.org/2000/svg">
-<title>Attori del sistema</title>
-<desc>Utente ed Entra External ID fuori da Azure; dentro Azure West Europe: Static Web Apps, Azure Functions, Key Vault, storage dei dati, Event Grid, Azure SQL, Container Apps Job di normalizzazione e di trascrizione, Azure OpenAI, Application Insights, Cost Management; sotto, GitHub Actions e GHCR.</desc>
+<svg width="100%" viewBox="0 0 680 760" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>Architettura di Memoa</title>
+<desc>Utente ed Entra External ID fuori da Azure. Dentro Azure West Europe: Static Web Apps, Azure Functions, Azure AI Speech, storage dei dati con 3 contenitori e 5 code, Event Grid, Azure SQL, Container Apps Job di normalizzazione e di trascrizione di ripiego, Azure OpenAI, Key Vault con il token GHCR per i job, Application Insights, Cost Management. Sotto, GitHub Actions e GHCR.</desc>
 <style>
-  text { font-family: anthropic-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  .bg { fill: #ffffff; }
   .compute rect { fill: rgb(238, 237, 254); stroke: rgb(83, 74, 183); }
   .compute .t { fill: rgb(60, 52, 137); }
   .compute .s { fill: rgb(83, 74, 183); }
@@ -10,21 +11,23 @@
   .storage .t { fill: rgb(8, 80, 65); }
   .storage .s { fill: rgb(15, 110, 86); }
   .external rect { fill: rgb(241, 239, 232); stroke: rgb(95, 94, 90); }
-  .external .t { fill: rgb(68, 68, 65); }
-  .external .s { fill: rgb(95, 94, 90); }
+  .external .t { fill: rgb(44, 44, 42); }
+  .external .s { fill: rgb(82, 81, 78); }
   .t { font-size: 14px; font-weight: 500; }
   .s, .label { font-size: 12px; font-weight: 400; }
-  .label { fill: rgb(82, 81, 78); }
-  .region { fill: none; stroke: rgb(137, 135, 129); stroke-width: 0.5px; stroke-dasharray: 5 4; }
+  .label { fill: rgb(68, 68, 65); paint-order: stroke; stroke: #ffffff; stroke-width: 4px; stroke-linejoin: round; }
+  .region { fill: none; stroke: rgb(137, 135, 129); stroke-width: 0.75px; stroke-dasharray: 5 4; }
   .region-label { fill: rgb(11, 11, 11); font-size: 14px; font-weight: 500; }
   .flow { fill: none; stroke: rgb(137, 135, 129); stroke-width: 1.5px; }
 </style>
 <defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+<rect class="bg" width="680" height="760"/>
 
 <!-- Fuori da Azure -->
 <g class="external"><rect x="56" y="40" width="176" height="56" rx="8" stroke-width="0.5"/><text class="t" x="144" y="58" text-anchor="middle" dominant-baseline="central">Utente</text><text class="s" x="144" y="78" text-anchor="middle" dominant-baseline="central">Usa la PWA</text></g>
-<g class="external"><rect x="448" y="40" width="176" height="56" rx="8" stroke-width="0.5"/><text class="t" x="536" y="58" text-anchor="middle" dominant-baseline="central">Entra External ID</text><text class="s" x="536" y="78" text-anchor="middle" dominant-baseline="central">Login utenti</text></g>
+<g class="external"><rect x="448" y="40" width="176" height="56" rx="8" stroke-width="0.5"/><text class="t" x="536" y="58" text-anchor="middle" dominant-baseline="central">Entra External ID</text><text class="s" x="536" y="78" text-anchor="middle" dominant-baseline="central">Un tenant per ambiente</text></g>
 <line class="flow" x1="236" y1="68" x2="444" y2="68" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+<text class="label" x="340" y="60" text-anchor="middle">Login (MSAL)</text>
 
 <!-- Azure · West Europe -->
 <rect class="region" x="40" y="130" width="600" height="430" rx="20"/>
@@ -32,27 +35,28 @@
 <line class="flow" x1="144" y1="98" x2="144" y2="176" marker-end="url(#arrow)"/>
 
 <g class="compute"><rect x="56" y="180" width="176" height="56" rx="8" stroke-width="0.5"/><text class="t" x="144" y="198" text-anchor="middle" dominant-baseline="central">Static Web Apps</text><text class="s" x="144" y="218" text-anchor="middle" dominant-baseline="central">Ospita la PWA</text></g>
-<g class="compute"><rect x="252" y="180" width="176" height="56" rx="8" stroke-width="0.5"/><text class="t" x="340" y="198" text-anchor="middle" dominant-baseline="central">Azure Functions</text><text class="s" x="340" y="218" text-anchor="middle" dominant-baseline="central">HTTP, eventi e code</text></g>
-<g class="storage"><rect x="448" y="180" width="176" height="56" rx="8" stroke-width="0.5"/><text class="t" x="536" y="198" text-anchor="middle" dominant-baseline="central">Key Vault</text><text class="s" x="536" y="218" text-anchor="middle" dominant-baseline="central">Segreti e chiavi</text></g>
-<line class="flow" x1="234" y1="208" x2="248" y2="208" marker-end="url(#arrow)"/>
+<g class="compute"><rect x="252" y="180" width="176" height="56" rx="8" stroke-width="0.5"/><text class="t" x="340" y="198" text-anchor="middle" dominant-baseline="central">Azure Functions</text><text class="s" x="340" y="218" text-anchor="middle" dominant-baseline="central">API HTTP, eventi e code</text></g>
+<g class="compute"><rect x="448" y="180" width="176" height="56" rx="8" stroke-width="0.5"/><text class="t" x="536" y="198" text-anchor="middle" dominant-baseline="central">Azure AI Speech</text><text class="s" x="536" y="218" text-anchor="middle" dominant-baseline="central">Fast transcription</text></g>
 
-<g class="storage"><rect x="56" y="280" width="176" height="56" rx="8" stroke-width="0.5"/><text class="t" x="144" y="298" text-anchor="middle" dominant-baseline="central">Storage dati</text><text class="s" x="144" y="318" text-anchor="middle" dominant-baseline="central">3 contenitori e 3 code</text></g>
+<g class="storage"><rect x="56" y="280" width="176" height="56" rx="8" stroke-width="0.5"/><text class="t" x="144" y="298" text-anchor="middle" dominant-baseline="central">Storage dati</text><text class="s" x="144" y="318" text-anchor="middle" dominant-baseline="central">3 contenitori e 5 code</text></g>
 <g class="storage"><rect x="252" y="280" width="176" height="56" rx="8" stroke-width="0.5"/><text class="t" x="340" y="298" text-anchor="middle" dominant-baseline="central">Event Grid</text><text class="s" x="340" y="318" text-anchor="middle" dominant-baseline="central">Eventi "blob creato"</text></g>
-<g class="storage"><rect x="448" y="280" width="176" height="56" rx="8" stroke-width="0.5"/><text class="t" x="536" y="298" text-anchor="middle" dominant-baseline="central">Azure SQL</text><text class="s" x="536" y="318" text-anchor="middle" dominant-baseline="central">Record e vettori</text></g>
+<g class="storage"><rect x="448" y="280" width="176" height="56" rx="8" stroke-width="0.5"/><text class="t" x="536" y="298" text-anchor="middle" dominant-baseline="central">Azure SQL</text><text class="s" x="536" y="318" text-anchor="middle" dominant-baseline="central">Record, testi e vettori</text></g>
 
 <g class="compute"><rect x="56" y="380" width="176" height="56" rx="8" stroke-width="0.5"/><text class="t" x="144" y="398" text-anchor="middle" dominant-baseline="central">Job normalizzazione</text><text class="s" x="144" y="418" text-anchor="middle" dominant-baseline="central">Container Apps, ffmpeg</text></g>
-<g class="compute"><rect x="252" y="380" width="176" height="56" rx="8" stroke-width="0.5"/><text class="t" x="340" y="398" text-anchor="middle" dominant-baseline="central">Job trascrizione</text><text class="s" x="340" y="418" text-anchor="middle" dominant-baseline="central">Container Apps, Whisper</text></g>
-<g class="compute"><rect x="448" y="380" width="176" height="56" rx="8" stroke-width="0.5"/><text class="t" x="536" y="398" text-anchor="middle" dominant-baseline="central">Azure OpenAI</text><text class="s" x="536" y="418" text-anchor="middle" dominant-baseline="central">Embedding (EU)</text></g>
+<g class="compute"><rect x="252" y="380" width="176" height="56" rx="8" stroke-width="0.5"/><text class="t" x="340" y="398" text-anchor="middle" dominant-baseline="central">Job trascrizione</text><text class="s" x="340" y="418" text-anchor="middle" dominant-baseline="central">Ripiego, Whisper</text></g>
+<g class="compute"><rect x="448" y="380" width="176" height="56" rx="8" stroke-width="0.5"/><text class="t" x="536" y="398" text-anchor="middle" dominant-baseline="central">Azure OpenAI</text><text class="s" x="536" y="418" text-anchor="middle" dominant-baseline="central">Embedding (Data Zone EU)</text></g>
 
-<g class="external"><rect x="56" y="480" width="176" height="56" rx="8" stroke-width="0.5"/><text class="t" x="144" y="498" text-anchor="middle" dominant-baseline="central">App Insights</text><text class="s" x="144" y="518" text-anchor="middle" dominant-baseline="central">Log e tracce</text></g>
-<g class="external"><rect x="252" y="480" width="176" height="56" rx="8" stroke-width="0.5"/><text class="t" x="340" y="498" text-anchor="middle" dominant-baseline="central">Cost Management</text><text class="s" x="340" y="518" text-anchor="middle" dominant-baseline="central">Budget e avvisi</text></g>
+<g class="storage"><rect x="56" y="480" width="176" height="56" rx="8" stroke-width="0.5"/><text class="t" x="144" y="498" text-anchor="middle" dominant-baseline="central">Key Vault</text><text class="s" x="144" y="518" text-anchor="middle" dominant-baseline="central">Token GHCR per i job</text></g>
+<g class="external"><rect x="252" y="480" width="176" height="56" rx="8" stroke-width="0.5"/><text class="t" x="340" y="498" text-anchor="middle" dominant-baseline="central">App Insights</text><text class="s" x="340" y="518" text-anchor="middle" dominant-baseline="central">Log e tracce</text></g>
+<g class="external"><rect x="448" y="480" width="176" height="56" rx="8" stroke-width="0.5"/><text class="t" x="536" y="498" text-anchor="middle" dominant-baseline="central">Cost Management</text><text class="s" x="536" y="518" text-anchor="middle" dominant-baseline="central">Budget e avvisi</text></g>
 
 <!-- Supporto -->
-<g class="external"><rect x="56" y="600" width="176" height="56" rx="8" stroke-width="0.5"/><text class="t" x="144" y="618" text-anchor="middle" dominant-baseline="central">GitHub Actions</text><text class="s" x="144" y="638" text-anchor="middle" dominant-baseline="central">Deploy e Bicep</text></g>
+<g class="external"><rect x="56" y="600" width="176" height="56" rx="8" stroke-width="0.5"/><text class="t" x="144" y="618" text-anchor="middle" dominant-baseline="central">GitHub Actions</text><text class="s" x="144" y="638" text-anchor="middle" dominant-baseline="central">Pipeline con OIDC</text></g>
 <g class="external"><rect x="252" y="600" width="176" height="56" rx="8" stroke-width="0.5"/><text class="t" x="340" y="618" text-anchor="middle" dominant-baseline="central">GHCR</text><text class="s" x="340" y="638" text-anchor="middle" dominant-baseline="central">Immagini dei due job</text></g>
 
-<!-- Legenda -->
-<g class="compute"><rect x="56" y="696" width="14" height="14" rx="3" stroke-width="0.5"/></g><text class="label" x="78" y="703" dominant-baseline="central">Calcolo</text>
-<g class="storage"><rect x="166" y="696" width="14" height="14" rx="3" stroke-width="0.5"/></g><text class="label" x="188" y="703" dominant-baseline="central">Dati, eventi e segreti</text>
-<g class="external"><rect x="340" y="696" width="14" height="14" rx="3" stroke-width="0.5"/></g><text class="label" x="362" y="703" dominant-baseline="central">Utente, supporto e servizi esterni</text>
+<!-- Note e legenda -->
+<text class="label" x="56" y="690">Comunicazione tra servizi con identità gestite user-assigned, una per componente; nessuna chiave.</text>
+<g class="compute"><rect x="56" y="716" width="14" height="14" rx="3" stroke-width="0.5"/></g><text class="label" x="78" y="723" dominant-baseline="central">Calcolo e AI</text>
+<g class="storage"><rect x="186" y="716" width="14" height="14" rx="3" stroke-width="0.5"/></g><text class="label" x="208" y="723" dominant-baseline="central">Dati, eventi e segreti</text>
+<g class="external"><rect x="360" y="716" width="14" height="14" rx="3" stroke-width="0.5"/></g><text class="label" x="382" y="723" dominant-baseline="central">Utente, supporto e servizi esterni</text>
 </svg>

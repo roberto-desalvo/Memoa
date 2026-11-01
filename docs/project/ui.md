@@ -1,28 +1,73 @@
 # Interfaccia utente
 
-Principi e struttura dell'interfaccia della PWA (Angular). Le funzionalità esposte all'utente sono elencate in `claude/project.md` (sezioni 1-5), le scelte tecniche nella sezione 6. Prima versione, soggetta a modifiche.
+[← Indice del progetto](../project.md)
+
+Principi, schermate e comportamenti dell'interfaccia. Funzionalità e stato di implementazione in [funzionalita.md](funzionalita.md), aspetti tecnici del client in [frontend.md](frontend.md).
+
+Contenuti: [Principi](#principi) · [Homepage](#homepage) · [Nuova nota](#nuova-nota) · [Pagina del record](#pagina-del-record) · [Impostazioni](#impostazioni) · [Da fare](#da-fare)
 
 ---
 
 ## Principi
 
-| Principio | Descrizione |
-|---|---|
-| Mobile first | Interfaccia progettata prima per lo smartphone, poi adattata agli schermi più grandi |
-| Usabilità | Priorità alla facilità d'uso |
-| Semplicità | Interfaccia essenziale |
+- **Mobile first**: progettata e verificata prima a larghezza telefono, poi adattata agli schermi più grandi.
+- **Semplicità**: interfaccia essenziale, priorità alla facilità d'uso.
+- **Lingua**: oggi solo italiano.
 
-## Struttura e navigazione
+---
 
-| Elemento | Descrizione |
-|---|---|
-| Homepage | Schermata di atterraggio all'apertura dell'app, con la lista dei propri record ordinati per data della nota (`OccurredAt`) e, a parità di data, per titolo. Ogni record è mostrato con il proprio titolo. I record non ancora pronti (in elaborazione o in errore) appaiono disabilitati; quelli in elaborazione si possono comunque aprire |
-| Record in errore | Pur apparendo disabilitato, al tap su un record in errore si apre una piccola modale che spiega che c'è stato un errore nell'elaborazione e chiede se si vuole riprovare, con il pulsante "riprova" |
-| Aggiunta di un record | Icona di aggiunta in basso nella homepage. Al tap, dall'icona si apre una barra con le modalità di aggiunta, ognuna con la propria icona: registrazione, scrittura, upload |
-| Titolo, data e ora della nota | Registrazione e upload si salvano subito; titolo e data si modificano poi nella pagina del record. Registrazione: data e ora attuali, titolo uguale a data e ora (es. "1 novembre 2026, 14:35"). Upload: data e ora di ultima modifica del file (o quelle attuali se il browser non la fornisce), titolo uguale al nome del file senza estensione. Titolo di massimo 200 caratteri; data e ora calcolate dal client nel proprio fuso orario e inviate in UTC. Per la scrittura titolo, data e ora vengono chiesti dopo il testo: data e ora prepopolate con quelle attuali e modificabili al minuto; se il titolo non è specificato il client usa data e ora della nota nel fuso orario dell'utente. Per gli audio titolo e data vengono inviati insieme alla richiesta del SAS di upload |
-| Upload di più file | Si possono scegliere più file insieme: ognuno diventa una nota separata e i file vengono salvati uno alla volta, con lo stato di ciascuno (in attesa, avanzamento, salvato, non valido, non riuscito). Un file non valido o non salvato non ferma gli altri; i file non riusciti si possono riprovare. Se vengono salvati tutti si torna alla homepage |
-| Pagina del record | Un record pronto è cliccabile nella lista e apre la propria pagina, con l'audio normalizzato (Opus) riproducibile e il testo. Mostra data e ora della nota. Le operazioni sul record (modifica di titolo, data e ora e, se presente, del testo; eliminazione) si trovano in questa pagina. L'audio si riproduce tramite un SAS di sola lettura richiesto alla Function HTTP |
-| Record in elaborazione | La pagina del record mostra i passi dell'elaborazione (preparazione dell'audio, trascrizione, indicizzazione) con quello in corso, e si aggiorna con il polling finché è aperta e visibile. L'audio si può ascoltare appena esiste la copia normalizzata; durante la trascrizione un segnaposto prende il posto del testo. Si può eliminare il record; modifica e rigenerazione della trascrizione sono disponibili solo a elaborazione conclusa. Dopo una modifica del testo o una rigenerazione si resta sulla pagina, che mostra l'avanzamento |
-| Eliminazione di un record | Richiede conferma in una modale che cita la conservazione dei file cancellati per 14 giorni |
-| Menu utente | Dà accesso alle impostazioni |
-| Impostazioni | Lingua preferita (italiano / inglese), nome visualizzato (display name), modalità chiara / scura |
+## Homepage
+
+- **Intestazione**: logo e menu utente (avatar con le iniziali), con nome dell'account, Impostazioni ed Esci.
+- **Lista**: tutte le note, dalla più recente per data della nota (a parità di data, per titolo). Ogni voce mostra icona del tipo (audio o testo), titolo e data, più il numero totale di note.
+  - **Pronta**: apre la pagina del record.
+  - **In elaborazione**: appare attenuata con l'etichetta "In elaborazione", ma si apre comunque.
+  - **In errore**: appare attenuata con l'etichetta "Errore". Al tap si apre una finestra che spiega l'errore e offre "Riprova" (solo se il record si può riprovare; altrimenti dice che il file non è valido), "Elimina" e "Chiudi".
+- **Stati della pagina**: diario vuoto con invito a toccare +, caricamento, errore con "Riprova".
+- **Aggiunta**: pulsante + in basso. Al tap apre una barra con Registra, Scrivi e Carica; Carica apre direttamente la scelta dei file.
+
+---
+
+## Nuova nota
+
+- **Registra**: un pulsante avvia e ferma la registrazione (massimo 30 minuti). Allo stop la nota si salva subito, con data e ora attuali e come titolo data e ora (es. "1 novembre 2026, 14:35"), e si torna alla homepage.
+- **Scrivi**: prima il testo (con il contatore dei caratteri, massimo 50.000), poi "Avanti" porta a titolo, data e ora:
+  - data e ora sono prepopolate e modificabili al minuto;
+  - se il titolo resta vuoto, si usano data e ora della nota.
+- **Carica**: più file insieme, ognuno diventa una nota.
+  - Titolo dal nome del file senza estensione; data dall'ultima modifica del file (o attuale se manca).
+  - I file si salvano uno alla volta, con lo stato di ciascuno: in attesa, avanzamento, salvato, non valido, non riuscito.
+  - Un file non valido o non riuscito non ferma gli altri, e quelli non riusciti si possono riprovare.
+  - Se tutti vanno a buon fine si torna alla homepage.
+- **Errore di salvataggio**: "Riprova" senza ripetere la registrazione o la scrittura. Per il testo c'è anche "Modifica".
+
+---
+
+## Pagina del record
+
+- **Intestazione**: titolo e freccia per tornare alle note. Sotto, data e ora della nota ed eventuale stato ("in elaborazione", "errore").
+- **Audio**: lettore della copia normalizzata, disponibile appena esiste.
+- **Testo**: per una trascrizione, un'etichetta dice "Trascrizione automatica: potrebbe contenere errori" oppure "…, modificata da te".
+- **Elaborazione**: elenco dei passi (Preparazione dell'audio, Trascrizione, Indicizzazione per la ricerca) con quello in corso. La pagina si aggiorna con il polling finché è aperta e visibile.
+  - Durante la prima trascrizione un segnaposto prende il posto del testo.
+  - Durante una rigenerazione un avviso dice che la nuova trascrizione sostituirà il testo.
+- **Azioni**:
+  - **Elimina**: sempre disponibile, con conferma che cita i 14 giorni di recupero dei file.
+  - **Rigenera trascrizione**: per gli audio, con conferma che avvisa se le modifiche al testo andranno perse.
+  - **Modifica**: solo per i record pronti. Titolo, data e ora e, se c'è, testo; dopo una modifica del testo la nota viene indicizzata di nuovo.
+- Dopo una modifica del testo o una rigenerazione si resta sulla pagina, che mostra l'avanzamento.
+
+---
+
+## Impostazioni
+
+- **Lingua preferita**: italiano o inglese, salvata nell'account.
+- **Aspetto**: sistema, chiaro o scuro. Vale solo per il dispositivo ed è salvato nel browser.
+
+---
+
+## Da fare
+
+- Nome visualizzato (display name) nelle impostazioni: previsto, non implementato.
+- Interfaccia in inglese.
+- Ricerca, esportazione dati, eliminazione account, informativa privacy (vedi [funzionalita.md](funzionalita.md)).

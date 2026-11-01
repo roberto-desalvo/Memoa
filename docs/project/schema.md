@@ -1,22 +1,36 @@
 # Schema del database
 
-Struttura del database relazionale (Azure SQL Database, accesso tramite EF Core 10). Le scelte generali su database, accesso ai dati e migration sono in `claude/project.md`. Prima versione dello schema, soggetta a modifiche.
+[← Indice del progetto](../project.md)
 
-Convenzioni: chiavi primarie `int identity`, usate solo all'interno del database (chiavi esterne e join); i record hanno inoltre un identificativo pubblico GUID (`RecordUid`), generato nel codice, che è l'unico riferimento usato nella pipeline di elaborazione (percorsi dei blob, messaggi di coda), nei log e verso il client. Enum salvati come stringhe (`HasConversion<string>()`). Date in UTC (datetime2). Cancellazione fisica (hard delete) con cascata; nessun soft delete nel database.
+Tabelle di Azure SQL Database (EF Core 10). Scelte su database e migration in [dati.md](dati.md). Il codice di riferimento è in `src/functions/Data` (entità in `Entities`, configurazioni in `Configurations`).
+
+Contenuti: [Convenzioni](#convenzioni) · [Users](#users) · [Records](#records) · [Attachments](#attachments) · [RecordChunks](#recordchunks) · [Relazioni e indici](#relazioni-e-indici)
+
+---
+
+## Convenzioni
+
+- **Chiavi primarie** `int identity`, solo interne al database. Verso l'esterno (blob, code, log, client) si usa solo `RecordUid`.
+- **Enum** salvati come stringhe (varchar). **Date** in UTC (datetime2): `CreatedAt` all'inserimento, `UpdatedAt` a ogni salvataggio.
+- **Cancellazione fisica** con cascata, nessun soft delete nel database. I file su Blob Storage vanno cancellati a parte.
+- **Filtro globale** `CurrentUserFilter` su `Records`, `Attachments` e `RecordChunks`: le query restituiscono solo i dati dell'utente autenticato. Le Functions attivate da code ed Event Grid non hanno un utente: usano `IgnoreQueryFilters([CurrentUserFilter])` e filtrano per record. Il filtro non si applica a SQL scritto a mano.
+- **Dati personali** (`Email`, `Title`, `Text`, `OriginalTranscript`, `Content`): mai nei log, sempre inclusi in esportazione e cancellazione.
 
 ---
 
 ## Users
 
-Utente applicativo, collegato all'account di Entra External ID. Creato just in time alla prima richiesta autenticata (middleware delle Functions, dopo la validazione del token).
+Utente applicativo, creato alla prima richiesta autenticata.
 
 | Colonna | Tipo | Note |
 |---|---|---|
 | Id | int identity, PK | |
-| EntraObjectId | uniqueidentifier, univoco | Claim `oid` del token. I tenant sono due (dev e prod), ma ogni ambiente ha il proprio database |
-| Email | nvarchar(320) | Copia dell'email dell'account Entra External ID, letta dal claim opzionale `email` del token di accesso. Scritta alla creazione dell'utente e aggiornata a ogni richiesta autenticata se il token ne porta una diversa; vuota se il claim manca, e mai cancellata per l'assenza del claim. Dato personale da includere in esportazione e cancellazione; mai nei log |
-| PreferredLanguage | varchar(5) | `it` / `en` |
+| EntraObjectId | uniqueidentifier, univoco | Claim `oid`. Ogni ambiente ha il proprio tenant e il proprio database. |
+| Email | nvarchar(320) | Dal claim opzionale `email`. Aggiornata se cambia, mai svuotata se il claim manca. |
+| PreferredLanguage | varchar(5) | `it` / `en`, `it` alla creazione. |
 | CreatedAt | datetime2 | |
+
+---
 
 ## Records
 
@@ -24,62 +38,67 @@ Record del diario, comune a tutte le origini.
 
 | Colonna | Tipo | Note |
 |---|---|---|
-| Id | int identity, PK | Solo interno al database: mai nei blob, nelle code o verso il client |
-| RecordUid | uniqueidentifier, univoco | Identificativo pubblico, generato nel codice prima del salvataggio (GUID v7): la Function HTTP lo usa nel percorso del blob e identifica il record in tutta la pipeline di elaborazione e verso il client. Per gli audio il record viene creato dalla Function HTTP alla richiesta del SAS, con stato `Processing`. L'indice univoco garantisce un solo record per identificativo |
-| UserId | int, FK → Users | Filtro globale di EF Core sull'utente corrente (isolamento applicativo). Il filtro si disattiva con `IgnoreQueryFilters` e non si applica a SQL scritto a mano. Le Functions attivate da eventi e code non hanno un utente corrente nel token |
-| Title | nvarchar(200) | Titolo mostrato nella lista, massimo 200 caratteri. Assegnato dal client: per la registrazione data e ora della nota, per gli upload il nome del file; per la scrittura è chiesto all'utente e, se non specificato, il client usa data e ora della nota nel fuso orario dell'utente. Modificabile dalla pagina del record. Dato personale: mai nei log, da includere nell'esportazione |
-| SourceType | varchar(20) | `Audio` / `Text` / `Image` |
-| Status | varchar(20) | `Processing` / `Ready` / `Error` |
-| ErrorCode | varchar(50), null | Solo un codice, mai contenuti |
-| Text | nvarchar(max), null | Testo scritto o trascrizione corrente, modificabile dall'utente. Dopo una modifica gli embedding (RecordChunks) vanno ricalcolati. Colonna candidata per un futuro indice full-text (ricerca ibrida) |
-| OriginalTranscript | nvarchar(max), null | Trascrizione automatica, mai modificata; permette di ripristinarla e di valutare la qualità della trascrizione. Null per i record di testo. Dato personale da includere in esportazione e cancellazione |
-| Language | varchar(5), null | Lingua rilevata |
-| OccurredAt | datetime2 | Data e ora della nota, usate per l'ordine cronologico (a parità di valore si ordina per titolo; con titolo uguale l'ordine resta indifferente). Per la registrazione è il momento del salvataggio, per gli upload la data di ultima modifica del file (o il momento del salvataggio se il browser non la fornisce); per la scrittura è inserita dall'utente insieme al titolo, al minuto, con valore predefinito il momento attuale. Calcolata dal client nel proprio fuso orario e inviata in UTC; modificabile dalla pagina del record |
-| CreatedAt | datetime2 | |
-| UpdatedAt | datetime2 | |
-| RowVersion | rowversion | Concorrenza ottimistica tra modifiche dell'utente e Function di indicizzazione |
+| Id | int identity, PK | |
+| RecordUid | uniqueidentifier, univoco | Identificativo pubblico, GUID v7 generato nel codice. Compare nei percorsi dei blob. |
+| UserId | int, FK → Users | |
+| Title | nvarchar(200) | |
+| SourceType | varchar(20) | `Audio` / `Text` / `Image` (`Image` non ancora usato). |
+| Status | varchar(20) | `Processing` / `Ready` / `Error`. |
+| ErrorCode | varchar(50), null | Solo un codice, mai contenuti. |
+| Text | nvarchar(max), null | Testo scritto o trascrizione corrente, modificabile. Se cambia, i chunk vanno ricalcolati. Candidata a un futuro indice full-text. |
+| OriginalTranscript | nvarchar(max), null | Trascrizione automatica, mai modificata dall'utente. Null per i record di testo e durante una rigenerazione. |
+| Language | varchar(5), null | Lingua rilevata. |
+| OccurredAt | datetime2 | Data e ora della nota ([funzionalita.md](funzionalita.md#titolo-data-e-ora)). Ordine della lista: `OccurredAt`, poi `Title`. |
+| CreatedAt, UpdatedAt | datetime2 | |
+| RowVersion | rowversion | Concorrenza ottimistica tra modifiche dell'utente e pipeline. |
+
+---
 
 ## Attachments
 
-File collegati a un record (audio, in futuro immagini). Tabella unica per tutti i tipi: le colonne specifiche di un tipo sono nullable.
+File collegati a un record (audio, in futuro immagini). Le colonne specifiche di un tipo sono nullable.
 
 | Colonna | Tipo | Note |
 |---|---|---|
 | Id | int identity, PK | |
 | RecordId | int, FK → Records | |
-| Kind | varchar(20) | `Audio` / `Image` |
-| OriginalBlobPath | nvarchar(1024) | File caricato o registrato, mai cancellato né sovrascritto. Percorso relativo al contenitore degli originali (`<oid>/<RecordUid>`, senza estensione) |
+| Kind | varchar(20) | `Audio` / `Image`. |
+| OriginalBlobPath | nvarchar(1024) | `<oid>/<RecordUid>` nel contenitore `uploads`, senza estensione. Mai cancellato né sovrascritto. |
 | OriginalContentType | varchar(100) | |
 | OriginalSizeBytes | bigint | |
-| NormalizedBlobPath | nvarchar(1024), null | Copia normalizzata in Opus (solo audio). È l'audio riprodotto nella pagina del record |
-| DurationSeconds | int, null | Solo audio. Il job di normalizzazione non scrive nel database: il valore va scritto da una Function |
+| NormalizedBlobPath | nvarchar(1024), null | Copia Opus in `audio`, riprodotta nella pagina del record. |
+| DurationSeconds | int, null | Dai metadati della copia normalizzata, scritta dalla Function (il job non scrive nel database). |
 | CreatedAt | datetime2 | |
+
+---
 
 ## RecordChunks
 
-Frammenti del testo di un record con il relativo embedding. text-embedding-3-small accetta al massimo 8.191 token in ingresso: i 50.000 caratteri consentiti per il testo (circa 12-15.000 token in italiano) li superano e una registrazione di 30 minuti è al limite, quindi il testo viene suddiviso.
+Frammenti del testo di un record con il relativo embedding ([trascrizione-ai.md](trascrizione-ai.md#embedding)). Il testo si divide perché 50.000 caratteri superano gli 8.191 token accettati dal modello.
 
 | Colonna | Tipo | Note |
 |---|---|---|
 | Id | int identity, PK | |
-| RecordId | int, FK → Records | La ricerca semantica interroga questa tabella con VECTOR_DISTANCE: il filtro globale definito su Records non si applica alle query dirette su RecordChunks. I risultati vanno raggruppati per record |
-| ChunkIndex | int | Posizione del frammento nel testo |
-| Content | nvarchar(max) | Testo del frammento, utile per mostrare il punto trovato |
-| Embedding | vector(1536) | `SqlVector<float>` in EF Core 10. Circa 6 KB per vettore |
-| EmbeddingModel | varchar(100) | Nome del modello: cambiarlo richiede di ricalcolare tutti i vettori |
+| RecordId | int, FK → Records | |
+| ChunkIndex | int | Posizione del frammento nel testo. |
+| Content | nvarchar(max) | Testo del frammento, per mostrare il punto trovato. |
+| Embedding | vector(1536) | `SqlVector<float>`, circa 6 KB. Nessun indice vettoriale: ricerca esatta con `VECTOR_DISTANCE`, risultati da raggruppare per record. |
+| EmbeddingModel | varchar(100) | Modello restituito dal servizio: cambiarlo richiede di ricalcolare tutti i vettori. |
 | CreatedAt | datetime2 | |
+
+I chunk esistono solo dopo un'indicizzazione completata: `IndexRecord` li sostituisce tutti in una transazione, insieme allo stato "pronto".
 
 ---
 
 ## Relazioni e indici
 
-| Elemento | Definizione | Note |
-|---|---|---|
-| Users → Records | 1 → N, cancellazione a cascata | Base dell'eliminazione dell'account |
-| Records → Attachments | 1 → N, cancellazione a cascata | La cascata elimina solo le righe: i file su Blob Storage vanno cancellati a parte e restano recuperabili per 14 giorni (soft delete dello storage) |
-| Records → RecordChunks | 1 → N, cancellazione a cascata | Consegna almeno una volta: la Function di indicizzazione deve sostituire tutti i chunk del record in una transazione, non aggiungerli |
-| Indice univoco | Users (EntraObjectId) | |
-| Indice univoco | Records (RecordUid) | Ricerca del record dalla pipeline di elaborazione |
-| Indice | Records (UserId, OccurredAt) | Vista elenco |
-| Indice | Attachments (RecordId) | |
-| Indice univoco | RecordChunks (RecordId, ChunkIndex) | |
+| Elemento | Definizione |
+|---|---|
+| Users → Records | 1 → N, cascata |
+| Records → Attachments | 1 → N, cascata |
+| Records → RecordChunks | 1 → N, cascata |
+| Indice univoco | `Users (EntraObjectId)` |
+| Indice univoco | `Records (RecordUid)`: ricerca dalla pipeline, inserimento idempotente |
+| Indice | `Records (UserId, OccurredAt)`: vista elenco |
+| Indice | `Attachments (RecordId)`, per convenzione sulla chiave esterna |
+| Indice univoco | `RecordChunks (RecordId, ChunkIndex)`: nessun duplicato se due indicizzazioni si sovrappongono |

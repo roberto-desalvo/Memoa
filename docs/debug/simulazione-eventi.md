@@ -2,7 +2,7 @@
 
 [← Indice del progetto](../project.md)
 
-Test manuali delle Functions della pipeline in locale ([backend-elaborazione.md](backend-elaborazione.md)). Configurazione e avvio in [sviluppo-locale.md](sviluppo-locale.md).
+Test manuali delle Functions della pipeline in locale ([backend-elaborazione.md](../project/backend-elaborazione.md)). Configurazione e avvio in [sviluppo-locale.md](sviluppo-locale.md).
 
 Contenuti: [ValidateUpload](#validateupload-file-caricato-nel-contenitore-degli-originali) · [EnqueueTranscription](#enqueuetranscription-esito-della-normalizzazione-nel-contenitore-dellaudio-normalizzato) · [TranscribeRecord](#transcriberecord-coda-di-trascrizione) · [EnqueueIndexing](#enqueueindexing-esito-della-trascrizione-nel-contenitore-delle-trascrizioni) · [IndexRecord](#indexrecord-coda-di-indicizzazione)
 
@@ -19,12 +19,12 @@ con un array di eventi `Microsoft.Storage.BlobCreated` nel corpo.
 
 Se la Function App dev su Azure è distribuita, con le sottoscrizioni attive, riceve anch'essa l'evento reale dello stesso upload. Le funzioni sono idempotenti, quindi il doppio passaggio non crea duplicati, ma l'allegato può risultare già creato dalla funzione su Azure.
 
-Gli script in `docs/scripts/` leggono i valori da `docs/scripts/.env`, escluso da git: copiare [docs/scripts/.env.example](../scripts/.env.example) in `docs/scripts/.env` e compilare almeno `DATA_STORAGE_ACCOUNT`, `USER_OID` e `RECORD_ID`. Le altre variabili sono facoltative (valori predefiniti nel file di esempio) e servono a provare i diversi casi. Ogni script carica `.env` da sé (`load-env.ps1`): basta modificare il file e rilanciarlo.
+Gli script in `docs/debug/scripts/` leggono i valori da `docs/debug/scripts/.env`, escluso da git: copiare [docs/debug/scripts/.env.example](scripts/.env.example) in `docs/debug/scripts/.env` e compilare almeno `DATA_STORAGE_ACCOUNT`, `USER_OID` e `RECORD_ID`. Le altre variabili sono facoltative (valori predefiniti nel file di esempio) e servono a provare i diversi casi. Ogni script carica `.env` da sé (`load-env.ps1`): basta modificare il file e rilanciarlo.
 
 ## ValidateUpload (file caricato nel contenitore degli originali)
 
 1. Dal frontend in locale (`http://localhost:4200`) fare login e registrare o caricare un audio.
-2. Recuperare i due identificativi del percorso del blob `uploads/<oid>/<recordUid>` e scriverli in `docs/scripts/.env` (`USER_OID`, `RECORD_ID`):
+2. Recuperare i due identificativi del percorso del blob `uploads/<oid>/<recordUid>` e scriverli in `docs/debug/scripts/.env` (`USER_OID`, `RECORD_ID`):
    - `recordUid` è nella risposta di `POST /api/uploads/audio` (scheda Network del browser);
    - `oid` è la prima parte del percorso del blob: si trova nel portale o con
      ```powershell
@@ -37,7 +37,7 @@ Gli script in `docs/scripts/` leggono i valori da `docs/scripts/.env`, escluso d
      --container-name uploads --name "<oid>/<recordUid>" `
      --query "{size: properties.contentLength, type: properties.contentSettings.contentType}"
    ```
-4. Inviare l'evento con [scripts/send-blob-created-event.ps1](../scripts/send-blob-created-event.ps1), dopo aver impostato in `.env` dimensione e tipo letti al passo 3 (`UPLOAD_SIZE`, `UPLOAD_CONTENT_TYPE`):
+4. Inviare l'evento con [scripts/send-blob-created-event.ps1](scripts/send-blob-created-event.ps1), dopo aver impostato in `.env` dimensione e tipo letti al passo 3 (`UPLOAD_SIZE`, `UPLOAD_CONTENT_TYPE`):
    ```powershell
    .\docs\scripts\send-blob-created-event.ps1
    ```
@@ -71,11 +71,11 @@ Casi da provare:
 
 Il job di normalizzazione scrive in `audio` la copia `<oid>/<recordUid>.opus` oppure l'esito `<oid>/<recordUid>.error.json` (vedi [src/jobs/normalizer/README.md](../../src/jobs/normalizer/README.md)). La Function legge i metadati dal blob, quindi il blob deve esistere davvero: eseguire il job in locale, oppure caricarlo a mano partendo da un record `Processing` creato con `ValidateUpload`.
 
-1. Caricare il blob con i metadati che scriverebbe il job, con [scripts/upload-normalized-blob.ps1](../scripts/upload-normalized-blob.ps1). In `.env`, `NORMALIZED_IS_ERROR` sceglie tra la copia normalizzata (file `NORMALIZED_OPUS_FILE`, durata `NORMALIZED_DURATION_SECONDS`) e l'esito di errore (`NORMALIZED_ERROR_CODE`):
+1. Caricare il blob con i metadati che scriverebbe il job, con [scripts/upload-normalized-blob.ps1](scripts/upload-normalized-blob.ps1). In `.env`, `NORMALIZED_IS_ERROR` sceglie tra la copia normalizzata (file `NORMALIZED_OPUS_FILE`, durata `NORMALIZED_DURATION_SECONDS`) e l'esito di errore (`NORMALIZED_ERROR_CODE`):
    ```powershell
    .\docs\scripts\upload-normalized-blob.ps1
    ```
-2. Inviare l'evento con [scripts/send-normalized-event.ps1](../scripts/send-normalized-event.ps1): con lo stesso `.env` l'evento riguarda il blob appena caricato (`<recordId>.opus` oppure `<recordId>.error.json`, secondo `NORMALIZED_IS_ERROR`):
+2. Inviare l'evento con [scripts/send-normalized-event.ps1](scripts/send-normalized-event.ps1): con lo stesso `.env` l'evento riguarda il blob appena caricato (`<recordId>.opus` oppure `<recordId>.error.json`, secondo `NORMALIZED_IS_ERROR`):
    ```powershell
    .\docs\scripts\send-normalized-event.ps1
    ```
@@ -139,11 +139,11 @@ Il timeout della chiamata è di 30 secondi più 10 secondi per minuto di audio (
 
 Riguarda solo il ripiego: le trascrizioni di Azure AI Speech vanno direttamente nel database. Il job di trascrizione scrive in `transcripts` la trascrizione `<oid>/<recordUid>.txt` oppure l'esito `<oid>/<recordUid>.error.json` (vedi [src/jobs/transcriber/README.md](../../src/jobs/transcriber/README.md)). Come per `EnqueueTranscription` il blob deve esistere davvero: eseguire il job in locale, oppure caricarlo a mano partendo da un record `Processing`.
 
-1. Caricare il blob con i metadati che scriverebbe il job, con [scripts/upload-transcript-blob.ps1](../scripts/upload-transcript-blob.ps1). In `.env`, `TRANSCRIPT_IS_ERROR` sceglie tra la trascrizione (testo fittizio, lingua `TRANSCRIPT_LANGUAGE`) e l'esito di errore (`TRANSCRIPT_ERROR_CODE`):
+1. Caricare il blob con i metadati che scriverebbe il job, con [scripts/upload-transcript-blob.ps1](scripts/upload-transcript-blob.ps1). In `.env`, `TRANSCRIPT_IS_ERROR` sceglie tra la trascrizione (testo fittizio, lingua `TRANSCRIPT_LANGUAGE`) e l'esito di errore (`TRANSCRIPT_ERROR_CODE`):
    ```powershell
    .\docs\scripts\upload-transcript-blob.ps1
    ```
-2. Inviare l'evento con [scripts/send-transcript-event.ps1](../scripts/send-transcript-event.ps1):
+2. Inviare l'evento con [scripts/send-transcript-event.ps1](scripts/send-transcript-event.ps1):
    ```powershell
    .\docs\scripts\send-transcript-event.ps1
    ```

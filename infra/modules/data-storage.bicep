@@ -109,8 +109,9 @@ resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2023-05-01'
   }
 }
 
-// Originali caricati o registrati dal client: mai cancellati né sovrascritti, tranne i file
-// scartati dalla Function di validazione. Evento "blob creato" → Function di validazione.
+// Originali caricati o registrati dal client: mai cancellati né sovrascritti, salvo eliminazione del
+// record o dell'account. Anche i file scartati dalla Function di validazione restano, per poterli
+// analizzare. Evento "blob creato" → Function di validazione.
 resource uploadsContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
   parent: blobService
   name: uploadsContainerName
@@ -252,8 +253,10 @@ resource transcriberIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2
   name: transcriberIdentityName
 }
 
-// Functions: unico componente che scrive sulle code (e nel database); valida ed eventualmente
-// elimina gli originali, legge le trascrizioni e firma i SAS per l'upload.
+// Functions: unico componente che scrive sulle code (e nel database); valida gli originali senza
+// eliminarli, legge le trascrizioni, firma i SAS per l'upload ed elimina i blob di un record solo per
+// eliminazione del record o dell'account, oppure per un "riprova" o una rigenerazione della
+// trascrizione (solo copie normalizzate, trascrizioni ed esiti, mai gli originali).
 var functionRoles = [
   roles.blobDataContributor
   roles.blobDelegator

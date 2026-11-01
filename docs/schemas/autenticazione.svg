@@ -1,0 +1,90 @@
+<svg width="100%" viewBox="0 0 880 690" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>Autenticazione e accesso ai dati</title>
+<desc>Diagramma di sequenza. La PWA, su una route protetta da MsalGuard, reindirizza al login del tenant Entra External ID; dopo login o registrazione MSAL ottiene un token di accesso con audience l'API e scope access_as_user. MsalInterceptor aggiunge il token alle chiamate verso le Functions. Il middleware delle Functions valida firma, issuer, audience e scope con le chiavi del documento OpenID del tenant, tenute in cache; un secondo middleware crea l'utente applicativo al primo accesso. Le query in Azure SQL sono filtrate sull'utente del token. Per upload e ascolto le Functions restituiscono un URL con SAS, e il browser accede direttamente a Blob Storage senza token.</desc>
+<style>
+  text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  .bg { fill: #ffffff; }
+  .compute rect { fill: rgb(238, 237, 254); stroke: rgb(83, 74, 183); }
+  .compute .t { fill: rgb(60, 52, 137); }
+  .compute .s { fill: rgb(83, 74, 183); }
+  .storage rect { fill: rgb(225, 245, 238); stroke: rgb(15, 110, 86); }
+  .storage .t { fill: rgb(8, 80, 65); }
+  .storage .s { fill: rgb(15, 110, 86); }
+  .external rect { fill: rgb(241, 239, 232); stroke: rgb(95, 94, 90); }
+  .external .t { fill: rgb(44, 44, 42); }
+  .external .s { fill: rgb(82, 81, 78); }
+  .t { font-size: 14px; font-weight: 500; }
+  .s, .label { font-size: 12px; font-weight: 400; }
+  .label { fill: rgb(44, 44, 42); paint-order: stroke; stroke: #ffffff; stroke-width: 4px; stroke-linejoin: round; }
+  .note { fill: rgb(82, 81, 78); font-size: 12px; }
+  .life { stroke: rgb(180, 178, 172); stroke-width: 1px; stroke-dasharray: 4 4; }
+  .msg { fill: none; stroke: rgb(83, 74, 183); stroke-width: 1.5px; }
+  .reply { fill: none; stroke: rgb(83, 74, 183); stroke-width: 1.5px; stroke-dasharray: 5 3; }
+  .sas { fill: none; stroke: rgb(15, 110, 86); stroke-width: 1.5px; }
+</style>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+<rect class="bg" width="880" height="690"/>
+
+<!-- Partecipanti -->
+<g class="compute"><rect x="20" y="30" width="140" height="52" rx="8" stroke-width="0.5"/><text class="t" x="90" y="48" text-anchor="middle" dominant-baseline="central">PWA</text><text class="s" x="90" y="66" text-anchor="middle" dominant-baseline="central">MSAL</text></g>
+<g class="external"><rect x="210" y="30" width="140" height="52" rx="8" stroke-width="0.5"/><text class="t" x="280" y="48" text-anchor="middle" dominant-baseline="central">Entra External ID</text><text class="s" x="280" y="66" text-anchor="middle" dominant-baseline="central">Tenant dell'ambiente</text></g>
+<g class="compute"><rect x="400" y="30" width="140" height="52" rx="8" stroke-width="0.5"/><text class="t" x="470" y="48" text-anchor="middle" dominant-baseline="central">Azure Functions</text><text class="s" x="470" y="66" text-anchor="middle" dominant-baseline="central">Middleware</text></g>
+<g class="storage"><rect x="570" y="30" width="140" height="52" rx="8" stroke-width="0.5"/><text class="t" x="640" y="48" text-anchor="middle" dominant-baseline="central">Azure SQL</text><text class="s" x="640" y="66" text-anchor="middle" dominant-baseline="central">Users, Records</text></g>
+<g class="storage"><rect x="730" y="30" width="130" height="52" rx="8" stroke-width="0.5"/><text class="t" x="795" y="48" text-anchor="middle" dominant-baseline="central">Blob Storage</text><text class="s" x="795" y="66" text-anchor="middle" dominant-baseline="central">Storage dati</text></g>
+
+<line class="life" x1="90" y1="84" x2="90" y2="600"/>
+<line class="life" x1="280" y1="84" x2="280" y2="600"/>
+<line class="life" x1="470" y1="84" x2="470" y2="600"/>
+<line class="life" x1="640" y1="84" x2="640" y2="600"/>
+<line class="life" x1="795" y1="84" x2="795" y2="600"/>
+
+<!-- 1. Redirect al login -->
+<line class="msg" x1="90" y1="130" x2="276" y2="130" marker-end="url(#arrow)"/>
+<text class="label" x="98" y="122">1. Redirect al login (MsalGuard)</text>
+
+<!-- 2. Login o registrazione -->
+<path class="msg" d="M280 170 L310 170 L310 190 L284 190" marker-end="url(#arrow)"/>
+<text class="label" x="318" y="184">2. Login o registrazione (flusso utente)</text>
+
+<!-- 3. Token -->
+<line class="reply" x1="280" y1="235" x2="94" y2="235" marker-end="url(#arrow)"/>
+<text class="label" x="98" y="227">3. Token di accesso v2</text>
+<text class="note" x="98" y="253">aud = API, scp = access_as_user</text>
+
+<!-- 4. Chiamata API -->
+<line class="msg" x1="90" y1="290" x2="466" y2="290" marker-end="url(#arrow)"/>
+<text class="label" x="98" y="282">4. Chiamata API con Bearer (MsalInterceptor)</text>
+
+<!-- 5. Chiavi OpenID -->
+<line class="reply" x1="470" y1="335" x2="284" y2="335" marker-end="url(#arrow)"/>
+<text class="label" x="288" y="327">5. Chiavi di firma OpenID (in cache)</text>
+
+<!-- 6. Validazione -->
+<path class="msg" d="M470 370 L500 370 L500 390 L474 390" marker-end="url(#arrow)"/>
+<text class="label" x="508" y="378">6. Valida firma, issuer,</text>
+<text class="label" x="508" y="394">audience e scope</text>
+
+<!-- 7. Utente al primo accesso -->
+<line class="msg" x1="470" y1="440" x2="636" y2="440" marker-end="url(#arrow)"/>
+<text class="label" x="478" y="432">7. Crea l'utente al primo accesso</text>
+<text class="note" x="478" y="458">oid ed email dal token</text>
+
+<!-- 8. Query filtrate -->
+<line class="msg" x1="470" y1="495" x2="636" y2="495" marker-end="url(#arrow)"/>
+<text class="label" x="478" y="487">8. Query filtrate sull'oid</text>
+<text class="note" x="478" y="513">CurrentUserFilter</text>
+
+<!-- 9. Risposta -->
+<line class="reply" x1="470" y1="545" x2="94" y2="545" marker-end="url(#arrow)"/>
+<text class="label" x="98" y="537">9. Risposta; per upload e ascolto un URL con SAS</text>
+
+<!-- 10. Accesso diretto ai blob -->
+<line class="sas" x1="90" y1="585" x2="791" y2="585" marker-end="url(#arrow)"/>
+<text class="label" x="98" y="577">10. Upload o ascolto con SAS, senza token</text>
+
+<!-- Note e legenda -->
+<text class="note" x="20" y="630">Le funzioni HTTP richiedono il token, tranne quelle anonime (health). Nei log solo l'oid, mai email o token.</text>
+<line class="msg" x1="20" y1="660" x2="50" y2="660" marker-end="url(#arrow)"/><text class="label" x="58" y="660" dominant-baseline="central">Richiesta</text>
+<line class="reply" x1="140" y1="660" x2="170" y2="660" marker-end="url(#arrow)"/><text class="label" x="178" y="660" dominant-baseline="central">Risposta</text>
+<line class="sas" x1="260" y1="660" x2="290" y2="660" marker-end="url(#arrow)"/><text class="label" x="298" y="660" dominant-baseline="central">Accesso diretto con SAS</text>
+</svg>

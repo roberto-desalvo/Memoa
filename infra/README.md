@@ -17,13 +17,13 @@ Bicep per tutto ciò che lo supporta; qui sotto i passi manuali per il resto.
 | `modules/static-web-app.bicep` | RG | Static Web Apps Free |
 | `modules/data-storage.bicep` | RG | Storage dati GRS: container `uploads` (originali) / `audio` (normalizzato) / `transcripts`, code `normalization` / `transcription` / `transcription-fallback` / `indexing` / `upload-expiry`, system topic Event Grid, soft delete 14 gg, versioning, lifecycle, blocco CanNotDelete; ruoli dei job limitati ai propri contenitori e alla propria coda |
 | `modules/event-subscriptions.bicep` | RG | Sottoscrizioni Event Grid "blob creato", una per contenitore, verso le Functions `ValidateUpload`, `EnqueueTranscription`, `EnqueueIndexing` (solo con `deployEventSubscriptions = true`) |
-| `modules/key-vault.bicep` | RG | Key Vault (RBAC) con il token GHCR |
+| `modules/key-vault.bicep` | RG | Key Vault (RBAC) con il token GHCR, leggibile solo dalle identità dei due job |
 | `modules/sql.bicep` | RG del server SQL | Database con offerta gratuita su un server esistente condiviso (il server non è gestito da qui) |
 | `modules/openai.bicep` | RG | Azure OpenAI con `text-embedding-3-small` Data Zone Standard |
 | `modules/speech.bicep` | RG | Azure AI Speech S0 per la fast transcription chiamata dalla Function `TranscribeRecord`: sottodominio personalizzato (non reversibile), autenticazione locale disattivata, ruolo `Cognitive Services Speech User` all'identità delle Functions e agli sviluppatori |
 | `modules/function-app.bicep` | RG | Flex Consumption, storage di sistema dedicato, app settings |
 | `modules/container-apps-env.bicep` | RG | Container Apps environment (profilo Consumption) condiviso dai due job |
-| `modules/deploy-identity.bicep` | RG | Identità delle pipeline GitHub Actions: federated credential sull'environment GitHub dell'ambiente, Website Contributor sulla Function App, Contributor sulla Static Web App, Container Apps Jobs Contributor sul job di normalizzazione |
+| `modules/deploy-identity.bicep` | RG | Identità delle pipeline GitHub Actions: federated credential sull'environment GitHub dell'ambiente, Website Contributor sulla Function App, Contributor sulla Static Web App, Container Apps Jobs Contributor sui due job |
 | `modules/queue-job.bicep` | RG | Container Apps Job attivato dalla propria coda, usato due volte: normalizzazione (`uploads` → `audio`, worker .NET e ffmpeg) e trascrizione di ripiego (coda `transcription-fallback`, `audio` → `transcripts`, Whisper, solo registrazioni fino a 10 minuti). Nessuna scrittura sulle code, nessun accesso ad Azure SQL |
 
 ## Deploy
@@ -61,6 +61,36 @@ az deployment sub create -l westeurope -n memoa-dev -p .\infra\main.dev.biceppar
 az deployment sub create -l westeurope -f infra/budget.bicep \
   -p contactEmails='["tu@example.com"]'
 ```
+
+Per prod sostituire `dev` con `prod` nel nome del deploy e nel file dei parametri. Se az è rimasto sul tenant esterno, `az deployment sub` fallisce con `SubscriptionNotFound`: controllare con `az account show` e tornare con `az account set -s <sottoscrizione>`.
+
+Il deploy è incrementale: le risorse e i ruoli tolti dal template non vengono eliminati, vanno rimossi a mano.
+
+### Controlli e diagnosi
+
+```powershell
+# Compila template e parametri (errori di sintassi, variabili mancanti: BCP427)
+az bicep build-params -f .\infra\main.dev.bicepparam --stdout > $null
+
+# Validazione di Azure Resource Manager, senza modifiche
+az deployment sub validate -l westeurope -n memoa-dev -p .\infra\main.dev.bicepparam
+
+# Anteprima senza le risorse invariate
+az deployment sub what-if -l westeurope -n memoa-dev -p .\infra\main.dev.bicepparam `
+  --exclude-change-types NoChange Ignore
+
+# Deploy con anteprima e conferma
+az deployment sub create -l westeurope -n memoa-dev -p .\infra\main.dev.bicepparam --confirm-with-what-if
+
+# Stato e output dell'ultimo deploy
+az deployment sub show -n memoa-dev --query "{state: properties.provisioningState, outputs: properties.outputs}"
+
+# Operazioni fallite, con il messaggio di errore
+az deployment operation sub list -n memoa-dev `
+  --query "[?properties.provisioningState=='Failed'].{resource: properties.targetResource.resourceName, error: properties.statusMessage.error.message}" -o table
+```
+
+Gli errori dei moduli si leggono con `az deployment operation group list -g rg-memoa-dev -n <nome-modulo>`.
 
 ### Registrazioni delle app in Entra External ID
 
@@ -104,7 +134,7 @@ Le sottoscrizioni "blob creato" puntano direttamente alle funzioni (endpoint `Az
 2. deploy del codice delle Functions (con le funzioni Event Grid `ValidateUpload`, `EnqueueTranscription`, `EnqueueIndexing`; se i nomi cambiano, aggiornare `functionNames` in `modules/event-subscriptions.bicep`; per una funzione non ancora implementata lasciare il nome vuoto: la sua sottoscrizione non viene creata). Alla prima distribuzione di `EnqueueIndexing` il codice va distribuito prima di rilanciare il deploy con `deployEventSubscriptions = true`;
 3. impostare `deployEventSubscriptions = true` nel `.bicepparam` e ripetere il deploy dell'infrastruttura.
 
-Nessun dead-letter: gli eventi non consegnati dopo i retry automatici di Event Grid vanno persi. In locale Azurite non emette eventi: vanno simulati, vedi [docs/sviluppo-locale.md](../docs/sviluppo-locale.md#simulare-gli-eventi-event-grid).
+Nessun dead-letter: gli eventi non consegnati dopo i retry automatici di Event Grid vanno persi. In locale Azurite non emette eventi: vanno simulati, vedi [docs/debug/simulazione-eventi.md](../docs/debug/simulazione-eventi.md).
 
 ## Verifiche prima del primo deploy
 
@@ -145,9 +175,9 @@ Nessun dead-letter: gli eventi non consegnati dopo i retry automatici di Event G
 
 L'ambiente dipende dal branch: un push su `main` distribuisce su **dev**, un push su `prod` distribuisce su **prod** (il job prod attende l'approvazione dell'environment GitHub `prod`). Assetto temporaneo, in attesa del primo rilascio in produzione. Tutti si possono avviare anche a mano (**Run workflow**), scegliendo il branch dell'ambiente. I file `*-deploy.yml` sono i passi di deploy per un ambiente, richiamati dai workflow principali.
 
-Lo schema e le Functions si distribuiscono separatamente e in ordine non garantito: le modifiche allo schema vanno fatte in due tempi (vedi [docs/sviluppo-locale.md](../docs/sviluppo-locale.md#database-e-migration)).
+Lo schema e le Functions si distribuiscono separatamente e in ordine non garantito: le modifiche allo schema vanno fatte in due tempi (vedi [docs/debug/sviluppo-locale.md](../docs/debug/sviluppo-locale.md#database-e-migration)).
 
-Autenticazione su Azure con OIDC, senza segreti: ogni ambiente ha l'identità `id-memoa-<env>-deploy` (`modules/deploy-identity.bicep`) con una federated credential sull'environment GitHub omonimo e i ruoli Website Contributor sulla Function App, Contributor sulla Static Web App (per leggerne il token di deployment) e Container Apps Jobs Contributor sul job di normalizzazione (per aggiornarne l'immagine con un PATCH del solo template, senza permessi sulle identità gestite). Sul database serve l'utente SQL del passo manuale 2. La connessione al server SQL dai runner GitHub passa dalla regola firewall `AllowAllWindowsAzureIps`.
+Autenticazione su Azure con OIDC, senza segreti: ogni ambiente ha l'identità `id-memoa-<env>-deploy` (`modules/deploy-identity.bicep`) con una federated credential sull'environment GitHub omonimo e i ruoli Website Contributor sulla Function App, Contributor sulla Static Web App (per leggerne il token di deployment) e Container Apps Jobs Contributor sui due job (per aggiornarne l'immagine con un PATCH del solo template, senza permessi sulle identità gestite). Sul database serve l'utente SQL del passo manuale 2. La connessione al server SQL dai runner GitHub passa dalla regola firewall `AllowAllWindowsAzureIps`.
 
 Configurazione, una volta per ambiente, dopo il deploy dell'infrastruttura:
 

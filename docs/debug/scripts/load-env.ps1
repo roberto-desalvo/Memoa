@@ -1,9 +1,9 @@
-# Carica docs/scripts/.env come variabili d'ambiente, per gli script di simulazione degli eventi.
+# Carica docs/debug/scripts/.env come variabili d'ambiente, per gli script di simulazione degli eventi.
 # Richiamato in testa a ogni script (con il punto iniziale): . (Join-Path $PSScriptRoot 'load-env.ps1')
 
 $envFile = Join-Path $PSScriptRoot '.env'
 if (-not (Test-Path $envFile)) {
-    throw "File $envFile non trovato: copiare docs/scripts/.env.example in docs/scripts/.env e compilarlo."
+    throw "File $envFile non trovato: copiare docs/debug/scripts/.env.example in docs/debug/scripts/.env e compilarlo."
 }
 
 foreach ($line in Get-Content $envFile) {
@@ -27,7 +27,7 @@ foreach ($line in Get-Content $envFile) {
 function Get-RequiredEnv([string] $name) {
     $value = [Environment]::GetEnvironmentVariable($name)
     if ([string]::IsNullOrWhiteSpace($value)) {
-        throw "Variabile $name mancante in docs/scripts/.env."
+        throw "Variabile $name mancante in docs/debug/scripts/.env."
     }
     return $value
 }
