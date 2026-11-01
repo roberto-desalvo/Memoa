@@ -20,10 +20,10 @@
         />
       </div>
       <div class="field">
-        <label for="date">Data della nota</label>
+        <label for="date">Data e ora della nota</label>
         <input
           id="date"
-          type="date"
+          type="datetime-local"
           required
           [value]="editDate()"
           (input)="editDate.set($any($event.target).value)"

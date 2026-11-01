@@ -51,10 +51,10 @@ export class Home implements OnInit, OnDestroy {
   }
 
   protected selectFile(input: HTMLInputElement): void {
-    const file = input.files?.[0];
+    const files = Array.from(input.files ?? []);
     input.value = '';
-    if (file) {
-      this.drafts.set(file);
+    if (files.length > 0) {
+      this.drafts.set(files);
       void this.router.navigate(['/new', 'upload']);
     }
   }

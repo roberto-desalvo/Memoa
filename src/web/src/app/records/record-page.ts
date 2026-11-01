@@ -68,7 +68,7 @@ export class RecordPage implements OnInit {
   protected async saveEdit(record: RecordDetail): Promise<void> {
     const title = this.editTitle().trim();
     if (!title || !this.editDate()) {
-      this.actionError.set('Titolo e data sono obbligatori.');
+      this.actionError.set('Titolo, data e ora sono obbligatori.');
       return;
     }
 
@@ -77,7 +77,7 @@ export class RecordPage implements OnInit {
       changes.title = title;
     }
     if (this.editDate() !== inputValueOf(record.occurredAt)) {
-      // Cambia solo il giorno: l'ora resta quella della nota.
+      // Cambiano data e ora al minuto: secondi e millisecondi restano quelli della nota.
       changes.occurredAt = toOccurredAt(this.editDate(), new Date(record.occurredAt));
     }
     const textChanged = record.text !== null && this.editText() !== record.text;

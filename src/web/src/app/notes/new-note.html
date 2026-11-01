@@ -41,17 +41,16 @@
             <input
               #fileInput
               type="file"
+              multiple
               [accept]="uploadAccept"
               (change)="onFileInput(fileInput)"
             />
-            Scegli un file
+            Scegli i file
           </label>
           <p class="hint">{{ formats }} · audio fino a 350 MB, testo fino a 10 MB</p>
+          <p class="hint">Ogni file diventa una nota, con il nome del file come titolo.</p>
         </div>
       }
-    }
-    @if (captureError(); as message) {
-      <p class="error" role="alert">{{ message }}</p>
     }
   }
 
@@ -67,13 +66,13 @@
           [value]="title()"
           (input)="title.set($any($event.target).value)"
         />
-        <p class="hint">Se lo lasci vuoto viene usata la data della nota.</p>
+        <p class="hint">Se lo lasci vuoto vengono usate data e ora della nota.</p>
       </div>
       <div class="field">
-        <label for="date">Data della nota</label>
+        <label for="date">Data e ora della nota</label>
         <input
           id="date"
-          type="date"
+          type="datetime-local"
           required
           [value]="date()"
           (input)="date.set($any($event.target).value)"
@@ -99,9 +98,52 @@
     <div class="status" role="alert">
       <p class="error">Salvataggio non riuscito.</p>
       <div class="actions">
-        <button type="button" (click)="step.set({ kind: 'details' })">Modifica</button>
+        @if (mode() === 'write') {
+          <button type="button" (click)="step.set({ kind: 'details' })">Modifica</button>
+        } @else {
+          <a class="button" routerLink="/">Annulla</a>
+        }
         <button type="button" class="primary" (click)="submit()">Riprova</button>
       </div>
     </div>
+  }
+
+  @case ('files') {
+    <ul class="files" aria-live="polite">
+      @for (item of files(); track $index) {
+        <li>
+          <span class="name">{{ item.file.name }}</span>
+          @switch (item.status) {
+            @case ('waiting') {
+              <span class="hint">In attesa</span>
+            }
+            @case ('saving') {
+              @if (item.fraction !== null) {
+                <progress [value]="item.fraction" max="1"></progress>
+              } @else {
+                <span class="hint">Salvataggio…</span>
+              }
+            }
+            @case ('done') {
+              <span class="hint">Salvato</span>
+            }
+            @case ('failed') {
+              <span class="error">Salvataggio non riuscito</span>
+            }
+            @case ('invalid') {
+              <span class="error">{{ item.error }}</span>
+            }
+          }
+        </li>
+      }
+    </ul>
+    @if (!filesBusy()) {
+      <div class="actions">
+        <a class="button" routerLink="/">Torna alle note</a>
+        @if (hasFailedFiles()) {
+          <button type="button" class="primary" (click)="retryFiles()">Riprova</button>
+        }
+      </div>
+    }
   }
 }

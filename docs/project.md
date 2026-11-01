@@ -19,7 +19,8 @@ Legenda: **[core]** = necessario per il primo rilascio · **[avanzata]** = rilas
 | Upload audio | Caricamento di file audio. | [core] |
 | Scrittura testo | Inserimento diretto di testo dall'interfaccia. | [core] |
 | Upload testo | Caricamento di file di testo. | [core] |
-| Titolo e data della nota | Dopo la registrazione, la scrittura o la scelta del file vengono chiesti un titolo (massimo 200 caratteri; per gli upload prepopolato con il nome del file; se non specificato il client usa la data della nota) e la data della nota (prepopolata dal client con la data attuale nel fuso orario dell'utente), usata per l'ordine cronologico. | [core] |
+| Titolo, data e ora della nota | Ogni nota ha un titolo (massimo 200 caratteri) e data e ora, usate per l'ordine cronologico, calcolate dal client nel fuso orario dell'utente e salvate in UTC. Registrazione e upload si salvano subito: la registrazione con data e ora attuali e come titolo data e ora; gli upload con la data di ultima modifica del file (o quella attuale se non disponibile) e come titolo il nome del file. Per la scrittura titolo, data e ora vengono chiesti dopo il testo (data e ora prepopolate con quelle attuali, modificabili al minuto; se il titolo non è specificato il client usa data e ora della nota). Titolo, data e ora sono modificabili dalla pagina del record. | [core] |
+| Upload di più file | Si possono caricare più file insieme: ognuno diventa una nota separata. | [core] |
 | Conservazione dell'originale | Il file audio (o l'immagine) resta collegato al testo estratto, per poterlo riascoltare o rivedere. Per l'audio si conservano sia il file caricato o registrato (mai cancellato né sovrascritto) sia la copia normalizzata in Opus. | [core] |
 | Testo da immagine | Upload di immagine con scrittura a mano ed estrazione del testo (OCR / HTR). | [avanzata] |
 | Upload video | Caricamento di file video, con estrazione e trascrizione della sola traccia audio. | [avanzata] |
