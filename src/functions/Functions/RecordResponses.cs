@@ -20,8 +20,11 @@ public sealed record RecordSummary(
     int? DurationSeconds,
     IReadOnlyList<RecordTagItem> Tags);
 
-/// <summary>Tag assegnato a un record, in automatico o dall'utente.</summary>
-public sealed record RecordTagItem(Guid TagUid, string Name, bool IsAutomatic);
+/// <summary>
+/// Tag assegnato a un record, in automatico o dall'utente. <paramref name="IsActive"/> è falso per un tag
+/// disattivato, che conserva le assegnazioni.
+/// </summary>
+public sealed record RecordTagItem(Guid TagUid, string Name, bool IsAutomatic, bool IsActive);
 
 /// <summary>Record nella propria pagina. L'audio si chiede a parte (SAS di lettura).</summary>
 public sealed record RecordDetail(
@@ -115,7 +118,7 @@ internal static class RecordResponses
                 Tags = r.Tags
                     .Where(rt => rt.Source != RecordTagSource.Excluded)
                     .OrderBy(rt => rt.Tag.Name)
-                    .Select(rt => new { rt.Tag.TagUid, rt.Tag.Name, rt.Source })
+                    .Select(rt => new { rt.Tag.TagUid, rt.Tag.Name, rt.Source, rt.Tag.IsActive })
                     .ToList(),
             })
             .ToListAsync(cancellationToken);
@@ -130,7 +133,7 @@ internal static class RecordResponses
                 CanRetry(r.Status, r.SourceType, r.ErrorCode, r.HasText, r.HasAttachment),
                 r.Excerpt,
                 r.DurationSeconds,
-                r.Tags.Select(t => new RecordTagItem(t.TagUid, t.Name, t.Source == RecordTagSource.Auto)).ToList()))
+                r.Tags.Select(t => new RecordTagItem(t.TagUid, t.Name, t.Source == RecordTagSource.Auto, t.IsActive)).ToList()))
             .ToList();
     }
 
@@ -139,7 +142,7 @@ internal static class RecordResponses
         record.Tags
             .Where(rt => rt.Source != RecordTagSource.Excluded)
             .OrderBy(rt => rt.Tag.Name, StringComparer.CurrentCultureIgnoreCase)
-            .Select(rt => new RecordTagItem(rt.Tag.TagUid, rt.Tag.Name, rt.Source == RecordTagSource.Auto))
+            .Select(rt => new RecordTagItem(rt.Tag.TagUid, rt.Tag.Name, rt.Source == RecordTagSource.Auto, rt.Tag.IsActive))
             .ToList();
 
     public static RecordDetail ToDetail(Record record)

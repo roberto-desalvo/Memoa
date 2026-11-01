@@ -33,6 +33,8 @@ export interface RecordTag {
   tagUid: string;
   name: string;
   isAutomatic: boolean;
+  /** Falso per un tag disattivato, che conserva le assegnazioni. */
+  isActive: boolean;
 }
 
 /** Lunghezza dell'estratto nella lista, uguale a quella delle Functions (ListRecordsFunction). */

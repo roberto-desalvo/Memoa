@@ -68,7 +68,7 @@ export class Home implements OnInit, OnDestroy {
     .map((part) => part[0].toUpperCase())
     .join('');
 
-  /** Tag assegnati ad almeno una nota, in ordine di nome: i filtri sotto la ricerca. */
+  /** Tag attivi assegnati ad almeno una nota, in ordine di nome: i filtri sotto la ricerca. */
   protected readonly tags = computed(() => recordTags(this.store.records() ?? []));
 
   /** Tag scelto tra i filtri, null per tutte le note (anche se il tag scelto non ha più note). */
@@ -184,10 +184,10 @@ export class Home implements OnInit, OnDestroy {
   }
 }
 
-/** Tag delle note, ciascuno una volta, in ordine di nome. */
+/** Tag attivi delle note, ciascuno una volta, in ordine di nome. */
 function recordTags(records: RecordSummary[]): RecordTag[] {
   const tags = new Map<string, RecordTag>();
-  for (const tag of records.flatMap((r) => r.tags ?? [])) {
+  for (const tag of records.flatMap((r) => r.tags ?? []).filter((t) => t.isActive)) {
     tags.set(tag.tagUid, tag);
   }
   return [...tags.values()].sort((a, b) => a.name.localeCompare(b.name));
