@@ -146,10 +146,12 @@
       <p class="error" role="alert">{{ message }}</p>
     }
 
-    <div class="actions">
+    <div class="actions view-actions">
       <button type="button" class="danger" (click)="confirmDelete()">Elimina</button>
       @if (record.canRegenerateTranscript) {
-        <button type="button" (click)="confirmRegenerate()">Rigenera trascrizione</button>
+        <button type="button" aria-label="Rigenera trascrizione" (click)="confirmRegenerate()">
+          Rigenera<span class="wide-only">&nbsp;trascrizione</span>
+        </button>
       }
       @if (record.status === 'Ready') {
         <button type="button" class="primary" (click)="startEdit(record)">Modifica</button>

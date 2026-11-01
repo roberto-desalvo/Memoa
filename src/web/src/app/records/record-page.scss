@@ -177,3 +177,20 @@ audio {
 form .actions {
   margin-top: 0.5rem;
 }
+
+// Su schermi stretti i bottoni restano su una riga: si dividono lo spazio ed etichetta più corta.
+@media (max-width: 30rem) {
+  .view-actions {
+    flex-wrap: nowrap;
+
+    button {
+      flex: 1 1 0;
+      min-width: 0;
+      padding-inline: 0.75rem;
+    }
+  }
+
+  .wide-only {
+    display: none;
+  }
+}
