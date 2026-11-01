@@ -13,8 +13,6 @@ export interface SearchResult {
   sourceType: SourceType;
   /** Testo del frammento. */
   content: string;
-  /** Similarità coseno, da 0 a 1. */
-  similarity: number;
 }
 
 /** Limite sulla richiesta, come nelle Functions. */

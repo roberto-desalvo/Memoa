@@ -59,7 +59,6 @@ resource readerRoles 'Microsoft.Authorization/roleAssignments@2022-04-01' = [
   }
 ]
 
-output uri string = keyVault.properties.vaultUri
 // Espone solo l'URI del segreto: il token è usato unicamente per verificarne la presenza.
 #disable-next-line outputs-should-not-contain-secrets
 output ghcrTokenSecretUri string = empty(ghcrToken) ? '' : ghcrTokenSecret!.properties.secretUri

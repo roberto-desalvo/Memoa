@@ -3,7 +3,6 @@ import {
   afterRenderEffect,
   Component,
   computed,
-  effect,
   ElementRef,
   inject,
   Injector,

@@ -42,7 +42,6 @@ export const EXCERPT_LENGTH = 200;
 
 /** Record nella propria pagina: il testo è completo, l'estratto non c'è. */
 export interface RecordDetail extends Omit<RecordSummary, 'excerpt'> {
-  errorCode: string | null;
   text: string | null;
   language: string | null;
   hasAudio: boolean;

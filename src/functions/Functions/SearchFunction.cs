@@ -92,8 +92,7 @@ public sealed class SearchFunction(
             r.Title,
             RecordResponses.AsUtc(r.OccurredAt),
             r.SourceType.ToString(),
-            r.Content,
-            Math.Round(1 - r.Distance, 3)));
+            r.Content));
 
         return new OkObjectResult(results);
     }
@@ -107,5 +106,4 @@ public sealed record SearchResult(
     string Title,
     DateTimeOffset OccurredAt,
     string SourceType,
-    string Content,
-    double Similarity);
+    string Content);
