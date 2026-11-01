@@ -74,6 +74,29 @@ html {
     )
   );
 
+  // Menu: pannello bianco come liste e card, angoli arrotondati, voci a 16 px regolari con icone
+  // attenuate.
+  @include mat.menu-overrides(
+    (
+      container-color: var(--mat-sys-surface-container-lowest),
+      container-shape: var(--space-3),
+      container-elevation-shadow: 0 8px 24px rgb(0 0 0 / 0.08),
+      item-label-text-size: var(--mat-sys-body-large-size),
+      item-label-text-line-height: var(--mat-sys-body-large-line-height),
+      item-label-text-weight: 400,
+      item-icon-color: var(--mat-sys-on-surface-variant),
+      item-icon-size: 20px,
+      item-leading-spacing: var(--space-4),
+      item-trailing-spacing: var(--space-5),
+      item-with-icon-leading-spacing: var(--space-4),
+      item-with-icon-trailing-spacing: var(--space-5),
+      item-spacing: var(--space-3),
+      divider-color: var(--mat-sys-outline-variant),
+      divider-top-spacing: var(--space-1),
+      divider-bottom-spacing: var(--space-1),
+    )
+  );
+
   // Titolo delle finestre con la dimensione del titolo di pagina: al massimo 4 dimensioni di testo.
   @include mat.dialog-overrides(
     (
@@ -101,8 +124,24 @@ html[data-theme='dark'] {
   color-scheme: dark;
 }
 
-// Focus da tastiera ben visibile su tutti i componenti Material.
-@include mat.strong-focus-indicators();
+// Focus da tastiera ben visibile su tutti i componenti Material: bordo nel colore d'accento, con gli
+// angoli arrotondati.
+@include mat.strong-focus-indicators(
+  (
+    border-width: 2px,
+    border-radius: var(--space-2),
+  )
+);
+
+html {
+  --mat-focus-indicator-border-color: var(--mat-sys-primary);
+}
+
+// Pannello dei menu: bordo sottile come liste e card (l'ombra leggera è nel token del menu).
+.mat-mdc-menu-panel.mat-mdc-menu-panel {
+  min-width: 200px;
+  border: 1px solid var(--mat-sys-outline-variant);
+}
 
 *,
 *::before,
