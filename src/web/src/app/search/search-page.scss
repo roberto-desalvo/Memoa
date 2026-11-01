@@ -1,0 +1,100 @@
+.search {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+
+  input {
+    flex: 1;
+    min-width: 0;
+  }
+
+  button {
+    flex: none;
+    width: 3rem;
+    min-height: 3rem;
+    padding: 0;
+  }
+}
+
+.state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 3rem;
+  padding: 0 1.5rem;
+  text-align: center;
+
+  p {
+    max-width: 22rem;
+    margin: 0;
+  }
+}
+
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.result {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.875rem 1rem;
+  color: var(--text);
+  text-decoration: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  transition:
+    transform 0.15s,
+    box-shadow 0.15s,
+    border-color 0.15s;
+
+  &:hover {
+    border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+    box-shadow: var(--shadow);
+    transform: translateY(-1px);
+  }
+}
+
+// Nota da cui proviene il frammento.
+.source {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  min-width: 0;
+
+  .title {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .date {
+    flex: none;
+    font-size: 0.8125rem;
+    color: var(--muted);
+  }
+}
+
+// Il frammento intero può arrivare a 2.000 caratteri: in elenco se ne mostrano poche righe.
+.content {
+  display: -webkit-box;
+  overflow: hidden;
+  font-family: var(--font-serif);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 6;
+  line-clamp: 6;
+}

@@ -1,0 +1,70 @@
+<header class="page-header">
+  <a class="button icon" routerLink="/" aria-label="Torna alle note">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+  </a>
+  <h1>Cerca</h1>
+</header>
+
+<form class="search" role="search" (submit)="$event.preventDefault(); search()">
+  <input
+    type="search"
+    aria-label="Cerca nelle note"
+    placeholder="Cerca per significato…"
+    enterkeyhint="search"
+    [maxLength]="maxQueryLength"
+    [value]="query()"
+    (input)="query.set($any($event.target).value)"
+  />
+  <button
+    type="submit"
+    class="primary"
+    aria-label="Cerca"
+    [disabled]="!query().trim() || status() === 'searching'"
+  >
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-4-4" />
+    </svg>
+  </button>
+</form>
+
+<main aria-live="polite">
+  @if (status() === 'searching') {
+    <div class="state">
+      <span class="spinner"></span>
+      <p class="hint">Ricerca…</p>
+    </div>
+  } @else if (status() === 'failed') {
+    <div class="state">
+      <p class="error">Impossibile completare la ricerca.</p>
+      <button type="button" (click)="search()">Riprova</button>
+    </div>
+  } @else if (results(); as results) {
+    @if (results.length === 0) {
+      <div class="state">
+        <p class="hint">Nessuna nota abbastanza simile. Prova a descrivere diversamente.</p>
+      </div>
+    } @else {
+      <ul class="results">
+        @for (result of results; track $index) {
+          <li>
+            <a class="result" [routerLink]="['/records', result.recordUid]">
+              <span class="source">
+                <span class="title">{{ result.title }}</span>
+                <span class="date">{{ result.occurredAt | noteDate }}</span>
+              </span>
+              <span class="content">{{ result.content }}</span>
+            </a>
+          </li>
+        }
+      </ul>
+    }
+  } @else {
+    <div class="state">
+      <p class="hint">
+        Cerca per significato, anche in un'altra lingua: ad esempio "vacanze al mare" trova anche
+        "beach holiday".
+      </p>
+    </div>
+  }
+</main>
