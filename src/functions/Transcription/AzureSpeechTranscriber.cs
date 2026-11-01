@@ -1,5 +1,6 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 using Azure.Core;
 using Azure.Identity;
@@ -16,6 +17,10 @@ namespace Memoa.Functions.Transcription;
 public sealed class AzureSpeechTranscriber(HttpClient http, IOptions<SpeechOptions> options) : ITranscriber
 {
     private const string ApiVersion = "2024-11-15";
+
+    private static readonly TimeSpan LineBreakPause = TimeSpan.FromSeconds(2);
+
+    private static readonly TimeSpan ParagraphPause = TimeSpan.FromSeconds(4);
 
     private static readonly string[] Scopes = ["https://cognitiveservices.azure.com/.default"];
 
@@ -73,12 +78,46 @@ public sealed class AzureSpeechTranscriber(HttpClient http, IOptions<SpeechOptio
         var body = await response.Content.ReadFromJsonAsync<FastTranscriptionResponse>(JsonSerializerOptions.Web, cancellationToken)
             ?? throw new InvalidOperationException("Risposta vuota di Azure AI Speech.");
 
-        // Audio mono: una sola frase combinata con il testo completo.
-        var text = string.Join(' ', (body.CombinedPhrases ?? [])
-            .Select(p => p.Text?.Trim())
-            .Where(t => !string.IsNullOrEmpty(t)));
+        var text = JoinPhrases(body.Phrases);
+        if (text.Length == 0)
+        {
+            // Senza frasi con il tempo, il testo combinato (audio mono: una sola frase con il testo completo).
+            text = string.Join(' ', (body.CombinedPhrases ?? [])
+                .Select(p => p.Text?.Trim())
+                .Where(t => !string.IsNullOrEmpty(t)));
+        }
 
         return new TranscriptionResult(text, DetectLanguage(body.Phrases) ?? fallbackLanguage);
+    }
+
+    /// <summary>
+    /// Unisce le frasi in ordine di tempo, rendendo le pause tra una frase e la successiva:
+    /// oltre <see cref="LineBreakPause"/> va a capo, oltre <see cref="ParagraphPause"/> lascia una riga vuota.
+    /// </summary>
+    private static string JoinPhrases(IReadOnlyList<Phrase>? phrases)
+    {
+        var builder = new StringBuilder();
+        long? previousEnd = null;
+
+        foreach (var phrase in (phrases ?? []).OrderBy(p => p.OffsetMilliseconds))
+        {
+            var text = phrase.Text?.Trim();
+            if (string.IsNullOrEmpty(text))
+            {
+                continue;
+            }
+
+            if (previousEnd is { } end)
+            {
+                var pause = TimeSpan.FromMilliseconds(phrase.OffsetMilliseconds - end);
+                builder.Append(pause > ParagraphPause ? "\n\n" : pause > LineBreakPause ? "\n" : " ");
+            }
+
+            builder.Append(text);
+            previousEnd = phrase.OffsetMilliseconds + phrase.DurationMilliseconds;
+        }
+
+        return builder.ToString();
     }
 
     /// <summary>Lingua con più parlato tra le frasi riconosciute; null se nessuna frase ha un locale candidato.</summary>
@@ -116,5 +155,5 @@ public sealed class AzureSpeechTranscriber(HttpClient http, IOptions<SpeechOptio
 
     private sealed record CombinedPhrase(string? Text);
 
-    private sealed record Phrase(long DurationMilliseconds, string? Locale);
+    private sealed record Phrase(long OffsetMilliseconds, long DurationMilliseconds, string? Text, string? Locale);
 }
