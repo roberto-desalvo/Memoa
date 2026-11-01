@@ -1,4 +1,15 @@
-import { Component, inject, input, OnDestroy, OnInit, signal } from '@angular/core';
+import {
+  Component,
+  computed,
+  effect,
+  ElementRef,
+  inject,
+  input,
+  OnDestroy,
+  OnInit,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -21,6 +32,7 @@ import {
   RecordsApi,
 } from './records-api';
 import { RecordsStore } from './records-store';
+import { SearchState } from '../search/search-state';
 import { DELETE_NOTE_DIALOG, openConfirmDialog } from '../shared/confirm-dialog';
 
 /**
@@ -63,6 +75,7 @@ export class RecordPage implements OnInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
+  private readonly search = inject(SearchState);
 
   /** Dal percorso /records/:recordUid. */
   readonly recordUid = input.required<string>();
@@ -81,6 +94,36 @@ export class RecordPage implements OnInit, OnDestroy {
   protected readonly actionError = signal<string | null>(null);
   protected readonly maxTextLength = MAX_TEXT_LENGTH;
 
+  /** Frammento trovato dalla ricerca semantica, se la nota è stata aperta dai risultati. */
+  private readonly highlight = signal<string | null>(null);
+
+  /**
+   * Testo diviso attorno al frammento da evidenziare. I frammenti sono porzioni esatte del testo
+   * indicizzato: se il testo è cambiato nel frattempo e il frammento non c'è più, nessuna evidenziazione.
+   */
+  protected readonly textParts = computed(() => {
+    const text = this.record()?.text ?? '';
+    const highlight = this.highlight();
+    const start = highlight ? text.indexOf(highlight) : -1;
+    if (!highlight || start < 0) {
+      return { before: text, match: '', after: '' };
+    }
+    const end = start + highlight.length;
+    return { before: text.slice(0, start), match: text.slice(start, end), after: text.slice(end) };
+  });
+
+  private readonly match = viewChild<ElementRef<HTMLElement>>('match');
+  private scrolledToMatch = false;
+
+  /** Alla prima comparsa il frammento evidenziato viene portato al centro dello schermo. */
+  private readonly scrollToMatch = effect(() => {
+    const match = this.match();
+    if (match && !this.scrolledToMatch) {
+      this.scrolledToMatch = true;
+      match.nativeElement.scrollIntoView({ block: 'center' });
+    }
+  });
+
   private destroyed = false;
   private timer?: ReturnType<typeof setTimeout>;
 
@@ -96,6 +139,7 @@ export class RecordPage implements OnInit, OnDestroy {
   };
 
   async ngOnInit(): Promise<void> {
+    this.highlight.set(this.search.takeHighlight(this.recordUid()));
     document.addEventListener('visibilitychange', this.onVisibilityChange);
     try {
       await this.load();
@@ -231,6 +275,10 @@ export class RecordPage implements OnInit, OnDestroy {
     try {
       const updated = await firstValueFrom(this.api.update(record.recordUid, changes));
       this.store.replace(updated);
+      if (textChanged) {
+        // Il frammento si riferiva al testo precedente.
+        this.highlight.set(null);
+      }
       // Se il testo è cambiato va indicizzato di nuovo: il record torna "in elaborazione" e la pagina
       // ne mostra l'avanzamento.
       this.editing.set(false);

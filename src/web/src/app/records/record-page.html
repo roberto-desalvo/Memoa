@@ -203,7 +203,10 @@
       }
       <mat-card class="section">
         <mat-card-content>
-          <article class="text text-body">{{ record.text }}</article>
+          <!-- Su una riga sola: con white-space: pre-wrap gli spazi tra i nodi sarebbero visibili. -->
+          @let parts = textParts();
+          <!-- prettier-ignore -->
+          <article class="text text-body">{{ parts.before }}@if (parts.match) {<mark #match>{{ parts.match }}</mark>}{{ parts.after }}</article>
         </mat-card-content>
       </mat-card>
     }

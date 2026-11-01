@@ -49,7 +49,11 @@
       <ul class="note-list">
         @for (result of results; track $index) {
           <li>
-            <a class="note-link" [routerLink]="['/records', result.recordUid]">
+            <a
+              class="note-link"
+              [routerLink]="['/records', result.recordUid]"
+              (click)="open(result)"
+            >
               <app-note-row
                 [sourceType]="result.sourceType"
                 [title]="result.title"

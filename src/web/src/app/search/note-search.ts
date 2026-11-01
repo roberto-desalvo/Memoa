@@ -8,7 +8,7 @@ import { RouterLink } from '@angular/router';
 import { NoteDatePipe } from '../notes/note-date';
 import { RecordsStore } from '../records/records-store';
 import { NoteRow } from '../shared/note-row';
-import { MAX_QUERY_LENGTH } from './search-api';
+import { MAX_QUERY_LENGTH, SearchResult } from './search-api';
 import { SearchState } from './search-state';
 
 /**
@@ -61,6 +61,10 @@ export class NoteSearch {
 
   protected clear(): void {
     this.state.clear();
+  }
+
+  protected open(result: SearchResult): void {
+    this.state.open(result);
   }
 
   protected search(): Promise<void> {

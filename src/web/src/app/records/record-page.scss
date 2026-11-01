@@ -88,6 +88,16 @@ audio {
   overflow-wrap: anywhere;
 }
 
+// Frammento trovato dalla ricerca semantica: tinta tenue dell'accento, senza cambiare il testo.
+mark {
+  color: inherit;
+  background: var(--accent-soft);
+  border-radius: var(--space-1);
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  padding: 0 2px;
+}
+
 // Segnaposto del testo mentre la trascrizione è in corso.
 .placeholder {
   display: flex;

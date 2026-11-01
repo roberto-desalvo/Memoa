@@ -16,6 +16,9 @@ export class SearchState {
   readonly results = signal<SearchResult[] | null>(null);
   readonly status = signal<'idle' | 'searching' | 'failed'>('idle');
 
+  /** Frammento del risultato aperto, da evidenziare nella pagina della nota. */
+  private highlight: Pick<SearchResult, 'recordUid' | 'content'> | null = null;
+
   /** La ricerca occupa la pagina al posto della lista delle note. */
   readonly active = computed(() => this.status() !== 'idle' || this.results() !== null);
 
@@ -27,6 +30,22 @@ export class SearchState {
     this.query.set('');
     this.results.set(null);
     this.status.set('idle');
+    this.highlight = null;
+  }
+
+  /** Apertura di una nota dai risultati: la pagina della nota evidenzia il frammento trovato. */
+  open(result: SearchResult): void {
+    this.highlight = { recordUid: result.recordUid, content: result.content };
+  }
+
+  /**
+   * Frammento da evidenziare nella nota, se la si apre dai risultati. Vale una volta sola: riaprendo la
+   * nota dalla lista non si evidenzia nulla.
+   */
+  takeHighlight(recordUid: string): string | null {
+    const highlight = this.highlight;
+    this.highlight = null;
+    return highlight?.recordUid === recordUid ? highlight.content : null;
   }
 
   async search(): Promise<void> {
