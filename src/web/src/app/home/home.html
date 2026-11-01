@@ -67,50 +67,27 @@
               @for (record of group.records; track record.recordUid) {
                 <li>
                   <!--
-                    I record in errore non si aprono: il tap mostra la finestra con "Riprova". Con la
-                    selezione attiva il tap aggiunge o toglie la nota dalla selezione e non la apre.
+                    Anche i record in errore si aprono: la pagina mostra ciò che è stato ottenuto (per
+                    esempio l'audio) e il pulsante "Riprova". Con la selezione attiva il tap aggiunge o
+                    toglie la nota dalla selezione e non la apre.
                   -->
-                  @if (record.status === 'Error') {
-                    <button
-                      type="button"
-                      class="note-link"
-                      [class.selected]="isSelected(record)"
-                      appLongPress
-                      (longPress)="select(record)"
-                      (click)="selecting() ? toggle(record) : openError(record)"
-                    >
-                      <app-note-row
-                        [sourceType]="record.sourceType"
-                        [title]="record.title"
-                        [status]="record.status"
-                        [detail]="
-                          record.occurredAt | noteDate: (group.recent ? 'time' : 'dayMonth')
-                        "
-                        [text]="record.excerpt"
-                        [hideSide]="single() && isSelected(record)"
-                      />
-                    </button>
-                  } @else {
-                    <a
-                      class="note-link"
-                      [class.selected]="isSelected(record)"
-                      appLongPress
-                      (longPress)="select(record)"
-                      [routerLink]="selecting() ? null : ['/records', record.recordUid]"
-                      (click)="selecting() && toggle(record)"
-                    >
-                      <app-note-row
-                        [sourceType]="record.sourceType"
-                        [title]="record.title"
-                        [status]="record.status"
-                        [detail]="
-                          record.occurredAt | noteDate: (group.recent ? 'time' : 'dayMonth')
-                        "
-                        [text]="record.excerpt"
-                        [hideSide]="single() && isSelected(record)"
-                      />
-                    </a>
-                  }
+                  <a
+                    class="note-link"
+                    [class.selected]="isSelected(record)"
+                    appLongPress
+                    (longPress)="select(record)"
+                    [routerLink]="selecting() ? null : ['/records', record.recordUid]"
+                    (click)="selecting() && toggle(record)"
+                  >
+                    <app-note-row
+                      [sourceType]="record.sourceType"
+                      [title]="record.title"
+                      [status]="record.status"
+                      [detail]="record.occurredAt | noteDate: (group.recent ? 'time' : 'dayMonth')"
+                      [text]="record.excerpt"
+                      [hideSide]="single() && isSelected(record)"
+                    />
+                  </a>
                   @if (single() && isSelected(record)) {
                     <button
                       mat-icon-button

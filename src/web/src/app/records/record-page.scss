@@ -111,3 +111,15 @@ audio {
     opacity: 0.4;
   }
 }
+
+// Errore nell'elaborazione: spiegazione e, se si può, il pulsante "Riprova".
+.failure {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+
+  p {
+    margin: 0;
+  }
+}

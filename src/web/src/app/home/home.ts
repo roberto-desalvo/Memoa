@@ -140,33 +140,6 @@ export class Home implements OnInit, OnDestroy {
     }
   }
 
-  /** I record in errore non si aprono: il tap mostra la finestra con "Riprova" ed "Elimina". */
-  protected async openError(record: RecordSummary): Promise<void> {
-    const result = await openConfirmDialog(this.dialog, {
-      title: 'Errore nell’elaborazione',
-      message: record.canRetry
-        ? 'Si è verificato un errore durante l’elaborazione di questa nota. Vuoi riprovare?'
-        : 'Il file non è valido e non può essere elaborato.',
-      confirm: record.canRetry ? 'Riprova' : undefined,
-      secondary: 'Elimina',
-      cancel: 'Chiudi',
-    });
-    if (result === 'confirm') {
-      await this.retry(record);
-    } else if (result === 'secondary') {
-      await this.delete([record]);
-    }
-  }
-
-  private async retry(record: RecordSummary): Promise<void> {
-    try {
-      this.store.replace(await firstValueFrom(this.api.retry(record.recordUid)));
-    } catch (err) {
-      console.error('Nuovo tentativo non riuscito', err);
-      this.snackBar.open('Operazione non riuscita. Riprova più tardi.');
-    }
-  }
-
   /** Le note eliminate escono dalla lista e quindi dalla selezione; restano selezionate quelle non riuscite. */
   private async delete(records: RecordSummary[]): Promise<void> {
     if ((await openConfirmDialog(this.dialog, deleteNotesDialog(records.length))) !== 'confirm') {

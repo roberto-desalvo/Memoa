@@ -83,6 +83,27 @@
       }
     </div>
 
+    <!-- Un record in errore si apre comunque: sotto resta ciò che è stato ottenuto (audio, testo). -->
+    @if (record.status === 'Error') {
+      <mat-card class="section">
+        <mat-card-content class="failure">
+          <p class="text-secondary">
+            {{
+              record.canRetry
+                ? 'Si è verificato un errore durante l’elaborazione di questa nota.'
+                : 'Il file non è valido e non può essere elaborato.'
+            }}
+          </p>
+          @if (record.canRetry) {
+            <button mat-flat-button [disabled]="busy()" (click)="retry(record)">
+              <mat-icon svgIcon="regenerate" />
+              Riprova
+            </button>
+          }
+        </mat-card-content>
+      </mat-card>
+    }
+
     @if (record.processingStep) {
       <mat-card class="section">
         <mat-card-content>

@@ -247,6 +247,21 @@ export class RecordPage implements OnInit, OnDestroy {
     }
   }
 
+  /** "Riprova" su un record in errore: torna "in elaborazione" e la pagina ne mostra l'avanzamento. */
+  protected async retry(record: RecordDetail): Promise<void> {
+    this.busy.set(true);
+    try {
+      const updated = await firstValueFrom(this.api.retry(record.recordUid));
+      this.store.replace(updated);
+      this.show(updated);
+    } catch (err) {
+      console.error('Nuovo tentativo non riuscito', err);
+      this.snackBar.open('Operazione non riuscita. Riprova più tardi.');
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
   protected async confirmRegenerate(): Promise<void> {
     const record = this.record();
     if (!record) {

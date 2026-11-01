@@ -63,7 +63,7 @@ h1 {
 }
 
 // Con la selezione attiva le note restano sopra lo strato, per aggiungerle o toglierle con un tocco.
-.selecting .note-link {
+:host(.selecting) .note-link {
   position: relative;
   z-index: 31;
 }
