@@ -449,18 +449,6 @@ p {
   z-index: 30;
 }
 
-// Filtri per tag della homepage: i chip in una sola riga che scorre in orizzontale, senza barra.
-.tag-filters .mdc-evolution-chip-set__chips {
-  flex-wrap: nowrap;
-  padding: var(--space-1) var(--space-4) var(--space-2);
-  overflow-x: auto;
-  scrollbar-width: none;
-
-  > .mat-mdc-chip {
-    flex: none;
-  }
-}
-
 // Input file nascosto: si apre dal pulsante che lo richiama.
 input[type='file'] {
   display: none;

@@ -61,6 +61,20 @@
 </mat-menu>
 
 <main>
+  <!-- Filtri attivi, subito sotto la ricerca: la X di ciascuno lo toglie. -->
+  @if (filters.active()) {
+    <mat-chip-set class="active-filters" aria-label="Filtri attivi">
+      @for (chip of filters.chips(); track chip.key) {
+        <mat-chip (removed)="filters.remove(chip.key)">
+          {{ chip.label }}
+          <button matChipRemove [attr.aria-label]="'Rimuovi il filtro ' + chip.label">
+            <mat-icon svgIcon="close" />
+          </button>
+        </mat-chip>
+      }
+    </mat-chip-set>
+  }
+
   <!-- Upload in background: la chip riporta alla pagina di upload, anche con upload non riusciti. -->
   @if (uploads.pendingCount() > 0) {
     <a class="upload-chip" routerLink="/new/upload" aria-live="polite">
@@ -89,26 +103,15 @@
         </p>
       </div>
     } @else {
-      <!-- Tag delle note come filtri, in una riga che scorre in orizzontale. -->
-      @if (tags().length > 0) {
-        <mat-chip-listbox
-          class="tag-filters"
-          aria-label="Filtra per tag"
-          hideSingleSelectionIndicator
-          [value]="selectedTag()"
-          (change)="selectTag($event)"
-        >
-          <mat-chip-option [value]="null">Tutte</mat-chip-option>
-          @for (tag of tags(); track tag.tagUid) {
-            <mat-chip-option [value]="tag.tagUid">{{ tag.name }}</mat-chip-option>
-          }
-        </mat-chip-listbox>
-      }
       <app-note-search #search />
       @if (!search.active()) {
-        @for (group of groups(); track group.key) {
+        @for (group of groups(); track group.key; let first = $first) {
           <section>
-            <h2 class="group-label text-secondary strong muted">{{ group.label }}</h2>
+            @if (first) {
+              <ng-container *ngTemplateOutlet="listHeader; context: { $implicit: group.label }" />
+            } @else {
+              <h2 class="group-label text-secondary strong muted">{{ group.label }}</h2>
+            }
             <ul class="note-list">
               @for (record of group.records; track record.recordUid) {
                 <li
@@ -155,8 +158,9 @@
             </ul>
           </section>
         } @empty {
+          <ng-container *ngTemplateOutlet="listHeader; context: { $implicit: null }" />
           <div class="page-state">
-            <p class="text-secondary muted">Nessuna nota con questo tag.</p>
+            <p class="text-secondary muted">Nessuna nota con questi filtri.</p>
           </div>
         }
       }
@@ -172,6 +176,37 @@
     </div>
   }
 </main>
+
+<!--
+  Riga del primo gruppo ("Oggi", "Ieri", il mese; vuota se i filtri non lasciano note) con a destra
+  l'icona dei filtri, che apre il pannello sotto la riga.
+-->
+<ng-template #listHeader let-label>
+  <div class="list-header">
+    @if (label) {
+      <h2 class="group-label text-secondary strong muted">{{ label }}</h2>
+    }
+    <button
+      mat-icon-button
+      type="button"
+      class="filters-button"
+      aria-label="Filtri"
+      aria-controls="note-filters"
+      [class.active]="filtersOpen() || filters.active()"
+      [attr.aria-expanded]="filtersOpen()"
+      (click)="filtersOpen.set(!filtersOpen())"
+    >
+      <mat-icon svgIcon="filter" />
+    </button>
+  </div>
+  @if (filtersOpen()) {
+    <app-note-filters-panel
+      id="note-filters"
+      animate.enter="panel-enter"
+      animate.leave="panel-leave"
+    />
+  }
+</ng-template>
 
 <!-- Con la selezione attiva uno strato trasparente copre la pagina, tranne le note e l'intestazione. -->
 @if (selection.selecting()) {

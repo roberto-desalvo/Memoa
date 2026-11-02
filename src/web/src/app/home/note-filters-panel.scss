@@ -1,0 +1,72 @@
+:host {
+  display: grid;
+  grid-template-rows: 1fr;
+}
+
+// Apertura e chiusura: l'altezza va da 0 a quella del contenuto (righe della griglia) con una dissolvenza.
+:host(.panel-enter) {
+  animation: reveal 200ms ease;
+}
+
+:host(.panel-leave) {
+  animation: reveal 150ms ease reverse;
+}
+
+@keyframes reveal {
+  from {
+    grid-template-rows: 0fr;
+    opacity: 0;
+  }
+
+  to {
+    grid-template-rows: 1fr;
+    opacity: 1;
+  }
+}
+
+.reveal {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin-block: var(--space-1) var(--space-2);
+  padding: var(--space-4);
+}
+
+h3 {
+  margin: 0 0 var(--space-1);
+}
+
+.dates {
+  display: flex;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+
+  mat-form-field {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+.duration-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+// Lo slider occupa tutta la larghezza; il margine di Material lascia spazio ai cursori ai bordi.
+mat-slider {
+  display: block;
+  width: auto;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-2)) calc(-1 * var(--space-2)) 0;
+}

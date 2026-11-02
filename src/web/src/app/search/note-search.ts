@@ -3,10 +3,10 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { RouterLink } from '@angular/router';
+import { NoteFilters } from '../home/note-filters';
 import { NoteDatePipe } from '../notes/note-date';
 import { RecordsStore } from '../records/records-store';
 import { NoteRow } from '../shared/note-row';
-import { TagFilter } from '../tags/tag-filter';
 import { SearchResult } from './search-api';
 import { SearchState } from './search-state';
 
@@ -33,15 +33,15 @@ import { SearchState } from './search-state';
 export class NoteSearch {
   private readonly state = inject(SearchState);
   private readonly store = inject(RecordsStore);
-  private readonly tagFilter = inject(TagFilter);
+  private readonly filters = inject(NoteFilters);
 
   protected readonly status = this.state.status;
   readonly active = this.state.active;
-  protected readonly filtered = computed(() => this.tagFilter.tagUid() !== null);
+  protected readonly filtered = this.filters.active;
 
   /**
-   * Risultati senza le note eliminate dopo la ricerca (ad esempio aprendole dai risultati) e, con un
-   * tag scelto, senza le note che non hanno quel tag.
+   * Risultati senza le note eliminate dopo la ricerca (ad esempio aprendole dai risultati) e senza le
+   * note che non passano i filtri della homepage.
    */
   protected readonly results = computed(() => {
     const results = this.state.results();
@@ -49,12 +49,7 @@ export class NoteSearch {
     if (!results || !records) {
       return results;
     }
-    const tagUid = this.tagFilter.tagUid();
-    const uids = new Set(
-      records
-        .filter((r) => tagUid === null || r.tags?.some((t) => t.tagUid === tagUid))
-        .map((r) => r.recordUid),
-    );
+    const uids = new Set(records.filter(this.filters.matches()).map((r) => r.recordUid));
     return results.filter((r) => uids.has(r.recordUid));
   });
 

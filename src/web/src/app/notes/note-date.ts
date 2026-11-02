@@ -92,9 +92,15 @@ export function formatDuration(seconds: number): string {
   return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
 }
 
-/** Giorno nel fuso orario dell'utente (yyyy-mm-dd). */
-function dayKey(date: Date): string {
+/** Giorno nel fuso orario dell'utente (yyyy-mm-dd), lo stesso formato dell'input di tipo date. */
+export function dayKey(date: Date): string {
   return toInputValue(date).slice(0, 10);
+}
+
+/** Valore dell'input di tipo date (yyyy-mm-dd) → giorno e mese ("27 gen"). */
+export function formatDayMonth(day: string): string {
+  const [year, month, date] = day.split('-').map(Number);
+  return DAY_MONTH.format(new Date(year, month - 1, date));
 }
 
 function toInputValue(date: Date): string {

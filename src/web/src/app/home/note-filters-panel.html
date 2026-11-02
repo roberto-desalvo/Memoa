@@ -1,0 +1,99 @@
+<!-- L'host (una griglia) anima l'altezza di questo contenitore all'apertura e alla chiusura. -->
+<div class="reveal">
+  <mat-card appearance="outlined" class="panel">
+    <section aria-labelledby="filter-type">
+      <h3 id="filter-type" class="text-secondary strong muted">Tipologia</h3>
+      <mat-chip-listbox
+        aria-labelledby="filter-type"
+        hideSingleSelectionIndicator
+        [value]="filters.sourceType()"
+        (change)="setSourceType($event.value)"
+      >
+        <mat-chip-option value="Audio">Audio</mat-chip-option>
+        <mat-chip-option value="Text">Testo</mat-chip-option>
+      </mat-chip-listbox>
+    </section>
+
+    @if (filters.tags().length > 0) {
+      <section aria-labelledby="filter-tags">
+        <h3 id="filter-tags" class="text-secondary strong muted">Tag</h3>
+        <mat-chip-listbox
+          multiple
+          aria-labelledby="filter-tags"
+          [value]="filters.tagUids()"
+          (change)="filters.tagUids.set($event.value)"
+        >
+          @for (tag of filters.tags(); track tag.tagUid) {
+            <mat-chip-option [value]="tag.tagUid">{{ tag.name }}</mat-chip-option>
+          }
+        </mat-chip-listbox>
+      </section>
+    }
+
+    <section aria-labelledby="filter-period">
+      <h3 id="filter-period" class="text-secondary strong muted">Periodo</h3>
+      <mat-chip-listbox
+        aria-labelledby="filter-period"
+        hideSingleSelectionIndicator
+        [value]="filters.period()"
+        (change)="setPeriod($event.value)"
+      >
+        @for (period of periods; track period[0]) {
+          <mat-chip-option [value]="period[0]">{{ period[1] }}</mat-chip-option>
+        }
+        <mat-chip-option value="custom">Personalizzato</mat-chip-option>
+      </mat-chip-listbox>
+      @if (filters.period() === 'custom') {
+        <div class="dates">
+          <mat-form-field subscriptSizing="dynamic">
+            <mat-label>Dal</mat-label>
+            <input
+              matInput
+              type="date"
+              [attr.max]="filters.to() || null"
+              [value]="filters.from()"
+              (input)="filters.from.set($any($event.target).value)"
+            />
+          </mat-form-field>
+          <mat-form-field subscriptSizing="dynamic">
+            <mat-label>Al</mat-label>
+            <input
+              matInput
+              type="date"
+              [attr.min]="filters.from() || null"
+              [value]="filters.to()"
+              (input)="filters.to.set($any($event.target).value)"
+            />
+          </mat-form-field>
+        </div>
+      }
+    </section>
+
+    <section aria-labelledby="filter-duration">
+      <div class="duration-heading">
+        <h3 id="filter-duration" class="text-secondary strong muted">Durata degli audio</h3>
+        <span class="text-secondary muted">{{ durationText() }}</span>
+      </div>
+      <mat-slider min="0" step="1" [max]="filters.maxDurationMinutes" discrete>
+        <input
+          matSliderStartThumb
+          aria-label="Durata minima in minuti"
+          [value]="filters.minMinutes() ?? 0"
+          (valueChange)="setMinDuration($event)"
+        />
+        <input
+          matSliderEndThumb
+          aria-label="Durata massima in minuti"
+          [value]="filters.maxMinutes() ?? filters.maxDurationMinutes"
+          (valueChange)="setMaxDuration($event)"
+        />
+      </mat-slider>
+    </section>
+
+    @if (filters.active()) {
+      <div class="actions">
+        <button mat-button type="button" (click)="filters.clear()">Cancella filtri</button>
+      </div>
+    }
+  </mat-card>
+</div>

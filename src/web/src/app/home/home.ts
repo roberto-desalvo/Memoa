@@ -1,6 +1,7 @@
-import { Component, computed, inject, OnDestroy, OnInit } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
+import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
-import { MatChipListboxChange, MatChipsModule } from '@angular/material/chips';
+import { MatChipsModule } from '@angular/material/chips';
 import { MatDialog } from '@angular/material/dialog';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatIconModule } from '@angular/material/icon';
@@ -11,7 +12,7 @@ import { MatToolbarModule } from '@angular/material/toolbar';
 import { RouterLink } from '@angular/router';
 import { MsalService } from '@azure/msal-angular';
 import { ListGroup, listGroup, NoteDatePipe } from '../notes/note-date';
-import { RecordsApi, RecordSummary, RecordTag } from '../records/records-api';
+import { RecordsApi, RecordSummary } from '../records/records-api';
 import { RecordsStore } from '../records/records-store';
 import { NoteSearch } from '../search/note-search';
 import { SearchBar } from '../search/search-bar';
@@ -24,16 +25,19 @@ import { NoteRow } from '../shared/note-row';
 import { SelectionScrim } from '../shared/selection-scrim';
 import { SwipeReveal } from '../shared/swipe-reveal';
 import { openRecordTagsDialog } from '../tags/record-tags-dialog';
-import { TagFilter } from '../tags/tag-filter';
 import { UploadQueue } from '../uploads/upload-queue';
+import { NoteFilters } from './note-filters';
+import { NoteFiltersPanel } from './note-filters-panel';
 
 @Component({
   selector: 'app-home',
   imports: [
+    NgTemplateOutlet,
     RouterLink,
     AppLogo,
     LongPress,
     NoteDatePipe,
+    NoteFiltersPanel,
     NoteRow,
     NoteSearch,
     SearchBar,
@@ -62,7 +66,7 @@ export class Home implements OnInit, OnDestroy {
   private readonly snackBar = inject(MatSnackBar);
   protected readonly store = inject(RecordsStore);
   protected readonly uploads = inject(UploadQueue);
-  private readonly tagFilter = inject(TagFilter);
+  protected readonly filters = inject(NoteFilters);
 
   protected readonly accountName = (
     this.msal.instance.getActiveAccount() ?? this.msal.instance.getAllAccounts()[0]
@@ -76,26 +80,16 @@ export class Home implements OnInit, OnDestroy {
     .map((part) => part[0].toUpperCase())
     .join('');
 
-  /** Tag attivi assegnati ad almeno una nota, in ordine di nome: i filtri sotto la ricerca. */
-  protected readonly tags = computed(() => recordTags(this.store.records() ?? []));
-
-  /** Tag scelto tra i filtri, null per tutte le note (anche se il tag scelto non ha più note). */
-  protected readonly selectedTag = computed(() => {
-    const tagUid = this.tagFilter.tagUid();
-    return this.tags().some((t) => t.tagUid === tagUid) ? tagUid : null;
-  });
+  /** Pannello dei filtri aperto dall'icona sopra la lista. */
+  protected readonly filtersOpen = signal(false);
 
   /**
-   * Record con il tag scelto raggruppati (oggi, ieri, poi per mese), nell'ordine della lista (dal più
+   * Record che passano i filtri raggruppati (oggi, ieri, poi per mese), nell'ordine della lista (dal più
    * recente).
    */
-  protected readonly groups = computed(() => {
-    const tagUid = this.selectedTag();
-    const records = this.store.records() ?? [];
-    return groupRecords(
-      tagUid === null ? records : records.filter((r) => r.tags?.some((t) => t.tagUid === tagUid)),
-    );
-  });
+  protected readonly groups = computed(() =>
+    groupRecords((this.store.records() ?? []).filter(this.filters.matches())),
+  );
 
   /** Note selezionate con la pressione prolungata e nota scorsa verso destra, con il cestino scoperto. */
   protected readonly selection = new ListSelection(
@@ -136,15 +130,6 @@ export class Home implements OnInit, OnDestroy {
     this.msal.logoutRedirect();
   }
 
-  /** Toccando di nuovo il filtro scelto lo si toglie; "Tutte" resta scelto anche toccandolo di nuovo. */
-  protected selectTag(change: MatChipListboxChange): void {
-    const tagUid: string | null = change.value ?? null;
-    this.tagFilter.tagUid.set(tagUid);
-    if (tagUid === null) {
-      change.source.value = null;
-    }
-  }
-
   /** Le note eliminate escono dalla lista e quindi dalla selezione; restano selezionate quelle non riuscite. */
   private async delete(records: RecordSummary[]): Promise<void> {
     if ((await openConfirmDialog(this.dialog, deleteNotesDialog(records.length))) !== 'confirm') {
@@ -158,15 +143,6 @@ export class Home implements OnInit, OnDestroy {
     );
     deleted.forEach((r) => this.store.remove(r.recordUid));
   }
-}
-
-/** Tag attivi delle note, ciascuno una volta, in ordine di nome. */
-function recordTags(records: RecordSummary[]): RecordTag[] {
-  const tags = new Map<string, RecordTag>();
-  for (const tag of records.flatMap((r) => r.tags ?? []).filter((t) => t.isActive)) {
-    tags.set(tag.tagUid, tag);
-  }
-  return [...tags.values()].sort((a, b) => a.name.localeCompare(b.name));
 }
 
 interface RecordGroup extends ListGroup {
