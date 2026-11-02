@@ -102,14 +102,22 @@ public sealed class TagRecordsFunction(
             .Select(t => new
             {
                 t.Id,
+                // Minimo con TOP(1) e non con Min: SQL Server non accetta un'aggregazione che combina colonne
+                // della sottoquery con quelle esterne del tag (errore 8124).
                 // Null se il record non ha chunk dello stesso modello del tag.
                 ContentDistance = chunks
                     .Where(c => c.EmbeddingModel == t.EmbeddingModel)
-                    .Min(c => (double?)EF.Functions.VectorDistance(CosineMetric, c.Embedding, t.Embedding)),
+                    .Select(c => (double?)EF.Functions.VectorDistance(CosineMetric, c.Embedding, t.Embedding))
+                    .OrderBy(d => d)
+                    .FirstOrDefault(),
                 // Null se manca l'embedding del titolo o del nome, o se sono di modelli diversi.
                 TitleDistance = titles
-                    .Where(r => r.TitleEmbeddingModel == t.EmbeddingModel)
-                    .Min(r => (double?)EF.Functions.VectorDistance(CosineMetric, r.TitleEmbedding!.Value, t.NameEmbedding!.Value)),
+                    .Where(r => r.TitleEmbeddingModel == t.EmbeddingModel
+                        && r.TitleEmbedding != null
+                        && t.NameEmbedding != null)
+                    .Select(r => (double?)EF.Functions.VectorDistance(CosineMetric, r.TitleEmbedding!.Value, t.NameEmbedding!.Value))
+                    .OrderBy(d => d)
+                    .FirstOrDefault(),
             })
             .ToListAsync(cancellationToken);
 
