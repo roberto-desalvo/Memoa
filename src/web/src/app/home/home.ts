@@ -21,6 +21,7 @@ import { deleteNotesDialog, openConfirmDialog } from '../shared/confirm-dialog';
 import { LongPress } from '../shared/long-press';
 import { NoteRow } from '../shared/note-row';
 import { SwipeReveal } from '../shared/swipe-reveal';
+import { openRecordTagsDialog } from '../tags/record-tags-dialog';
 import { TagFilter } from '../tags/tag-filter';
 import { UploadQueue } from '../uploads/upload-queue';
 
@@ -157,6 +158,14 @@ export class Home implements OnInit, OnDestroy {
     const records = this.selected();
     if (records.length > 0) {
       await this.delete(records);
+    }
+  }
+
+  /** Tag delle note selezionate; dopo il salvataggio la selezione si chiude. */
+  protected async editSelectedTags(): Promise<void> {
+    const records = this.selected();
+    if (records.length > 0 && (await openRecordTagsDialog(this.dialog, records))) {
+      this.clearSelection();
     }
   }
 

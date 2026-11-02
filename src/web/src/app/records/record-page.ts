@@ -488,10 +488,9 @@ export class RecordPage implements OnInit, OnDestroy {
 
   /** Scelta dei tag della nota; la pagina e la lista mostrano subito quelli salvati. */
   protected async editTags(record: RecordDetail): Promise<void> {
-    const updated = await openRecordTagsDialog(this.dialog, record);
+    const [updated] = (await openRecordTagsDialog(this.dialog, [record])) ?? [];
     if (updated && !this.destroyed) {
       this.record.set(updated);
-      this.store.replace(updated);
     }
   }
 

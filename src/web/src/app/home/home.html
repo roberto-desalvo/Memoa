@@ -1,10 +1,15 @@
-<!-- Con note selezionate l'intestazione mostra quante sono e il cestino, sopra lo strato di selezione. -->
+<!--
+  Con note selezionate l'intestazione mostra quante sono, i tag e il cestino, sopra lo strato di selezione.
+-->
 @if (selecting()) {
   <mat-toolbar class="page-header selection-header">
     <button mat-icon-button aria-label="Annulla la selezione" (click)="clearSelection()">
       <mat-icon svgIcon="close" />
     </button>
     <h1 class="selection-count" aria-live="polite">{{ selected().length }} note selezionate</h1>
+    <button mat-icon-button aria-label="Tag delle note selezionate" (click)="editSelectedTags()">
+      <mat-icon svgIcon="tag" />
+    </button>
     <button mat-icon-button aria-label="Elimina le note selezionate" (click)="deleteSelected()">
       <mat-icon svgIcon="delete" />
     </button>

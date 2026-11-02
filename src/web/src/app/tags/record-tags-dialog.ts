@@ -12,17 +12,21 @@ import { MatInputModule } from '@angular/material/input';
 import { MatListModule, MatSelectionListChange } from '@angular/material/list';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { firstValueFrom } from 'rxjs';
-import { RecordDetail, RecordsApi } from '../records/records-api';
+import { RecordDetail, RecordsApi, RecordSummary } from '../records/records-api';
+import { RecordsStore } from '../records/records-store';
 import { MAX_TAG_NAME_LENGTH, TagsApi, tagSaveError, TagSummary } from './tags-api';
 
 export interface RecordTagsDialogData {
-  record: RecordDetail;
+  records: (RecordSummary | RecordDetail)[];
 }
 
 /**
- * Scelta dei tag di una nota tra quelli esistenti, con la possibilità di crearne uno nuovo (solo con il
- * nome: la descrizione si aggiunge dalla pagina del tag). Un tag tolto qui non viene più assegnato in
- * automatico a questa nota. Si chiude con il record aggiornato, oppure undefined se annullata.
+ * Scelta dei tag di una o più note tra quelli esistenti, con la possibilità di crearne uno nuovo (solo con
+ * il nome: la descrizione si aggiunge dalla pagina del tag). Con più note sono scelti i tag comuni a tutte:
+ * quelli aggiunti vanno a tutte, quelli comuni tolti si tolgono da tutte, gli altri tag di ciascuna nota
+ * restano. Un tag tolto qui non viene più assegnato in automatico a quella nota. La lista mostra subito le
+ * note salvate; con un salvataggio non riuscito la modale resta aperta e Salva riprova solo le note
+ * mancanti. Si chiude con i record aggiornati, oppure undefined se annullata.
  */
 @Component({
   selector: 'app-record-tags-dialog',
@@ -36,11 +40,11 @@ export interface RecordTagsDialogData {
     MatProgressSpinnerModule,
   ],
   template: `
-    <h2 mat-dialog-title>Tag della nota</h2>
+    <h2 mat-dialog-title>{{ title }}</h2>
     <mat-dialog-content>
       @if (tags(); as tags) {
         @if (tags.length > 0) {
-          <mat-selection-list aria-label="Tag della nota" (selectionChange)="onSelection($event)">
+          <mat-selection-list [attr.aria-label]="title" (selectionChange)="onSelection($event)">
             @for (tag of tags; track tag.tagUid) {
               <mat-list-option
                 togglePosition="before"
@@ -115,15 +119,24 @@ export interface RecordTagsDialogData {
 })
 export class RecordTagsDialog implements OnInit {
   private readonly data = inject<RecordTagsDialogData>(MAT_DIALOG_DATA);
-  private readonly dialogRef = inject<MatDialogRef<RecordTagsDialog, RecordDetail>>(MatDialogRef);
+  private readonly dialogRef = inject<MatDialogRef<RecordTagsDialog, RecordDetail[]>>(MatDialogRef);
   private readonly tagsApi = inject(TagsApi);
   private readonly recordsApi = inject(RecordsApi);
+  private readonly store = inject(RecordsStore);
+
+  protected readonly title =
+    this.data.records.length === 1 ? 'Tag della nota' : `Tag di ${this.data.records.length} note`;
+
+  /** Tag comuni a tutte le note all'apertura: quelli tolti dalla scelta si tolgono da ogni nota. */
+  private readonly common = commonTags(this.data.records);
+
+  /** Note ancora da salvare e note già salvate (dopo un salvataggio riuscito solo in parte). */
+  private pending = this.data.records;
+  private readonly saved: RecordDetail[] = [];
 
   protected readonly tags = signal<TagSummary[] | null>(null);
   protected readonly loadFailed = signal(false);
-  protected readonly selected = signal<ReadonlySet<string>>(
-    new Set((this.data.record.tags ?? []).map((t) => t.tagUid)),
-  );
+  protected readonly selected = signal<ReadonlySet<string>>(new Set(this.common));
   protected readonly newName = signal('');
   protected readonly busy = signal(false);
   protected readonly actionError = signal<string | null>(null);
@@ -183,28 +196,55 @@ export class RecordTagsDialog implements OnInit {
   protected async save(): Promise<void> {
     this.busy.set(true);
     this.actionError.set(null);
-    try {
-      const updated = await firstValueFrom(
-        this.recordsApi.setTags(this.data.record.recordUid, [...this.selected()]),
-      );
-      this.dialogRef.close(updated);
-    } catch (err) {
-      console.error('Salvataggio dei tag della nota non riuscito', err);
+    const selected = this.selected();
+    const removed = [...this.common].filter((tagUid) => !selected.has(tagUid));
+    const records = this.pending;
+    const results = await Promise.allSettled(
+      records.map((record) => {
+        const tagUids = new Set((record.tags ?? []).map((t) => t.tagUid));
+        removed.forEach((tagUid) => tagUids.delete(tagUid));
+        selected.forEach((tagUid) => tagUids.add(tagUid));
+        return firstValueFrom(this.recordsApi.setTags(record.recordUid, [...tagUids]));
+      }),
+    );
+    this.pending = records.filter((_, i) => results[i].status === 'rejected');
+    results.forEach((result) => {
+      if (result.status === 'fulfilled') {
+        this.saved.push(result.value);
+        this.store.replace(result.value);
+      } else {
+        console.error('Salvataggio dei tag della nota non riuscito', result.reason);
+      }
+    });
+    this.busy.set(false);
+
+    if (this.pending.length === 0) {
+      this.dialogRef.close(this.saved);
+    } else if (this.pending.length === records.length) {
       this.actionError.set('Salvataggio non riuscito. Riprova.');
-    } finally {
-      this.busy.set(false);
+    } else {
+      const failed = this.pending.length;
+      this.actionError.set(
+        `Non è stato possibile salvare ${failed === 1 ? '1 nota' : `${failed} note`} su ${this.data.records.length}. Riprova.`,
+      );
     }
   }
 }
 
+/** Tag presenti in tutte le note. */
+function commonTags(records: (RecordSummary | RecordDetail)[]): Set<string> {
+  const [first, ...others] = records.map((r) => new Set((r.tags ?? []).map((t) => t.tagUid)));
+  return new Set([...(first ?? [])].filter((tagUid) => others.every((tags) => tags.has(tagUid))));
+}
+
 export function openRecordTagsDialog(
   dialog: MatDialog,
-  record: RecordDetail,
-): Promise<RecordDetail | undefined> {
+  records: (RecordSummary | RecordDetail)[],
+): Promise<RecordDetail[] | undefined> {
   return firstValueFrom(
     dialog
-      .open<RecordTagsDialog, RecordTagsDialogData, RecordDetail>(RecordTagsDialog, {
-        data: { record },
+      .open<RecordTagsDialog, RecordTagsDialogData, RecordDetail[]>(RecordTagsDialog, {
+        data: { records },
         width: '28rem',
         maxWidth: 'calc(100vw - 32px)',
       })

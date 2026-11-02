@@ -71,10 +71,6 @@
 .note-link {
   -webkit-touch-callout: none;
   user-select: none;
-
-  &.selected {
-    background: var(--accent-soft);
-  }
 }
 
 // Con la selezione attiva le note restano sopra lo strato, per aggiungerle o toglierle con un tocco.
@@ -84,7 +80,7 @@
 }
 
 // Intestazione della selezione multipla: sopra lo strato e sopra le note che le scorrono sotto, con il
-// numero delle note e il cestino.
+// numero delle note, i tag e il cestino.
 .page-header.selection-header {
   z-index: 32;
 }
@@ -116,7 +112,10 @@ li {
   transform: translateX(var(--swipe-x, 0));
   transition: transform 200ms ease;
 
-  &:hover {
+  // Le note selezionate hanno lo stesso sfondo del passaggio del mouse: sul telefono l'ultima nota toccata
+  // resta in :hover, e con due colori diversi si distinguerebbe dalle altre selezionate.
+  &:hover,
+  &.selected {
     background: var(--mat-sys-surface-container-low);
   }
 
