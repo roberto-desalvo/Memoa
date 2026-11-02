@@ -178,6 +178,7 @@ Nessun dead-letter: gli eventi non consegnati dopo i retry automatici di Event G
 | `functions.yml` | `src/functions/**` tranne `Data/Migrations/**`, `src/shared/**` | `dotnet publish`, poi deploy del pacchetto sulla Function App |
 | `schema.yml` | `src/functions/Data/Migrations/**` | Genera lo script idempotente delle migration (scaricabile tra gli artifact) e lo applica con `sqlcmd` |
 | `transcriber.yml` | `src/jobs/transcriber/**`, `src/shared/**` | Build delle tre immagini del job di trascrizione, una per motore con i pesi dei propri modelli, e push su GHCR (`memoa-transcriber` per Whisper, `memoa-transcriber-parakeet` e `memoa-transcriber-faster-whisper`, tag `<sha>` e `<branch>`), poi su ogni ambiente aggiorna il job con il tag `<sha>` dell'immagine del motore già in uso (`container-job-deploy.yml`) |
+| `android.yml` | `src/android/**` | Build e firma dell'APK della Trusted Web Activity per l'ambiente (`android-build.yml`, host letto dalla Static Web App): su dev artefatto della run, su prod GitHub Release `android-v<versione>` |
 
 L'ambiente dipende dal branch: un push su `main` distribuisce su **dev**, un push su `prod` distribuisce su **prod** (il job prod attende l'approvazione dell'environment GitHub `prod`). Assetto temporaneo, in attesa del primo rilascio in produzione. Tutti si possono avviare anche a mano (**Run workflow**), scegliendo il branch dell'ambiente. I file `*-deploy.yml` sono i passi di deploy per un ambiente, richiamati dai workflow principali.
 
@@ -206,3 +207,29 @@ Configurazione, una volta per ambiente, dopo il deploy dell'infrastruttura:
 3. Creare l'utente SQL dell'identità di deploy (passo manuale 2).
 
 Function App e Static Web App sono cercate per resource group (`rg-memoa-<env>`), il database per nome (`sqldb-memoa-<env>`).
+
+### App Android
+
+L'APK (`src/android`, package `app.memoa` in prod e `app.memoa.dev` in dev) è firmato con una sola chiave per i due ambienti. La chiave va custodita anche fuori da GitHub: se si perde, gli utenti devono disinstallare l'app e installare quella firmata con la chiave nuova.
+
+1. Generare il keystore in locale, fuori dal repository (serve un JDK):
+
+   ```powershell
+   keytool -genkeypair -keystore memoa-android.jks -alias memoa -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Memoa"
+   keytool -list -v -keystore memoa-android.jks -alias memoa   # riga "SHA256:"
+   [Convert]::ToBase64String([IO.File]::ReadAllBytes("memoa-android.jks")) | Set-Clipboard
+   ```
+2. **Settings → Secrets and variables → Actions**, a livello di repository:
+
+   | Nome | Tipo | Valore |
+   |---|---|---|
+   | `ANDROID_KEYSTORE_BASE64` | secret | Keystore in base64 |
+   | `ANDROID_KEYSTORE_PASSWORD` | secret | Password del keystore |
+   | `ANDROID_KEY_ALIAS` | secret | `memoa` |
+   | `ANDROID_KEY_PASSWORD` | secret | Password della chiave (con `keytool` recente è la stessa del keystore) |
+   | `ANDROID_CERT_SHA256` | variabile | Impronta `SHA256:` di `keytool`, con i due punti |
+
+3. Avviare **Frontend** su ciascun ambiente: `web-deploy.yml` pubblica `/.well-known/assetlinks.json` con l'impronta e il package dell'ambiente. Verifica: `curl https://<host>/.well-known/assetlinks.json`. Senza il file, o con un'impronta diversa, l'app funziona ma mostra la barra dell'URL.
+4. Avviare **Android** su `main` (dev) e su `prod`. La pipeline si ferma se l'impronta dell'APK non corrisponde a `ANDROID_CERT_SHA256`.
+
+L'host della Static Web App è scritto nell'APK: se cambia (dominio personalizzato, Static Web App ricreata) va distribuito un nuovo APK. Gli aggiornamenti del frontend invece arrivano all'app senza ricompilarla.

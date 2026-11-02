@@ -4,7 +4,7 @@
 
 Applicazione client: tipo di app, framework, autenticazione, registrazione e upload, aggiornamento dello stato, hosting. Interfaccia e navigazione sono in [ui.md](ui.md).
 
-Contenuti: [App](#app) · [Installazione e service worker](#installazione-e-service-worker) · [Struttura](#struttura) · [Registrazione audio](#registrazione-audio) · [Upload](#upload) · [Aggiornamento dello stato](#aggiornamento-dello-stato) · [Hosting](#hosting) · [Da definire](#da-definire) · [Appendice: alternative scartate](#appendice-alternative-scartate)
+Contenuti: [App](#app) · [Installazione e service worker](#installazione-e-service-worker) · [App Android](#app-android) · [Struttura](#struttura) · [Registrazione audio](#registrazione-audio) · [Upload](#upload) · [Aggiornamento dello stato](#aggiornamento-dello-stato) · [Hosting](#hosting) · [Da definire](#da-definire) · [Appendice: alternative scartate](#appendice-alternative-scartate)
 
 ---
 
@@ -12,7 +12,7 @@ Contenuti: [App](#app) · [Installazione e service worker](#installazione-e-serv
 
 **Decisione**: PWA in Angular (TypeScript), progettata prima per la larghezza del telefono.
 
-- **Perché una PWA**: evita il costo annuale degli store (Apple in particolare). In futuro si può impacchettare per gli store (es. Trusted Web Activity su Android).
+- **Perché una PWA**: evita il costo annuale degli store (Apple in particolare). Su Android è distribuita anche come APK (Trusted Web Activity, vedi [App Android](#app-android)).
 - **Limiti**: la registrazione si interrompe con schermo bloccato o app in background. Su iOS l'installazione è manuale ("Aggiungi alla schermata Home") e le notifiche push funzionano solo con l'app installata.
 - **Perché Angular**: pacchetto ufficiale per la PWA, struttura vicina a quella di .NET.
 
@@ -29,6 +29,20 @@ Contenuti: [App](#app) · [Installazione e service worker](#installazione-e-serv
 - **Registrazione**: solo nella build di produzione, quando l'app è stabile (al massimo dopo 30 secondi), per non rallentare l'avvio. Con `ng serve` il service worker è disattivato.
 - **Hosting**: `staticwebapp.config.json` serve `ngsw-worker.js`, `ngsw.json`, `index.html` e il manifest con `cache-control: no-cache` e il manifest con il tipo `application/manifest+json`.
 - **Costo**: nessuno. I file sono pochi KB in più sul piano Free di Static Web Apps.
+
+---
+
+## App Android
+
+**Decisione**: APK Trusted Web Activity distribuito a mano, accanto alla PWA. Nessuno store.
+
+- **Cosa contiene**: solo il guscio Android (`src/android`, progetto Gradle con `androidbrowserhelper`, nessun codice proprio) che apre la Static Web App a schermo intero in Chrome. Frontend, service worker e backend sono gli stessi della PWA: gli aggiornamenti del frontend arrivano all'app senza un nuovo APK.
+- **Ambienti**: un APK per ambiente, `app.memoa` (prod, "Memoa") e `app.memoa.dev` (dev, "Memoa Dev"), installabili insieme. L'host della Static Web App è scritto nell'APK: se cambia (es. dominio personalizzato) va ridistribuito.
+- **Firma**: una chiave per i due ambienti, nei segreti del repository GitHub (con una copia fuori da GitHub). L'impronta è pubblicata in `/.well-known/assetlinks.json`, generato da `web-deploy.yml` per ogni ambiente: senza, l'app mostra la barra dell'URL.
+- **Distribuzione**: dev come artefatto della run di `android.yml`, prod come GitHub Release (pubblica, il repository è pubblico). Installazione manuale con le app da origini sconosciute consentite, nessun aggiornamento automatico dell'APK.
+- **Aspetto**: icona adattiva dall'icona maskable, schermata di avvio con l'icona su `#6e4bf2`, barre di sistema `#f4f2ef` (chiaro) e `#141316` (scuro), orientamento verticale. Android 8 o successivo.
+- **Login**: il redirect di MSAL esce dall'origine verso Entra External ID, quindi durante il login compare la barra dell'URL; nessuna modifica alle registrazioni delle app.
+- **Costo**: nessuno (niente Play Store).
 
 ---
 

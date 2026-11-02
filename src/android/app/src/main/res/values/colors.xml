@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Stessi colori di manifest.webmanifest e del theme-color di index.html. -->
+<resources>
+    <color name="statusBar">#f4f2ef</color>
+    <color name="statusBarDark">#141316</color>
+    <color name="splashBackground">#6e4bf2</color>
+</resources>

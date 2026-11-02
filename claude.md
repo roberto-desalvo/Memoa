@@ -24,7 +24,7 @@ Il documento delle decisioni (`docs/project.md`, indice dei file in `docs/projec
 
 | Area | Scelta |
 |---|---|
-| Frontend | Angular (TypeScript), PWA installabile (`@angular/service-worker`, cache solo dei file dell'app, mai dei dati), su Azure Static Web Apps (piano Free) |
+| Frontend | Angular (TypeScript), PWA installabile (`@angular/service-worker`, cache solo dei file dell'app, mai dei dati), su Azure Static Web Apps (piano Free); su Android anche APK Trusted Web Activity (`src/android`, distribuito a mano, nessuno store) |
 | Autenticazione | Microsoft Entra External ID, MSAL nel frontend, token inviato alle Functions (CORS abilitato sulle Functions) |
 | Backend | C# .NET su Azure Functions, piano Flex Consumption |
 | Database | Azure SQL Database (offerta gratuita, serverless) |
@@ -131,7 +131,7 @@ La Function HTTP salva il testo, con titolo e data della nota, nel database e, p
 - Bicep per tutto ciò che supporta, incluse le registrazioni delle app Entra External ID tramite l'estensione Microsoft Graph, con un deploy separato a livello di tenant (`targetScope = 'tenant'`) per ciascun tenant esterno.
 - I tenant Entra External ID sono collegati alla sottoscrizione tramite **gruppi di risorse dedicati non gestiti da Bicep**: non includerli mai nei deployment stacks.
 - Authority e audience di Entra External ID sono **per ambiente** (un tenant per ambiente).
-- Pipeline GitHub Actions separate: frontend, Functions (che include ffmpeg nel pacchetto), schema del database, immagini di trascrizione (una per motore; la pipeline aggiorna il job solo con l'immagine del motore già in uso, che sceglie il deploy dell'infrastruttura).
+- Pipeline GitHub Actions separate: frontend, Functions (che include ffmpeg nel pacchetto), schema del database, immagini di trascrizione (una per motore; la pipeline aggiorna il job solo con l'immagine del motore già in uso, che sceglie il deploy dell'infrastruttura), APK Android (artefatto della run in dev, GitHub Release in prod; chiave di firma nei segreti del repository).
 - Storage account dei dati: soft delete e versioning (14 giorni), ridondanza GRS, blocco CanNotDelete.
 - Tier dei blob: originali audio in Cold dopo 1 giorno; audio normalizzato e file di testo originali in Cool dopo 30 giorni.
 - In locale Azurite non emette eventi Event Grid: vanno simulati.

@@ -64,6 +64,20 @@ jobs:
             '{apiBaseUrl: $apiBaseUrl, auth: {authority: $authority, clientId: $clientId, apiScope: $apiScope}, maxAudioDurationMinutes: $maxAudioDurationMinutes}' \
             > site/config.json
 
+      # Digital Asset Links per l'app Android dell'ambiente (android.yml): stessa impronta per dev e prod.
+      - name: Generazione di assetlinks.json
+        env:
+          ENVIRONMENT: ${{ inputs.environment }}
+          ANDROID_CERT_SHA256: ${{ vars.ANDROID_CERT_SHA256 }}
+        run: |
+          if [ -z "$ANDROID_CERT_SHA256" ]; then echo "::warning::Variabile ANDROID_CERT_SHA256 mancante: niente assetlinks.json"; exit 0; fi
+          package=app.memoa
+          if [ "$ENVIRONMENT" != prod ]; then package="app.memoa.$ENVIRONMENT"; fi
+          mkdir -p site/.well-known
+          jq -n --arg package "$package" --arg fingerprint "$ANDROID_CERT_SHA256" \
+            '[{relation: ["delegate_permission/common.handle_all_urls"], target: {namespace: "android_app", package_name: $package, sha256_cert_fingerprints: [$fingerprint]}}]' \
+            > site/.well-known/assetlinks.json
+
       - uses: Azure/static-web-apps-deploy@v1
         with:
           azure_static_web_apps_api_token: ${{ steps.azure.outputs.swa_token }}

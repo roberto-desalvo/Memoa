@@ -1,0 +1,40 @@
+# App Android (Trusted Web Activity) che apre il frontend su Static Web Apps. Un APK per ambiente.
+# Push su main → APK dev come artefatto della run, push su prod → APK prod in una GitHub Release.
+name: Android
+
+on:
+  push:
+    branches: [main, prod]
+    paths:
+      - src/android/**
+      - .github/workflows/android.yml
+      - .github/workflows/android-build.yml
+  workflow_dispatch:
+
+concurrency:
+  group: android-${{ github.ref_name }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  dev:
+    if: github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/android-build.yml
+    with:
+      environment: dev
+    secrets: inherit
+    permissions:
+      contents: read
+      id-token: write
+
+  prod:
+    if: github.ref == 'refs/heads/prod'
+    uses: ./.github/workflows/android-build.yml
+    with:
+      environment: prod
+    secrets: inherit
+    permissions:
+      contents: write
+      id-token: write

@@ -1,0 +1,96 @@
+# Build e firma dell'APK per un ambiente. Chiamato da android.yml.
+# Segreti del repository: ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD.
+# Variabile del repository: ANDROID_CERT_SHA256 (impronta del certificato, la stessa che web-deploy.yml scrive in assetlinks.json).
+name: Android (build)
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        type: string
+        required: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    env:
+      RESOURCE_GROUP: rg-memoa-${{ inputs.environment }}
+      VERSION_NAME: 1.0.${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      # L'host della Static Web App finisce nell'APK: cambiarlo richiede di ridistribuire l'app.
+      - name: Lettura della Static Web App
+        id: azure
+        run: |
+          web_host=$(az staticwebapp list -g "$RESOURCE_GROUP" --query "[0].defaultHostname" -o tsv)
+          if [ -z "$web_host" ]; then echo "::error::Nessuna Static Web App in $RESOURCE_GROUP"; exit 1; fi
+          echo "web_host=$web_host" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.14.3
+
+      - name: Keystore
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$ANDROID_KEYSTORE_BASE64" ]; then echo "::error::Segreto ANDROID_KEYSTORE_BASE64 mancante"; exit 1; fi
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/memoa.jks"
+
+      - name: Build dell'APK
+        working-directory: src/android
+        env:
+          ENVIRONMENT: ${{ inputs.environment }}
+          WEB_HOST: ${{ steps.azure.outputs.web_host }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          export ANDROID_KEYSTORE_PATH="$RUNNER_TEMP/memoa.jks"
+          gradle "assemble${ENVIRONMENT^}Release" -PwebHost="$WEB_HOST" -PversionCode="${{ github.run_number }}"
+          mkdir -p "$RUNNER_TEMP/apk"
+          cp "app/build/outputs/apk/$ENVIRONMENT/release/app-$ENVIRONMENT-release.apk" "$RUNNER_TEMP/apk/memoa-$ENVIRONMENT-$VERSION_NAME.apk"
+          rm "$RUNNER_TEMP/memoa.jks"
+
+      # Firma valida e uguale all'impronta pubblicata in assetlinks.json, altrimenti l'app mostra la barra dell'URL.
+      - name: Verifica della firma
+        env:
+          ANDROID_CERT_SHA256: ${{ vars.ANDROID_CERT_SHA256 }}
+        run: |
+          apksigner="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)/apksigner"
+          apk=$(ls "$RUNNER_TEMP"/apk/*.apk)
+          actual=$("$apksigner" verify --print-certs "$apk" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')
+          expected=$(echo "$ANDROID_CERT_SHA256" | tr -d ':' | tr 'A-F' 'a-f')
+          if [ -z "$actual" ]; then echo "::error::APK non firmato"; exit 1; fi
+          if [ "$actual" != "$expected" ]; then echo "::error::L'impronta del certificato non corrisponde alla variabile ANDROID_CERT_SHA256"; exit 1; fi
+
+      - name: Artefatto (dev)
+        if: inputs.environment != 'prod'
+        uses: actions/upload-artifact@v4
+        with:
+          name: memoa-${{ inputs.environment }}-${{ env.VERSION_NAME }}
+          path: ${{ runner.temp }}/apk/*.apk
+          if-no-files-found: error
+
+      - name: GitHub Release (prod)
+        if: inputs.environment == 'prod'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "android-v$VERSION_NAME" "$RUNNER_TEMP"/apk/*.apk \
+            --target "$GITHUB_SHA" \
+            --title "Memoa Android $VERSION_NAME" \
+            --notes "APK della Trusted Web Activity di Memoa (prod). Installazione manuale: consentire le app da origini sconosciute."
