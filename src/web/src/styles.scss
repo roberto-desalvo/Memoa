@@ -42,6 +42,8 @@ html {
       surface-container-high: light-dark(#e9e4de, #2b2a2f),
       surface-container-highest: light-dark(#e2ddd6, #36343a),
       outline-variant: light-dark(#e4dfd9, #36343a),
+      // Rosso caldo e meno saturo di quello di Material, accanto al viola e ai neutri carta.
+      error: light-dark(#c2413b, #ffb3a8),
     )
   );
 

@@ -1,5 +1,5 @@
-<!-- Con più note selezionate l'intestazione mostra quante sono e il cestino, sopra lo strato di selezione. -->
-@if (selecting() && !single()) {
+<!-- Con note selezionate l'intestazione mostra quante sono e il cestino, sopra lo strato di selezione. -->
+@if (selecting()) {
   <mat-toolbar class="page-header selection-header">
     <button mat-icon-button aria-label="Annulla la selezione" (click)="clearSelection()">
       <mat-icon svgIcon="close" />
@@ -83,6 +83,16 @@
             <ul class="note-list">
               @for (record of group.records; track record.recordUid) {
                 <li>
+                  <!-- Spazio scoperto scorrendo la nota verso destra: il cestino. -->
+                  <button
+                    type="button"
+                    class="row-delete"
+                    aria-label="Elimina la nota"
+                    [tabindex]="isSwiped(record) ? 0 : -1"
+                    (click)="deleteSwiped(record)"
+                  >
+                    <mat-icon svgIcon="delete" />
+                  </button>
                   <!--
                     Anche i record in errore si aprono: la pagina mostra ciò che è stato ottenuto (per
                     esempio l'audio) e il pulsante "Riprova". Con la selezione attiva il tap aggiunge o
@@ -93,6 +103,10 @@
                     [class.selected]="isSelected(record)"
                     appLongPress
                     (longPress)="select(record)"
+                    appSwipeReveal
+                    [swipeDisabled]="selecting()"
+                    [open]="isSwiped(record)"
+                    (openChange)="swiped.set($event ? record.recordUid : null)"
                     [routerLink]="selecting() ? null : ['/records', record.recordUid]"
                     (click)="selecting() && toggle(record)"
                   >
@@ -103,19 +117,8 @@
                       [detail]="record.occurredAt | noteDate: (group.recent ? 'time' : 'dayMonth')"
                       [text]="record.excerpt"
                       [tags]="record.tags"
-                      [hideSide]="single() && isSelected(record)"
                     />
                   </a>
-                  @if (single() && isSelected(record)) {
-                    <button
-                      mat-icon-button
-                      class="row-delete"
-                      aria-label="Elimina la nota"
-                      (click)="deleteSelected()"
-                    >
-                      <mat-icon svgIcon="delete" />
-                    </button>
-                  }
                 </li>
               }
             </ul>
@@ -142,7 +145,7 @@
 <!--
   Con la selezione attiva uno strato trasparente copre la pagina (intestazione con la ricerca, filtri,
   barra di navigazione): sopra restano solo le note, che si aggiungono o tolgono dalla selezione, e il cestino
-  (sulla riga o nell'intestazione). Toccando altrove si chiude la selezione. Conta solo un tocco
+  nell'intestazione. Toccando altrove si chiude la selezione. Conta solo un tocco
   iniziato sullo strato, non il rilascio della pressione che ha selezionato la nota.
 -->
 @if (selecting()) {

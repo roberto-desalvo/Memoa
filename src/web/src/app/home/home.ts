@@ -20,6 +20,7 @@ import { AppLogo } from '../shared/app-logo';
 import { deleteNotesDialog, openConfirmDialog } from '../shared/confirm-dialog';
 import { LongPress } from '../shared/long-press';
 import { NoteRow } from '../shared/note-row';
+import { SwipeReveal } from '../shared/swipe-reveal';
 import { TagFilter } from '../tags/tag-filter';
 
 @Component({
@@ -32,6 +33,7 @@ import { TagFilter } from '../tags/tag-filter';
     NoteRow,
     NoteSearch,
     SearchBar,
+    SwipeReveal,
     MatButtonModule,
     MatChipsModule,
     MatDividerModule,
@@ -45,7 +47,7 @@ import { TagFilter } from '../tags/tag-filter';
   host: {
     class: 'page',
     '[class.selecting]': 'selecting()',
-    '(document:keydown.escape)': 'clearSelection()',
+    '(document:keydown.escape)': 'clearSelection(); swiped.set(null)',
   },
 })
 export class Home implements OnInit, OnDestroy {
@@ -98,8 +100,9 @@ export class Home implements OnInit, OnDestroy {
     (this.store.records() ?? []).filter((r) => this.selectedUids().has(r.recordUid)),
   );
   protected readonly selecting = computed(() => this.selected().length > 0);
-  /** Con una sola nota selezionata il cestino sta sulla riga; con più note nell'intestazione. */
-  protected readonly single = computed(() => this.selected().length === 1);
+
+  /** Nota scorsa verso destra, con il cestino scoperto: una alla volta. */
+  protected readonly swiped = signal<string | null>(null);
 
   ngOnInit(): void {
     this.store.start();
@@ -116,9 +119,20 @@ export class Home implements OnInit, OnDestroy {
     return this.selectedUids().has(record.recordUid);
   }
 
+  protected isSwiped(record: RecordSummary): boolean {
+    return this.swiped() === record.recordUid;
+  }
+
+  /** Cestino scoperto dallo scorrimento: chiede conferma; annullando la nota torna al suo posto. */
+  protected async deleteSwiped(record: RecordSummary): Promise<void> {
+    await this.delete([record]);
+    this.swiped.set(null);
+  }
+
   /** Aggiunge il record alla selezione (pressione prolungata). */
   protected select(record: RecordSummary): void {
     this.scrimArmed = false;
+    this.swiped.set(null);
     this.selectedUids.update((uids) => new Set(uids).add(record.recordUid));
   }
 

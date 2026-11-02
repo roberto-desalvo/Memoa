@@ -94,6 +94,7 @@ Valgono per ogni schermata. Una nuova schermata o un nuovo componente le rispett
   - **Pronta**: apre la pagina del record.
   - **In elaborazione**: appare attenuata con l'etichetta "In elaborazione", ma si apre comunque.
   - **In errore**: appare attenuata con l'etichetta "Errore". Al tap si apre una finestra che spiega l'errore e offre "Riprova" (solo se il record si può riprovare; altrimenti dice che il file non è valido), "Elimina" (con la conferma dell'eliminazione) e "Chiudi".
+  - **Eliminazione**: premendo e scorrendo la riga verso destra si scopre a sinistra il cestino, rosso su una tinta tenue dello stesso rosso; rilasciata oltre metà dello spazio la riga resta aperta (una alla volta), altrimenti torna al suo posto. Il cestino chiede la conferma dell'eliminazione; toccando la riga aperta, o con Esc, la riga si chiude. Con la pressione prolungata si selezionano più note: l'intestazione mostra quante sono e il cestino.
 - **Stati della pagina**: diario vuoto con invito a toccare +, nessuna nota con il tag scelto, caricamento, errore con "Riprova".
 - **Aggiunta**: dalla voce + della barra di navigazione (vedi [Navigazione](#navigazione)).
 

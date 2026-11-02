@@ -35,14 +35,12 @@ import { RecordStatus, RecordTag, SourceType } from '../records/records-api';
         </span>
       }
     </span>
-    @if (!hideSide()) {
-      <span class="side text-secondary muted">
-        <span>{{ detail() }}</span>
-        @if (duration()) {
-          <span [attr.aria-label]="'Durata ' + duration()">{{ duration() }}</span>
-        }
-      </span>
-    }
+    <span class="side text-secondary muted">
+      <span>{{ detail() }}</span>
+      @if (duration()) {
+        <span [attr.aria-label]="'Durata ' + duration()">{{ duration() }}</span>
+      }
+    </span>
   `,
   styles: `
     :host {
@@ -127,8 +125,6 @@ export class NoteRow {
   readonly lines = input(1);
   /** Tag della nota, mostrati su una riga sotto il testo; assenti nei risultati della ricerca. */
   readonly tags = input<RecordTag[] | null | undefined>(null);
-  /** Nasconde data e durata, per lasciare il posto a un'azione sopra la riga (il cestino in homepage). */
-  readonly hideSide = input(false);
 
   protected readonly tagNames = computed(() => (this.tags() ?? []).map((t) => t.name).join(' · '));
 }
