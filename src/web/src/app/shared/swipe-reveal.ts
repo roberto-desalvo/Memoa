@@ -6,10 +6,12 @@ export const SWIPE_REVEAL_PX = 72;
 const MOVE_TOLERANCE_PX = 10;
 
 /**
- * Scorrimento verso destra di una voce della lista: scopre a sinistra uno spazio largo
- * SWIPE_REVEAL_PX, dove l'elemento sotto mostra un'azione (il cestino in homepage). Rilasciata oltre metà
- * dello spazio la voce resta aperta, altrimenti torna al suo posto; lo scorrimento verticale resta della
- * pagina. Il clic che chiude lo scorrimento non apre la voce, e il tocco su una voce aperta la chiude.
+ * Scorrimento verso destra di una voce della lista: sull'elemento della voce (il li), che contiene la riga
+ * e l'azione scoperta (marcata con data-swipe-action, il cestino in homepage). La riga si sposta con la
+ * variabile CSS --swipe-x. Da chiusa, rilasciata oltre metà dello spazio, la voce resta aperta; da aperta
+ * basta uno scorrimento verso sinistra per chiuderla. Lo scorrimento verticale resta della pagina. La voce
+ * aperta si chiude anche toccando la riga (che allora non si apre) o un punto qualsiasi fuori dalla voce;
+ * il clic che chiude uno scorrimento non vale come tocco.
  */
 @Directive({
   selector: '[appSwipeReveal]',
@@ -18,10 +20,11 @@ const MOVE_TOLERANCE_PX = 10;
     '(pointermove)': 'move($event)',
     '(pointerup)': 'end()',
     '(pointercancel)': 'end()',
+    '(document:pointerdown)': 'closeOnOutside($event)',
     // Con il mouse il browser trascinerebbe il collegamento.
     '(dragstart)': '$event.preventDefault()',
     '[class.swiping]': 'offset() !== null',
-    '[style.transform]': 'transform()',
+    '[style.--swipe-x]': 'position()',
   },
 })
 export class SwipeReveal {
@@ -31,10 +34,9 @@ export class SwipeReveal {
 
   /** Posizione durante lo scorrimento; null quando la voce sta ferma (chiusa o aperta). */
   protected readonly offset = signal<number | null>(null);
-  protected readonly transform = computed(() => {
-    const x = this.offset() ?? (this.open() ? SWIPE_REVEAL_PX : 0);
-    return x > 0 ? `translateX(${x}px)` : '';
-  });
+  protected readonly position = computed(
+    () => `${this.offset() ?? (this.open() ? SWIPE_REVEAL_PX : 0)}px`,
+  );
 
   private readonly element = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
   private origin?: { x: number; y: number; base: number; pointerId: number };
@@ -43,17 +45,24 @@ export class SwipeReveal {
 
   constructor() {
     const onClick = (event: MouseEvent) => {
-      if (this.swiped || this.open()) {
+      if (this.swiped) {
+        this.swiped = false;
         event.preventDefault();
         event.stopPropagation();
-        if (!this.swiped) {
-          this.open.set(false);
-        }
-        this.swiped = false;
+      } else if (this.open() && !(event.target as Element).closest('[data-swipe-action]')) {
+        event.preventDefault();
+        event.stopPropagation();
+        this.open.set(false);
       }
     };
     this.element.addEventListener('click', onClick, true);
     inject(DestroyRef).onDestroy(() => this.element.removeEventListener('click', onClick, true));
+  }
+
+  protected closeOnOutside(event: PointerEvent): void {
+    if (this.open() && !this.element.contains(event.target as Node)) {
+      this.open.set(false);
+    }
   }
 
   protected start(event: PointerEvent): void {
@@ -94,8 +103,12 @@ export class SwipeReveal {
 
   protected end(): void {
     const offset = this.offset();
-    if (this.swiping && offset !== null) {
-      this.open.set(offset >= SWIPE_REVEAL_PX / 2);
+    if (this.swiping && offset !== null && this.origin) {
+      this.open.set(
+        this.origin.base > 0
+          ? offset > SWIPE_REVEAL_PX - MOVE_TOLERANCE_PX
+          : offset >= SWIPE_REVEAL_PX / 2,
+      );
       this.swiped = true;
     }
     this.offset.set(null);

@@ -100,11 +100,17 @@
             <h2 class="group-label text-secondary strong muted">{{ group.label }}</h2>
             <ul class="note-list">
               @for (record of group.records; track record.recordUid) {
-                <li>
+                <li
+                  appSwipeReveal
+                  [swipeDisabled]="selecting()"
+                  [open]="isSwiped(record)"
+                  (openChange)="swiped.set($event ? record.recordUid : null)"
+                >
                   <!-- Spazio scoperto scorrendo la nota verso destra: il cestino. -->
                   <button
                     type="button"
                     class="row-delete"
+                    data-swipe-action
                     aria-label="Elimina la nota"
                     [tabindex]="isSwiped(record) ? 0 : -1"
                     (click)="deleteSwiped(record)"
@@ -121,10 +127,6 @@
                     [class.selected]="isSelected(record)"
                     appLongPress
                     (longPress)="select(record)"
-                    appSwipeReveal
-                    [swipeDisabled]="selecting()"
-                    [open]="isSwiped(record)"
-                    (openChange)="swiped.set($event ? record.recordUid : null)"
                     [routerLink]="selecting() ? null : ['/records', record.recordUid]"
                     (click)="selecting() && toggle(record)"
                   >

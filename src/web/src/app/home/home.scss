@@ -104,21 +104,23 @@
 li {
   position: relative;
   overflow: hidden;
+  touch-action: pan-y;
 }
 
-// La riga copre il cestino e lo scopre scorrendo verso destra; lo scorrimento verticale resta della pagina.
+// La riga copre il cestino e lo scopre scorrendo verso destra (--swipe-x, dalla direttiva sul li); lo
+// scorrimento verticale resta della pagina.
 .note-link {
   position: relative;
   z-index: 1;
   background: var(--mat-sys-surface-container-lowest);
-  touch-action: pan-y;
+  transform: translateX(var(--swipe-x, 0));
   transition: transform 200ms ease;
 
   &:hover {
     background: var(--mat-sys-surface-container-low);
   }
 
-  &.swiping {
+  .swiping & {
     transition: none;
   }
 }
