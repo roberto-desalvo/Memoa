@@ -38,6 +38,31 @@
   margin: 0 calc(-1 * var(--space-4));
 }
 
+// Chip degli upload in background, sopra i filtri: tinta tenue dell'accento, rossa con upload non riusciti.
+.upload-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 32px;
+  margin-block: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--space-4);
+  background: var(--accent-soft);
+  color: var(--mat-sys-primary);
+  font: var(--mat-sys-label-large);
+  text-decoration: none;
+
+  .mat-icon {
+    width: 18px;
+    height: 18px;
+  }
+
+  &.failed {
+    background: var(--mat-sys-error-container);
+    color: var(--mat-sys-on-error-container);
+  }
+}
+
 .group-label {
   padding: var(--space-5) 0 var(--space-2);
 }

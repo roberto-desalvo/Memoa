@@ -65,25 +65,7 @@
         </form>
       }
       @case ('upload') {
-        <mat-card>
-          <mat-card-content class="pick">
-            <mat-icon class="pick-icon" svgIcon="upload" />
-            <button mat-flat-button (click)="fileInput.click()">Scegli i file</button>
-            <input
-              #fileInput
-              type="file"
-              multiple
-              [accept]="uploadAccept"
-              (change)="onFileInput(fileInput)"
-            />
-            <p class="text-secondary muted">
-              {{ formats }} · audio fino a 350 MB, testo fino a 10 MB
-            </p>
-            <p class="text-secondary muted">
-              Ogni file diventa una nota, con il nome del file come titolo.
-            </p>
-          </mat-card-content>
-        </mat-card>
+        <app-upload-files />
       }
     }
   }
@@ -115,59 +97,5 @@
         <button mat-flat-button (click)="submit()">Riprova</button>
       </div>
     </div>
-  }
-
-  @case ('files') {
-    <mat-list class="files" aria-live="polite">
-      @for (item of files(); track $index) {
-        <mat-list-item [class.failed]="item.status === 'failed' || item.status === 'invalid'">
-          @switch (item.status) {
-            @case ('saving') {
-              <mat-spinner matListItemIcon diameter="24" aria-hidden="true" />
-            }
-            @case ('done') {
-              <mat-icon matListItemIcon svgIcon="check" />
-            }
-            @case ('waiting') {
-              <mat-icon matListItemIcon svgIcon="pending" />
-            }
-            @default {
-              <mat-icon matListItemIcon svgIcon="error" />
-            }
-          }
-          <span matListItemTitle>{{ item.file.name }}</span>
-          <span matListItemLine>
-            @switch (item.status) {
-              @case ('waiting') {
-                In attesa
-              }
-              @case ('saving') {
-                Salvataggio…
-                @if (item.fraction !== null) {
-                  {{ item.fraction * 100 | number: '1.0-0' }}%
-                }
-              }
-              @case ('done') {
-                Salvato
-              }
-              @case ('failed') {
-                Salvataggio non riuscito
-              }
-              @case ('invalid') {
-                {{ item.error }}
-              }
-            }
-          </span>
-        </mat-list-item>
-      }
-    </mat-list>
-    @if (!filesBusy()) {
-      <div class="actions">
-        <a mat-button routerLink="/">Torna alle note</a>
-        @if (hasFailedFiles()) {
-          <button mat-flat-button (click)="retryFiles()">Riprova</button>
-        }
-      </div>
-    }
   }
 }

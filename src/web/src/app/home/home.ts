@@ -22,6 +22,7 @@ import { LongPress } from '../shared/long-press';
 import { NoteRow } from '../shared/note-row';
 import { SwipeReveal } from '../shared/swipe-reveal';
 import { TagFilter } from '../tags/tag-filter';
+import { UploadQueue } from '../uploads/upload-queue';
 
 @Component({
   selector: 'app-home',
@@ -56,6 +57,7 @@ export class Home implements OnInit, OnDestroy {
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
   protected readonly store = inject(RecordsStore);
+  protected readonly uploads = inject(UploadQueue);
   private readonly tagFilter = inject(TagFilter);
 
   protected readonly accountName = (

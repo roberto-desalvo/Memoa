@@ -1,80 +1,45 @@
-import { Component, computed, DestroyRef, inject, input, OnInit, signal } from '@angular/core';
+import { Component, computed, DestroyRef, inject, input, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { DecimalPipe } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
-import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
-import { MatListModule } from '@angular/material/list';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { Router, RouterLink } from '@angular/router';
 import { lastValueFrom, Observable, tap } from 'rxjs';
-import { APP_CONFIG } from '../config/app-config';
 import { MAX_TEXT_LENGTH, NoteDetails, RecordsApi } from '../records/records-api';
 import { RecordAudio } from '../recording/record-audio';
-import {
-  AUDIO_ACCEPT,
-  AUDIO_FORMATS_LABEL,
-  audioContentType,
-  MAX_AUDIO_SIZE_BYTES,
-} from '../uploads/audio-formats';
-import { exceedsMaxDuration } from '../uploads/audio-duration';
 import { AudioUploadService } from '../uploads/audio-upload.service';
-import { isTextFile, readTextFile, TEXT_ACCEPT, TEXT_FORMATS_LABEL } from '../uploads/text-file';
-import {
-  nowInputValue,
-  recordingTitle,
-  textTitle,
-  titleFromFileName,
-  toOccurredAt,
-} from './note-date';
-import { NoteDraft } from './note-draft';
+import { UploadFiles } from '../uploads/upload-files';
+import { nowInputValue, recordingTitle, textTitle, toOccurredAt } from './note-date';
 
 export type NewNoteMode = 'record' | 'write' | 'upload';
 
 /** Contenuto acquisito nel primo passo. */
 type Content = { kind: 'audio'; audio: Blob; contentType: string } | { kind: 'text'; text: string };
 
-type Step =
-  | { kind: 'capture' }
-  | { kind: 'saving'; fraction: number | null }
-  | { kind: 'failed' }
-  | { kind: 'files' };
-
-/** File scelto per l'upload, salvato come nota a sé. */
-interface FileItem {
-  file: File;
-  title: string;
-  status: 'waiting' | 'saving' | 'done' | 'failed' | 'invalid';
-  /** Avanzamento dell'upload audio; null per il testo. */
-  fraction: number | null;
-  /** Motivo per cui il file non è valido, per l'utente. */
-  error: string | null;
-}
+type Step = { kind: 'capture' } | { kind: 'saving'; fraction: number | null } | { kind: 'failed' };
 
 /**
  * Creazione delle note. La scrittura ha titolo (proposta TXT_yyyyMMdd_HHmm dalla data della nota),
- * data e ora (di default adesso) e testo nella stessa pagina. La registrazione e gli upload si salvano subito: la registrazione con data e ora attuali e il titolo scritto sopra il
- * registratore (proposta REC_yyyyMMdd_HHmm dall'avvio della registrazione), gli upload con la data di ultima modifica del file e come titolo il nome del file; titolo e data sono
- * modificabili poi nella pagina del record. Gli upload accettano più
- * file, salvati uno alla volta come note separate. Per gli audio titolo e data vanno con la richiesta
- * del SAS di upload.
+ * data e ora (di default adesso) e testo nella stessa pagina. La registrazione si salva subito, con data
+ * e ora attuali e il titolo scritto sopra il registratore (proposta REC_yyyyMMdd_HHmm dall'avvio della
+ * registrazione); titolo e data sono modificabili poi nella pagina del record. Gli upload (più file,
+ * con anteprima di titolo e data) li gestisce UploadFiles. Per gli audio titolo e data vanno con la
+ * richiesta del SAS di upload.
  */
 @Component({
   selector: 'app-new-note',
   imports: [
     RouterLink,
     RecordAudio,
-    DecimalPipe,
+    UploadFiles,
     MatButtonModule,
-    MatCardModule,
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
-    MatListModule,
     MatProgressBarModule,
     MatProgressSpinnerModule,
     MatToolbarModule,
@@ -83,13 +48,11 @@ interface FileItem {
   styleUrl: './new-note.scss',
   host: { class: 'page' },
 })
-export class NewNote implements OnInit {
+export class NewNote {
   private readonly router = inject(Router);
   private readonly api = inject(RecordsApi);
   private readonly uploads = inject(AudioUploadService);
-  private readonly drafts = inject(NoteDraft);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly maxAudioDurationMinutes = inject(APP_CONFIG).maxAudioDurationMinutes;
 
   /** Dal percorso /new/:mode. */
   readonly mode = input.required<NewNoteMode>();
@@ -113,17 +76,7 @@ export class NewNote implements OnInit {
   protected readonly recordTitle = signal<string | null>(null);
   protected readonly recordTitleProposal = signal(recordingTitle(new Date()));
 
-  protected readonly files = signal<FileItem[]>([]);
-  protected readonly filesBusy = computed(() =>
-    this.files().some((item) => item.status === 'waiting' || item.status === 'saving'),
-  );
-  protected readonly hasFailedFiles = computed(() =>
-    this.files().some((item) => item.status === 'failed'),
-  );
-
   protected readonly maxTextLength = MAX_TEXT_LENGTH;
-  protected readonly uploadAccept = `${AUDIO_ACCEPT},${TEXT_ACCEPT}`;
-  protected readonly formats = `${AUDIO_FORMATS_LABEL}, ${TEXT_FORMATS_LABEL}`;
   protected readonly heading = computed(
     () => ({ record: 'Registra', write: 'Scrivi', upload: 'Carica file' })[this.mode()],
   );
@@ -134,15 +87,6 @@ export class NewNote implements OnInit {
 
   constructor() {
     this.destroyRef.onDestroy(() => (this.destroyed = true));
-  }
-
-  ngOnInit(): void {
-    if (this.mode() === 'upload') {
-      const files = this.drafts.take();
-      if (files.length > 0) {
-        this.startFiles(files);
-      }
-    }
   }
 
   /** La proposta segue l'avvio della registrazione, finché l'utente non scrive un titolo. */
@@ -199,81 +143,6 @@ export class NewNote implements OnInit {
     }
   }
 
-  protected onFileInput(input: HTMLInputElement): void {
-    const files = Array.from(input.files ?? []);
-    input.value = '';
-    if (files.length > 0) {
-      this.startFiles(files);
-    }
-  }
-
-  protected retryFiles(): void {
-    this.files.update((items) =>
-      items.map((item) => (item.status === 'failed' ? { ...item, status: 'waiting' } : item)),
-    );
-    void this.processFiles();
-  }
-
-  private startFiles(files: File[]): void {
-    this.files.set(
-      files.map((file) => ({
-        file,
-        title: titleFromFileName(file.name),
-        status: 'waiting',
-        fraction: null,
-        error: null,
-      })),
-    );
-    this.step.set({ kind: 'files' });
-    void this.processFiles();
-  }
-
-  /**
-   * Salva i file in attesa uno alla volta, ciascuno come nota con la data di ultima modifica. Un file non
-   * valido o non salvato non ferma gli altri; se sono stati salvati tutti si torna alla lista.
-   */
-  private async processFiles(): Promise<void> {
-    for (let index = 0; index < this.files().length; index++) {
-      const item = this.files()[index];
-      if (item.status !== 'waiting') {
-        continue;
-      }
-
-      this.updateFile(index, { status: 'saving' });
-      const content = await readContent(item.file, this.maxAudioDurationMinutes);
-      if ('error' in content) {
-        this.updateFile(index, { status: 'invalid', error: content.error });
-        continue;
-      }
-
-      const occurredAt = fileDate(item.file);
-      const note = {
-        title: item.title || (content.kind === 'audio' ? recordingTitle : textTitle)(occurredAt),
-        occurredAt: occurredAt.toISOString(),
-      };
-      try {
-        await this.saveContent(content, note, (fraction) => this.updateFile(index, { fraction }));
-        this.updateFile(index, { status: 'done' });
-      } catch (err) {
-        console.error('Salvataggio del file non riuscito', err);
-        this.updateFile(index, { status: 'failed', fraction: null });
-      }
-      if (this.destroyed) {
-        return;
-      }
-    }
-
-    if (this.files().every((item) => item.status === 'done')) {
-      void this.router.navigate(['/']);
-    }
-  }
-
-  private updateFile(index: number, changes: Partial<FileItem>): void {
-    this.files.update((items) =>
-      items.map((item, i) => (i === index ? { ...item, ...changes } : item)),
-    );
-  }
-
   /** Crea il record; si interrompe se l'utente lascia la pagina. */
   private async saveContent(
     content: Content,
@@ -288,35 +157,4 @@ export class NewNote implements OnInit {
             .pipe(tap((progress) => progress.kind === 'progress' && onProgress(progress.fraction)));
     await lastValueFrom(request.pipe(takeUntilDestroyed(this.destroyRef)));
   }
-}
-
-/** Data della nota di un file caricato: l'ultima modifica del file, o adesso se il browser non la fornisce. */
-function fileDate(file: File): Date {
-  return file.lastModified > 0 ? new Date(file.lastModified) : new Date();
-}
-
-/** Contenuto di un file caricato, oppure il messaggio d'errore per l'utente. */
-async function readContent(
-  file: File,
-  maxDurationMinutes: number,
-): Promise<Content | { error: string }> {
-  if (isTextFile(file)) {
-    const result = await readTextFile(file);
-    return 'error' in result ? result : { kind: 'text', text: result.text };
-  }
-
-  const contentType = audioContentType(file);
-  if (!contentType) {
-    return { error: 'Formato non supportato.' };
-  }
-  if (file.size === 0) {
-    return { error: 'Il file è vuoto.' };
-  }
-  if (file.size > MAX_AUDIO_SIZE_BYTES) {
-    return { error: 'Il file supera il limite di 350 MB.' };
-  }
-  if (await exceedsMaxDuration(file, maxDurationMinutes)) {
-    return { error: `L'audio supera la durata massima di ${maxDurationMinutes} minuti.` };
-  }
-  return { kind: 'audio', audio: file, contentType };
 }

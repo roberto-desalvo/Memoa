@@ -50,6 +50,24 @@
 </mat-menu>
 
 <main>
+  <!-- Upload in background: la chip riporta alla pagina di upload, anche con upload non riusciti. -->
+  @if (uploads.pendingCount() > 0) {
+    <a class="upload-chip" routerLink="/new/upload" aria-live="polite">
+      <mat-spinner diameter="16" aria-hidden="true" />
+      Caricamento di
+      {{ uploads.pendingCount() === 1 ? '1 file' : uploads.pendingCount() + ' file' }}
+    </a>
+  } @else if (uploads.failedCount() > 0) {
+    <a class="upload-chip failed" routerLink="/new/upload" role="alert">
+      <mat-icon svgIcon="error" />
+      {{
+        uploads.failedCount() === 1
+          ? '1 caricamento non riuscito'
+          : uploads.failedCount() + ' caricamenti non riusciti'
+      }}
+    </a>
+  }
+
   @if (store.records(); as records) {
     @if (records.length === 0) {
       <div class="page-state">

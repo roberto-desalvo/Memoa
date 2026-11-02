@@ -2,9 +2,9 @@ import { Component, ElementRef, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
-import { NoteDraft } from '../notes/note-draft';
 import { AUDIO_ACCEPT } from '../uploads/audio-formats';
 import { TEXT_ACCEPT } from '../uploads/text-file';
+import { UploadQueue } from '../uploads/upload-queue';
 
 /**
  * Barra di navigazione in basso, in tutte le pagine: Home, Aggiungi (al centro) e Tag, solo icone (con
@@ -193,7 +193,7 @@ import { TEXT_ACCEPT } from '../uploads/text-file';
 })
 export class BottomNav {
   private readonly router = inject(Router);
-  private readonly drafts = inject(NoteDraft);
+  private readonly uploads = inject(UploadQueue);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
 
   protected readonly uploadAccept = `${AUDIO_ACCEPT},${TEXT_ACCEPT}`;
@@ -209,7 +209,7 @@ export class BottomNav {
     const files = Array.from(input.files ?? []);
     input.value = '';
     if (files.length > 0) {
-      this.drafts.set(files);
+      this.uploads.add(files);
       void this.router.navigate(['/new', 'upload']);
     }
   }

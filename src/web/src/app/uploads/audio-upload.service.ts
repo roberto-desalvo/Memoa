@@ -11,11 +11,13 @@ import {
   catchError,
   concat,
   filter,
+  finalize,
   map,
   Observable,
   of,
   retry,
   switchMap,
+  tap,
   throwError,
   timer,
 } from 'rxjs';
@@ -62,15 +64,36 @@ export class AudioUploadService {
         occurredAt: note.occurredAt,
       })
       .pipe(
-        switchMap(({ recordUid, uploadUrl }) =>
-          concat(
+        switchMap(({ recordUid, uploadUrl }) => {
+          // Interrotto dall'utente (disiscrizione) prima della fine: il record va eliminato.
+          let settled = false;
+          return concat(
             audio.size <= BLOCK_SIZE
               ? this.putBlob(uploadUrl, audio, type)
               : this.putBlocks(uploadUrl, audio, type),
             [{ kind: 'done', recordUid } as const],
-          ).pipe(catchError((error: unknown) => this.cancel(recordUid, error))),
-        ),
+          ).pipe(
+            tap({ complete: () => (settled = true), error: () => (settled = true) }),
+            catchError((error: unknown) => this.cancel(recordUid, error)),
+            finalize(() => settled || this.abandon(recordUid)),
+          );
+        }),
       );
+  }
+
+  /**
+   * Elimina il record di un upload annullato dall'utente, senza attendere la risposta. Il 409 (file
+   * arrivato comunque) lascia la nota com'è. Se l'utente annulla prima della risposta con il SAS il
+   * record lo elimina la coda `upload-expiry`.
+   */
+  private abandon(recordUid: string): void {
+    this.http.delete(`${this.config.apiBaseUrl}/uploads/audio/${recordUid}`).subscribe({
+      error: (error: unknown) => {
+        if (!(error instanceof HttpErrorResponse && error.status === 409)) {
+          console.error("Eliminazione del record dopo l'upload annullato non riuscita", error);
+        }
+      },
+    });
   }
 
   /**

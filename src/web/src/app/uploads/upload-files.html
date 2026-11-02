@@ -1,0 +1,136 @@
+@let preview = queue.preview();
+@let queued = queue.queued();
+
+@if (preview.length === 0 && queued.length === 0) {
+  <mat-card>
+    <mat-card-content class="pick">
+      <mat-icon class="pick-icon" svgIcon="upload" />
+      <button mat-flat-button (click)="fileInput.click()">Scegli i file</button>
+      <input
+        #fileInput
+        type="file"
+        multiple
+        [accept]="uploadAccept"
+        (change)="onFileInput(fileInput)"
+      />
+      <p class="text-secondary muted">{{ formats }} · audio fino a 350 MB, testo fino a 10 MB</p>
+      <p class="text-secondary muted">
+        Ogni file diventa una nota, con il nome del file come titolo.
+      </p>
+    </mat-card-content>
+  </mat-card>
+}
+
+<!-- Anteprima: titolo e data che andranno con ciascun file, prima di qualsiasi chiamata. -->
+@if (preview.length > 0) {
+  <form class="preview" (submit)="$event.preventDefault(); canSave() && queue.confirm()">
+    @for (item of preview; track item.id) {
+      <mat-card class="preview-item">
+        <mat-card-content>
+          <p class="file-name text-secondary muted">{{ item.file.name }}</p>
+          @switch (item.status) {
+            @case ('checking') {
+              <p class="checking text-secondary muted" aria-live="polite">
+                <mat-spinner diameter="24" aria-hidden="true" />
+                Controllo del file…
+              </p>
+            }
+            @case ('invalid') {
+              <p class="error" role="alert"><mat-icon svgIcon="error" />{{ item.error }}</p>
+            }
+            @default {
+              <mat-form-field class="full">
+                <mat-label>Titolo</mat-label>
+                <input
+                  matInput
+                  type="text"
+                  maxlength="200"
+                  [placeholder]="proposedTitle(item)"
+                  [value]="item.title"
+                  (input)="queue.edit(item.id, { title: $any($event.target).value })"
+                />
+              </mat-form-field>
+              <mat-form-field class="full">
+                <mat-label>Data e ora della nota</mat-label>
+                <input
+                  matInput
+                  type="datetime-local"
+                  required
+                  [value]="item.date"
+                  (input)="queue.edit(item.id, { date: $any($event.target).value })"
+                />
+              </mat-form-field>
+            }
+          }
+        </mat-card-content>
+      </mat-card>
+    }
+    <div class="actions">
+      <button mat-button type="button" (click)="queue.discardPreview()">Annulla</button>
+      <button mat-flat-button type="submit" [disabled]="!canSave()">Salva</button>
+    </div>
+  </form>
+}
+
+@if (queued.length > 0) {
+  <mat-list class="files" aria-live="polite">
+    @for (item of queued; track item.id) {
+      <mat-list-item [class.failed]="item.status === 'failed'">
+        @switch (item.status) {
+          @case ('saving') {
+            <mat-spinner matListItemIcon diameter="24" aria-hidden="true" />
+          }
+          @case ('done') {
+            <mat-icon matListItemIcon svgIcon="check" />
+          }
+          @case ('waiting') {
+            <mat-icon matListItemIcon svgIcon="pending" />
+          }
+          @default {
+            <mat-icon matListItemIcon svgIcon="error" />
+          }
+        }
+        <span matListItemTitle>{{ item.title.trim() || proposedTitle(item) }}</span>
+        <span matListItemLine>
+          @switch (item.status) {
+            @case ('waiting') {
+              In attesa
+            }
+            @case ('saving') {
+              Salvataggio…
+              @if (item.fraction !== null) {
+                {{ item.fraction * 100 | number: '1.0-0' }}%
+              }
+            }
+            @case ('done') {
+              Salvato
+            }
+            @case ('failed') {
+              Salvataggio non riuscito
+            }
+          }
+        </span>
+        <!-- Il testo in salvataggio non si annulla: la richiesta è breve e non si può ritirare. -->
+        @if (item.status !== 'done' && !(item.status === 'saving' && item.kind === 'text')) {
+          <button
+            mat-icon-button
+            matListItemMeta
+            type="button"
+            [attr.aria-label]="'Annulla il caricamento di ' + item.file.name"
+            (click)="queue.cancel(item.id)"
+          >
+            <mat-icon svgIcon="close" />
+          </button>
+        }
+      </mat-list-item>
+    }
+  </mat-list>
+  @if (queue.pendingCount() === 0) {
+    <div class="actions">
+      <button mat-button type="button" (click)="backToNotes()">Torna alle note</button>
+      @if (queue.failedCount() > 0) {
+        <button mat-flat-button type="button" (click)="queue.retryFailed()">Riprova</button>
+      }
+    </div>
+  }
+}

@@ -7,31 +7,6 @@ form .full + .full {
   margin-top: var(--space-2);
 }
 
-.pick {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-4);
-  padding-block: var(--space-6);
-  text-align: center;
-}
-
-.pick-icon {
-  width: 48px;
-  height: 48px;
-  color: var(--mat-sys-on-surface-variant);
-}
-
 mat-progress-bar {
   max-width: 20rem;
-}
-
-.files {
-  margin-inline: calc(-1 * var(--space-4));
-}
-
-// File non valido o non salvato: icona e testo nel colore d'errore.
-.failed {
-  --mat-list-list-item-leading-icon-color: var(--mat-sys-error);
-  --mat-list-list-item-supporting-text-color: var(--mat-sys-error);
 }

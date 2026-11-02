@@ -66,6 +66,8 @@ Contenuti: [App](#app) · [Installazione e service worker](#installazione-e-serv
   - Se l'upload fallisce il client chiama `CancelAudioUpload`. Il 409 significa che il file è arrivato comunque.
 - **Testo**: oggi solo TXT e MD (massimo 10 MB), letti nel browser in UTF-8 e salvati come testo scritto.
 - Ogni file diventa una nota separata.
+- **Coda degli upload** (`UploadQueue`): i file scelti passano prima da un'anteprima con titolo e data modificabili, senza chiamare le Functions; i controlli nel browser (formato, dimensione, durata, lettura del testo) avvengono già lì. La coda è un servizio dell'app, in memoria: gli upload continuano cambiando pagina e si perdono chiudendo l'app; nulla viene salvato oltre al flusso normale.
+  - Annullare un audio in corso interrompe le richieste allo storage e chiama `CancelAudioUpload` (il 409 lascia la nota). Se il SAS non era ancora arrivato il record lo elimina la coda `upload-expiry`. Lo stesso vale lasciando la pagina di registrazione durante il salvataggio.
 
 ---
 

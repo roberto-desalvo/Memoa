@@ -108,10 +108,11 @@ Valgono per ogni schermata. Una nuova schermata o un nuovo componente le rispett
   - data e ora sono prepopolate con quelle attuali e modificabili al minuto;
   - testo con il contatore dei caratteri (massimo 50.000); "Salva" è attivo solo con del testo.
 - **Carica**: più file insieme, ognuno diventa una nota.
-  - Titolo dal nome del file senza estensione; data dall'ultima modifica del file (o attuale se manca).
-  - I file si salvano uno alla volta, con lo stato di ciascuno: in attesa, avanzamento, salvato, non valido, non riuscito.
-  - Un file non valido o non riuscito non ferma gli altri, e quelli non riusciti si possono riprovare.
-  - Se tutti vanno a buon fine si torna alla homepage.
+  - Prima del salvataggio un'anteprima, una card per file: titolo (prepopolato con il nome del file senza estensione; se lo si svuota si usa la proposta REC/TXT dalla data) e data e ora (prepopolate con l'ultima modifica del file, o attuali se manca), entrambi modificabili. I file non validi mostrano il motivo e non vengono salvati. "Salva" avvia gli upload, "Annulla" scarta l'anteprima.
+  - I file si salvano uno alla volta, con lo stato di ciascuno: in attesa, avanzamento (rotellina e percentuale), salvato, non riuscito. Ogni file in attesa, in caricamento (solo audio) o non riuscito ha la X per toglierlo; un audio annullato in corso non lascia la nota.
+  - Un file non riuscito non ferma gli altri, e quelli non riusciti si possono riprovare.
+  - Gli upload continuano cambiando pagina (l'anteprima non confermata no); chiudendo l'app si perdono. In homepage, sopra i filtri, una chip ("Caricamento di N file", o "N caricamenti non riusciti") riporta alla pagina di upload.
+  - Se tutti vanno a buon fine, con la pagina aperta, si torna alla homepage.
 - **Errore di salvataggio**: "Riprova" senza ripetere la registrazione o la scrittura. Per il testo c'è anche "Modifica".
 
 ---
