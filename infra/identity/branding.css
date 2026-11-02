@@ -1,0 +1,332 @@
+/*
+ * Branding di Memoa per le pagine di accesso di Entra External ID (registrazione, login, reset password).
+ * Si carica a mano nel portale di ogni tenant esterno (dev e prod): Entra ID > Personalizzazione
+ * del marchio dell'azienda > Accesso predefinito > Layout > CSS personalizzato.
+ *
+ * Stesse regole visive dell'app (docs/project/ui.md, src/web/src/styles.scss): un solo accento pieno
+ * (il viola del logo), neutri caldi, solo font di sistema, serif solo per il titolo. Mobile first: su
+ * telefono il riquadro è la pagina stessa, sugli schermi più larghi diventa una card bianca su fondo carta.
+ * Solo i selettori .ext-* documentati da Microsoft (gli altri possono cambiare senza preavviso).
+ */
+
+/*
+ * Le regole di Entra (CSS-in-JS) arrivano dopo questo file: a parità di specificità vincono loro, quindi
+ * dove le sovrascriviamo serve !important. Entra usa il layout "telefono" sotto i 600 px di larghezza o
+ * i 366 px di altezza (stessa media query qui sotto): nasconde l'immagine di sfondo (resta il bianco
+ * della pagina), allinea il riquadro in alto e gli dà fondo bianco e 28 px di margine inferiore.
+ */
+
+/* Pagina: fondo carta al posto dell'immagine di sfondo, su tutta l'altezza dello schermo (la colonna
+ * centrale copre il bianco della pagina anche quando Entra nasconde l'immagine). */
+.ext-background-image {
+  background: #f4f2ef;
+}
+
+.ext-middle {
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: #f4f2ef;
+}
+
+.ext-header {
+  background: transparent;
+}
+
+.ext-header-logo {
+  max-height: 36px;
+}
+
+/* Riquadro di accesso: card bianca su fondo carta. */
+.ext-sign-in-box {
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color: #1c1a18;
+  background: #ffffff;
+  border: 1px solid #e4dfd9;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.08);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Spaziatura verticale tra i gruppi (scala dell'app): logo, poi titolo e descrizione insieme, poi campo e
+ * link, poi il pulsante. */
+.ext-sign-in-box .ext-title {
+  margin: 40px 0 8px !important;
+}
+
+.ext-sign-in-box .ext-header-description {
+  margin: 0 0 24px !important;
+}
+
+.ext-sign-in-box .ext-password-reset-links-container {
+  margin-bottom: 32px !important;
+}
+
+/* Su telefono il riquadro è la pagina stessa: fondo carta, in alto ma staccato dal bordo, senza bordo,
+ * ombra né margine. */
+@media screen and (max-width: 600px), screen and (max-height: 366px) {
+  .ext-sign-in-box {
+    padding-top: clamp(32px, 10vh, 96px) !important;
+    margin-bottom: 0 !important;
+    background: #f4f2ef !important;
+    border: 0 !important;
+    border-radius: 0;
+    box-shadow: none !important;
+  }
+
+  /* La colonna centrale è alta quanto la vista più piccola: quando la barra del browser si ritira, sotto
+   * comparirebbe il bianco della pagina (Entra nasconde lo sfondo su telefono). Il fondo carta continua
+   * sotto con un border-image disegnato fuori dal riquadro, senza allungare la pagina. */
+  .ext-middle {
+    border-image: linear-gradient(#f4f2ef 0 0) fill 0 / 0 / 0 0 100vh 0;
+  }
+}
+
+/* Link nel colore d'accento (anche quelli che Entra rende come span .ext-link): Entra li colora con una
+ * regola più specifica, quindi !important. */
+.ext-sign-in-box a,
+.ext-sign-in-box .ext-link {
+  color: #6e4bf2 !important;
+}
+
+.ext-sign-in-box a:focus-visible,
+.ext-sign-in-box .ext-link:focus-visible {
+  outline: 2px solid #6e4bf2;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Testo: titolo in serif e grassetto come i titoli di pagina, il resto sans. */
+.ext-title {
+  font-family: 'Iowan Old Style', Charter, Georgia, Cambria, serif;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 28px;
+  color: #1c1a18;
+}
+
+.ext-subtitle,
+.ext-header-description,
+.ext-boilerplate-text {
+  font-size: 14px;
+  line-height: 20px;
+  color: #5f5a55;
+}
+
+/* Campi pieni con gli angoli arrotondati, senza linea inferiore; il focus è un bordo nel colore
+ * d'accento. */
+.ext-input.ext-text-box {
+  min-height: 48px;
+  padding: 0 16px;
+  font-size: 16px;
+  color: #1c1a18;
+  background: #e9e4de;
+  border: 0;
+  border-radius: 12px;
+}
+
+.ext-input.ext-text-box:hover {
+  background: #e2ddd6;
+}
+
+.ext-input.ext-text-box:focus {
+  outline: 2px solid #6e4bf2;
+  outline-offset: 0;
+}
+
+/* Errore: il testo resta accanto al colore, mai solo il colore. */
+.ext-input.ext-text-box.ext-has-error {
+  outline: 2px solid #c2413b;
+}
+
+.ext-error {
+  font-size: 14px;
+  color: #c2413b;
+}
+
+/* Pulsanti: primario pieno nel colore d'accento, secondario solo contorno. */
+.ext-button.ext-primary,
+.ext-button.ext-secondary {
+  min-height: 40px;
+  padding: 0 24px;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 20px;
+}
+
+.ext-button.ext-primary {
+  color: #ffffff;
+  background: #6e4bf2;
+  border: 0;
+}
+
+.ext-button.ext-primary:hover {
+  background: #5b38e0;
+}
+
+.ext-button.ext-primary:active {
+  background: #4f2fcc;
+}
+
+.ext-button.ext-primary:focus {
+  outline: 2px solid #6e4bf2;
+  outline-offset: 2px;
+}
+
+.ext-button.ext-primary:disabled {
+  color: #5f5a55;
+  background: #e2ddd6;
+}
+
+.ext-button.ext-secondary {
+  color: #6e4bf2;
+  background: transparent;
+  border: 1px solid #e4dfd9;
+}
+
+.ext-button.ext-secondary:hover {
+  background: #efebe6;
+}
+
+.ext-button.ext-secondary:focus {
+  outline: 2px solid #6e4bf2;
+  outline-offset: 2px;
+}
+
+/* Riquadro delle altre opzioni di accesso. */
+.ext-promoted-fed-cred-box {
+  color: #1c1a18;
+  background: #ffffff;
+  border: 1px solid #e4dfd9;
+  border-radius: 12px;
+}
+
+.ext-promoted-fed-cred-box:hover {
+  background: #f8f6f3;
+}
+
+/* Senza altre opzioni di accesso Entra lascia il riquadro vuoto: col bordo sarebbe una riga sotto il
+ * riquadro di accesso. */
+.ext-promoted-fed-cred-box:empty {
+  display: none !important;
+}
+
+/* Piè di pagina discreto. */
+.ext-footer {
+  background: transparent;
+}
+
+.ext-footer-links a,
+.ext-footer-item,
+.ext-debug-item {
+  font-size: 12px;
+  color: #5f5a55;
+}
+
+/*
+ * Tema scuro: segue il sistema (le pagine di Entra non vedono la scelta fatta nelle impostazioni
+ * dell'app). Se il portale rifiuta il file per questo blocco, toglierlo: resta il tema chiaro.
+ */
+@media (prefers-color-scheme: dark) {
+  .ext-background-image,
+  .ext-middle {
+    background: #141316;
+  }
+
+  .ext-sign-in-box {
+    background: #1c1b1f;
+    border-color: #36343a;
+    box-shadow: none;
+  }
+
+  .ext-sign-in-box,
+  .ext-title,
+  .ext-input.ext-text-box,
+  .ext-promoted-fed-cred-box {
+    color: #ebe8e4;
+  }
+
+  .ext-sign-in-box a,
+  .ext-sign-in-box .ext-link {
+    color: #b8a6ff !important;
+  }
+
+  .ext-subtitle,
+  .ext-header-description,
+  .ext-boilerplate-text,
+  .ext-footer-links a,
+  .ext-footer-item,
+  .ext-debug-item {
+    color: #b3ada7;
+  }
+
+  .ext-input.ext-text-box {
+    background: #2b2a2f;
+  }
+
+  .ext-input.ext-text-box:hover {
+    background: #36343a;
+  }
+
+  .ext-input.ext-text-box:focus,
+  .ext-sign-in-box a:focus-visible,
+  .ext-sign-in-box .ext-link:focus-visible,
+  .ext-button.ext-primary:focus,
+  .ext-button.ext-secondary:focus {
+    outline-color: #b8a6ff;
+  }
+
+  .ext-input.ext-text-box.ext-has-error {
+    outline-color: #ffb3a8;
+  }
+
+  .ext-error {
+    color: #ffb3a8;
+  }
+
+  .ext-button.ext-primary {
+    color: #23125e;
+    background: #b8a6ff;
+  }
+
+  .ext-button.ext-primary:hover {
+    background: #c8baff;
+  }
+
+  .ext-button.ext-primary:active {
+    background: #d6cdff;
+  }
+
+  .ext-button.ext-primary:disabled {
+    color: #b3ada7;
+    background: #36343a;
+  }
+
+  .ext-button.ext-secondary {
+    color: #b8a6ff;
+    border-color: #36343a;
+  }
+
+  .ext-button.ext-secondary:hover {
+    background: #242328;
+  }
+
+  .ext-promoted-fed-cred-box {
+    background: #1c1b1f;
+    border-color: #36343a;
+  }
+
+  .ext-promoted-fed-cred-box:hover {
+    background: #201f23;
+  }
+}
+
+@media screen and (prefers-color-scheme: dark) and (max-width: 600px),
+  screen and (prefers-color-scheme: dark) and (max-height: 366px) {
+  .ext-sign-in-box {
+    background: #141316 !important;
+  }
+
+  .ext-middle {
+    border-image: linear-gradient(#141316 0 0) fill 0 / 0 / 0 0 100vh 0;
+  }
+}
