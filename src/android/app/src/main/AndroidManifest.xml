@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Attività e servizio sono quelli di androidbrowserhelper: nessun codice proprio. -->
+<!-- Servizio e provider sono quelli di androidbrowserhelper; LauncherActivity la estende per non chiudere l'app sui criteri di qualità. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <application
@@ -14,7 +14,7 @@
             android:resource="@string/assetStatements" />
 
         <activity
-            android:name="com.google.androidbrowserhelper.trusted.LauncherActivity"
+            android:name=".LauncherActivity"
             android:alwaysRetainTaskState="true"
             android:exported="true"
             android:label="@string/appName">
