@@ -6,7 +6,7 @@ Un diario intelligente: scrivi o registra i tuoi pensieri, Memoa li organizza e 
 - **Ricerca semantica**: trova le note per significato, non solo per parole esatte, anche tra italiano e inglese; disponibili anche i filtri classici.
 - **Tag automatici**: definisci i tuoi tag e Memoa li assegna da sola alle note pertinenti, in base al loro contenuto.
 
-L'app è responsive, ma è pensata per mobile! Da telefono, aprila da qui:
+L'app è responsive, ma è pensata per mobile! Pwa disponibile qui:
 [Memoa](https://kind-bush-0a9957b03.4.azurestaticapps.net)
 
 ## Per la documentazione funzionale e tecnica completa
