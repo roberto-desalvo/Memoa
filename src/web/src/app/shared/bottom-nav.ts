@@ -1,7 +1,6 @@
-import { Component, inject } from '@angular/core';
+import { Component, ElementRef, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { MatMenuModule } from '@angular/material/menu';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { NoteDraft } from '../notes/note-draft';
 import { AUDIO_ACCEPT } from '../uploads/audio-formats';
@@ -9,12 +8,33 @@ import { TEXT_ACCEPT } from '../uploads/text-file';
 
 /**
  * Barra di navigazione in basso, in tutte le pagine: Home, Aggiungi (al centro) e Tag, solo icone (con
- * etichetta accessibile). Aggiungi apre il menu con Registra, Scrivi e Carica; Carica apre la scelta dei file.
+ * etichetta accessibile). Aggiungi espande in orizzontale, sopra la barra, le azioni Scrivi, Registra e
+ * Carica (icona con una piccola etichetta sotto); Carica apre la scelta dei file. La barra delle azioni si
+ * chiude con un secondo tocco su Aggiungi, toccando fuori, con Esc o scegliendo un'azione.
  */
 @Component({
   selector: 'app-bottom-nav',
-  imports: [RouterLink, RouterLinkActive, MatButtonModule, MatIconModule, MatMenuModule],
+  imports: [RouterLink, RouterLinkActive, MatButtonModule, MatIconModule],
+  host: {
+    '(document:click)': 'closeOnOutsideClick($event)',
+    '(document:keydown.escape)': 'addOpen.set(false)',
+  },
   template: `
+    <div id="add-actions" class="add-actions" [class.open]="addOpen()" [inert]="!addOpen()">
+      <a routerLink="/new/write" (click)="addOpen.set(false)">
+        <mat-icon svgIcon="write" />
+        <span>Scrivi</span>
+      </a>
+      <a routerLink="/new/record" (click)="addOpen.set(false)">
+        <mat-icon svgIcon="mic" />
+        <span>Registra</span>
+      </a>
+      <button type="button" (click)="addOpen.set(false); fileInput.click()">
+        <mat-icon svgIcon="upload" />
+        <span>Carica</span>
+      </button>
+    </div>
+
     <nav aria-label="Navigazione principale">
       <a
         mat-icon-button
@@ -26,7 +46,15 @@ import { TEXT_ACCEPT } from '../uploads/text-file';
       >
         <mat-icon svgIcon="home" />
       </a>
-      <button mat-icon-button aria-label="Aggiungi una nota" [matMenuTriggerFor]="addMenu">
+      <button
+        mat-icon-button
+        class="add"
+        [class.active]="addOpen()"
+        aria-label="Aggiungi una nota"
+        aria-controls="add-actions"
+        [attr.aria-expanded]="addOpen()"
+        (click)="addOpen.set(!addOpen())"
+      >
         <mat-icon svgIcon="add" />
       </button>
       <a
@@ -39,21 +67,6 @@ import { TEXT_ACCEPT } from '../uploads/text-file';
         <mat-icon svgIcon="tag" />
       </a>
     </nav>
-
-    <mat-menu #addMenu yPosition="above">
-      <a mat-menu-item routerLink="/new/record">
-        <mat-icon svgIcon="mic" />
-        <span>Registra</span>
-      </a>
-      <a mat-menu-item routerLink="/new/write">
-        <mat-icon svgIcon="write" />
-        <span>Scrivi</span>
-      </a>
-      <button mat-menu-item (click)="fileInput.click()">
-        <mat-icon svgIcon="upload" />
-        <span>Carica</span>
-      </button>
-    </mat-menu>
 
     <input
       #fileInput
@@ -101,13 +114,93 @@ import { TEXT_ACCEPT } from '../uploads/text-file';
       color: var(--mat-sys-primary);
       background: var(--accent-soft);
     }
+
+    // Aperta, la croce di Aggiungi ruota e diventa una X.
+    .add mat-icon {
+      transition: transform 200ms ease;
+    }
+
+    .add.active mat-icon {
+      transform: rotate(45deg);
+    }
+
+    // Pillola centrata sopra Aggiungi, che si espande in orizzontale dal centro.
+    .add-actions {
+      position: absolute;
+      bottom: calc(100% + var(--space-2));
+      left: 50%;
+      display: flex;
+      gap: var(--space-1);
+      padding: var(--space-1);
+      background: var(--mat-sys-surface-container-lowest);
+      border: 1px solid var(--mat-sys-outline-variant);
+      border-radius: var(--space-5);
+      box-shadow: var(--mat-sys-level2);
+      opacity: 0;
+      transform: translateX(-50%) scaleX(0.2);
+      visibility: hidden;
+      transition:
+        transform 200ms ease,
+        opacity 150ms ease,
+        visibility 0s 200ms;
+
+      &.open {
+        opacity: 1;
+        transform: translateX(-50%) scaleX(1);
+        visibility: visible;
+        transition:
+          transform 200ms ease,
+          opacity 150ms ease;
+      }
+
+      // Icona sopra, etichetta piccola sotto.
+      a,
+      button {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+        min-width: calc(2 * var(--space-6));
+        padding: var(--space-2) var(--space-3);
+        border: 0;
+        border-radius: var(--space-4);
+        background: none;
+        color: var(--mat-sys-on-surface-variant);
+        font: var(--mat-sys-label-small);
+        text-decoration: none;
+        cursor: pointer;
+
+        &:hover,
+        &:focus-visible {
+          color: var(--mat-sys-primary);
+          background: var(--accent-soft);
+          outline: none;
+        }
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .add mat-icon,
+      .add-actions,
+      .add-actions.open {
+        transition: none;
+      }
+    }
   `,
 })
 export class BottomNav {
   private readonly router = inject(Router);
   private readonly drafts = inject(NoteDraft);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
 
   protected readonly uploadAccept = `${AUDIO_ACCEPT},${TEXT_ACCEPT}`;
+  protected readonly addOpen = signal(false);
+
+  protected closeOnOutsideClick(event: MouseEvent): void {
+    if (this.addOpen() && !this.host.nativeElement.contains(event.target as Node)) {
+      this.addOpen.set(false);
+    }
+  }
 
   protected selectFile(input: HTMLInputElement): void {
     const files = Array.from(input.files ?? []);

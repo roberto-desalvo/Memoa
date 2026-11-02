@@ -80,7 +80,7 @@ Valgono per ogni schermata. Una nuova schermata o un nuovo componente le rispett
 
 ## Navigazione
 
-- **Barra in basso**, in tutte le pagine, fissa e con il fondo delle liste: Home, Aggiungi (al centro) e Tag, solo icone. Aggiungi apre un menu con Registra, Scrivi e Carica; Carica apre direttamente la scelta dei file.
+- **Barra in basso**, in tutte le pagine, fissa e con il fondo delle liste: Home, Aggiungi (al centro) e Tag, solo icone. Aggiungi espande in orizzontale, sopra la barra, una pillola con Scrivi, Registra e Carica (icona con una piccola etichetta sotto) e la sua croce ruota a X; si chiude con un secondo tocco, toccando fuori, con Esc o scegliendo un'azione. Carica apre direttamente la scelta dei file.
 - Le pagine lasciano in fondo lo spazio della barra; i messaggi brevi compaiono sopra la barra.
 
 ---
