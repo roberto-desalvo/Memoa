@@ -44,6 +44,11 @@ param transcriberFasterWhisperImage string
 @description('Feature flag: con false le Functions non chiamano Azure AI Speech e ogni trascrizione va al job.')
 param useAzureSpeech bool = true
 
+@description('Solo con faster-whisper: segmenti trascritti insieme. 1 è la trascrizione sequenziale, con il testo precedente come contesto.')
+@minValue(1)
+@maxValue(32)
+param fasterWhisperBatchSize int = 1
+
 @description('Utente GitHub proprietario del token per GHCR. Vuoto se le immagini sono pubbliche.')
 param ghcrUsername string = ''
 
@@ -345,6 +350,11 @@ module transcriber 'modules/queue-job.bicep' = {
       {
         name: 'Job__MaxDurationSeconds'
         value: string(transcriberEngine == 'parakeet' ? maxAudioDurationMinutes * 60 : 600)
+      }
+      // Ignorata dagli altri motori.
+      {
+        name: 'FasterWhisper__BatchSize'
+        value: string(fasterWhisperBatchSize)
       }
     ]
     // 10 minuti di audio con Whisper o faster-whisper, con margine. Deve restare sotto Job__VisibilityTimeout del worker

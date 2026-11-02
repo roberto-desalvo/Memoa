@@ -49,8 +49,8 @@ public sealed class FasterWhisperEngine(Ffmpeg ffmpeg, IOptions<FasterWhisperOpt
 
         var threads = settings.Threads ?? Environment.ProcessorCount;
         logger.LogInformation(
-            "Avvio di faster-whisper con il modello {ModelDirectory}: memoria disponibile {AvailableMemoryBytes} byte, {ProcessorCount} vCPU, {Threads} thread, beam {BeamSize}",
-            settings.ModelDirectory, GC.GetGCMemoryInfo().TotalAvailableMemoryBytes, Environment.ProcessorCount, threads, settings.BeamSize);
+            "Avvio di faster-whisper con il modello {ModelDirectory}: memoria disponibile {AvailableMemoryBytes} byte, {ProcessorCount} vCPU, {Threads} thread, beam {BeamSize}, batch {BatchSize}",
+            settings.ModelDirectory, GC.GetGCMemoryInfo().TotalAvailableMemoryBytes, Environment.ProcessorCount, threads, settings.BeamSize, settings.BatchSize);
 
         var request = JsonSerializer.Serialize(new
         {
@@ -58,6 +58,7 @@ public sealed class FasterWhisperEngine(Ffmpeg ffmpeg, IOptions<FasterWhisperOpt
             modelDirectory = settings.ModelDirectory,
             threads,
             beamSize = settings.BeamSize,
+            batchSize = settings.BatchSize,
             languages = TranscriptionRequest.SupportedLanguages,
             fallbackLanguage,
             probabilityThreshold = settings.LanguageProbabilityThreshold,

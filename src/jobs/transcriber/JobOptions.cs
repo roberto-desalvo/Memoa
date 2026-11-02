@@ -145,6 +145,14 @@ public sealed class FasterWhisperOptions
     [Range(1, 10)]
     public int BeamSize { get; set; } = 1;
 
+    /// <summary>
+    /// Segmenti della VAD trascritti insieme (BatchedInferencePipeline): 1 è la trascrizione sequenziale,
+    /// in cui ogni finestra ha il testo precedente come contesto. Con valori maggiori i segmenti sono
+    /// indipendenti e la memoria cresce con il batch.
+    /// </summary>
+    [Range(1, 32)]
+    public int BatchSize { get; set; } = 1;
+
     /// <summary>Thread di CTranslate2; se assente, Environment.ProcessorCount.</summary>
     [Range(1, 64)]
     public int? Threads { get; set; }

@@ -56,6 +56,7 @@ Contenuti: [Trascrizione](#trascrizione) · [Job di trascrizione](#job-di-trascr
 - **Integrazione**: `FasterWhisperEngine` decodifica l'audio con ffmpeg e avvia lo script `FasterWhisper/transcribe.py`, con richiesta e risultato in JSON; su stderr solo il tipo dell'eccezione. Il resto del job (coda, blob, idempotenza, esiti) è lo stesso degli altri motori.
 - **Velocità**: circa 4 volte la durata dell'audio sulla prova locale, più veloce di Whisper.net ma molto più lento di Parakeet; come Whisper accetta solo registrazioni fino a 10 minuti.
 - **Lingua e punteggiatura**: come Whisper (stesso modello): rilevamento tra italiano e inglese e prompt iniziale per lingua, con gli stessi predefiniti. Ricerca greedy (`FasterWhisper__BeamSize` = 1); la VAD Silero inclusa salta i silenzi.
+- **Batch**: `fasterWhisperBatchSize` nei `.bicepparam` (`FasterWhisper__BatchSize`, predefinito 1). Con valori maggiori `BatchedInferencePipeline` trascrive insieme più segmenti della VAD, ciascuno senza il testo precedente come contesto. Sulla prova locale (modello già caricato, 50 s di audio): sequenziale 152 s (3,0x), batch 4 110 s (2,2x, il 28% in meno), batch 8 128 s (2,5x); con il batch un errore in più ("ci era" per "c'era"). Da provare sulle registrazioni reali, dove i segmenti sono di più.
 - **Qualità**: la migliore sulla prova, senza errori.
 
 ### Confronto tra i motori

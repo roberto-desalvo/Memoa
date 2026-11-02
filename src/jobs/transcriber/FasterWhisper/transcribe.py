@@ -41,13 +41,18 @@ def main() -> int:
         else request["fallbackLanguage"]
 
     # La VAD Silero inclusa salta i silenzi; il prompt spinge Whisper a usare la punteggiatura.
-    segments, _ = model.transcribe(
-        audio,
-        language=language,
-        beam_size=request["beamSize"],
-        initial_prompt=request["prompts"].get(language) or None,
-        vad_filter=True,
-    )
+    options = {
+        "language": language,
+        "beam_size": request["beamSize"],
+        "initial_prompt": request["prompts"].get(language) or None,
+    }
+    if request["batchSize"] > 1:
+        # Segmenti della VAD elaborati a gruppi, ciascuno senza il testo precedente come contesto.
+        from faster_whisper import BatchedInferencePipeline
+        segments, _ = BatchedInferencePipeline(model=model).transcribe(
+            audio, batch_size=request["batchSize"], **options)
+    else:
+        segments, _ = model.transcribe(audio, vad_filter=True, **options)
     text = "".join(segment.text for segment in segments).strip()
 
     json.dump({

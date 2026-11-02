@@ -16,6 +16,10 @@ param transcriberEngine = 'whisper'
 // Feature flag: con false le Functions non chiamano Azure AI Speech e ogni trascrizione va al job.
 param useAzureSpeech = true
 
+// Solo con faster-whisper: segmenti trascritti insieme (1 = sequenziale). Con 4 vCPU la prova locale ha dato
+// il 28% in meno con 4, ma senza il contesto del testo precedente tra i segmenti.
+param fasterWhisperBatchSize = 1
+
 // Immagini segnaposto finché la pipeline del job non pubblica su GHCR. Dopo la prima pubblicazione
 // impostare TRANSCRIBER_IMAGE_PROD (es. ghcr.io/<owner>/memoa-transcriber:prod) e
 // TRANSCRIBER_PARAKEET_IMAGE_PROD e TRANSCRIBER_FASTER_WHISPER_IMAGE_PROD (es.
