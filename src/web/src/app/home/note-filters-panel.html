@@ -6,7 +6,7 @@
       <mat-chip-listbox
         aria-labelledby="filter-type"
         hideSingleSelectionIndicator
-        [value]="filters.sourceType()"
+        [value]="draft.sourceType()"
         (change)="setSourceType($event.value)"
       >
         <mat-chip-option value="Audio">Audio</mat-chip-option>
@@ -20,8 +20,8 @@
         <mat-chip-listbox
           multiple
           aria-labelledby="filter-tags"
-          [value]="filters.tagUids()"
-          (change)="filters.tagUids.set($event.value)"
+          [value]="draft.tagUids()"
+          (change)="draft.tagUids.set($event.value)"
         >
           @for (tag of filters.tags(); track tag.tagUid) {
             <mat-chip-option [value]="tag.tagUid">{{ tag.name }}</mat-chip-option>
@@ -35,7 +35,7 @@
       <mat-chip-listbox
         aria-labelledby="filter-period"
         hideSingleSelectionIndicator
-        [value]="filters.period()"
+        [value]="draft.period()"
         (change)="setPeriod($event.value)"
       >
         @for (period of periods; track period[0]) {
@@ -43,16 +43,16 @@
         }
         <mat-chip-option value="custom">Personalizzato</mat-chip-option>
       </mat-chip-listbox>
-      @if (filters.period() === 'custom') {
+      @if (draft.period() === 'custom') {
         <div class="dates">
           <mat-form-field subscriptSizing="dynamic">
             <mat-label>Dal</mat-label>
             <input
               matInput
               type="date"
-              [attr.max]="filters.to() || null"
-              [value]="filters.from()"
-              (input)="filters.from.set($any($event.target).value)"
+              [attr.max]="draft.to() || null"
+              [value]="draft.from()"
+              (input)="draft.from.set($any($event.target).value)"
             />
           </mat-form-field>
           <mat-form-field subscriptSizing="dynamic">
@@ -60,9 +60,9 @@
             <input
               matInput
               type="date"
-              [attr.min]="filters.from() || null"
-              [value]="filters.to()"
-              (input)="filters.to.set($any($event.target).value)"
+              [attr.min]="draft.from() || null"
+              [value]="draft.to()"
+              (input)="draft.to.set($any($event.target).value)"
             />
           </mat-form-field>
         </div>
@@ -74,26 +74,27 @@
         <h3 id="filter-duration" class="text-secondary strong muted">Durata degli audio</h3>
         <span class="text-secondary muted">{{ durationText() }}</span>
       </div>
-      <mat-slider min="0" step="1" [max]="filters.maxDurationMinutes" discrete>
+      <mat-slider min="0" step="1" [max]="draft.maxDurationMinutes" discrete>
         <input
           matSliderStartThumb
           aria-label="Durata minima in minuti"
-          [value]="filters.minMinutes() ?? 0"
+          [value]="draft.minMinutes() ?? 0"
           (valueChange)="setMinDuration($event)"
         />
         <input
           matSliderEndThumb
           aria-label="Durata massima in minuti"
-          [value]="filters.maxMinutes() ?? filters.maxDurationMinutes"
+          [value]="draft.maxMinutes() ?? draft.maxDurationMinutes"
           (valueChange)="setMaxDuration($event)"
         />
       </mat-slider>
     </section>
 
-    @if (filters.active()) {
-      <div class="actions">
-        <button mat-button type="button" (click)="filters.clear()">Cancella filtri</button>
-      </div>
-    }
+    <div class="actions">
+      <button mat-button type="button" [disabled]="draft.empty()" (click)="draft.clear()">
+        Cancella filtri
+      </button>
+      <button mat-button type="button" (click)="apply()">Applica</button>
+    </div>
   </mat-card>
 </div>

@@ -202,6 +202,7 @@
   @if (filtersOpen()) {
     <app-note-filters-panel
       id="note-filters"
+      (applied)="filtersOpen.set(false)"
       animate.enter="panel-enter"
       animate.leave="panel-leave"
     />

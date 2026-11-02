@@ -67,6 +67,7 @@ mat-slider {
 
 .actions {
   display: flex;
-  justify-content: flex-end;
-  margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-2)) calc(-1 * var(--space-2)) 0;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-3)) calc(-1 * var(--space-2));
 }

@@ -20,18 +20,23 @@ export const PERIOD_LABELS: Record<Exclude<FilterPeriod, 'custom'>, string> = {
   thisMonth: 'Questo mese',
 };
 
-/**
- * Filtri della homepage (tipologia, tag, periodo, durata), validi per la lista e per i risultati della
- * ricerca. Restano in memoria tra una pagina e l'altra, come la ricerca: aprendo una nota e tornando
- * indietro i filtri sono ancora lì. Più tag valgono in OR. La durata riguarda solo gli audio: impostarla
- * sceglie la tipologia Audio; se l'utente poi la toglie, i testi tornano e la durata vale solo per gli audio.
- */
-@Injectable({ providedIn: 'root' })
-export class NoteFilters {
-  private readonly store = inject(RecordsStore);
-  /** Estremo destro dello slider della durata: al massimo, nessun limite superiore. */
-  readonly maxDurationMinutes = inject(APP_CONFIG).maxAudioDurationMinutes;
+/** Valori dei filtri, copiati dalla bozza del pannello ai filtri applicati con "Applica". */
+export interface FilterValues {
+  sourceType: FilterSourceType | null;
+  tagUids: string[];
+  period: FilterPeriod | null;
+  from: string;
+  to: string;
+  minMinutes: number | null;
+  maxMinutes: number | null;
+}
 
+/**
+ * Filtri scelti: quelli applicati alla homepage ({@link NoteFilters}) e la bozza del pannello. La durata
+ * riguarda solo gli audio: impostarla sceglie la tipologia Audio; se l'utente poi la toglie, i testi
+ * tornano e la durata vale solo per gli audio.
+ */
+export class FilterSelection {
   readonly sourceType = signal<FilterSourceType | null>(null);
   readonly tagUids = signal<string[]>([]);
   readonly period = signal<FilterPeriod | null>(null);
@@ -42,6 +47,88 @@ export class NoteFilters {
   readonly minMinutes = signal<number | null>(null);
   readonly maxMinutes = signal<number | null>(null);
 
+  protected readonly hasDuration = computed(
+    () => this.minMinutes() !== null || this.maxMinutes() !== null,
+  );
+
+  /** Vero se nessuna scelta è fatta. */
+  readonly empty = computed(
+    () =>
+      this.sourceType() === null &&
+      this.tagUids().length === 0 &&
+      this.period() === null &&
+      !this.hasDuration(),
+  );
+
+  /** @param maxDurationMinutes estremo destro dello slider della durata: al massimo, nessun limite. */
+  constructor(readonly maxDurationMinutes: number) {}
+
+  /** Dallo slider: estremi 0 e massimo valgono come nessun limite. */
+  setDuration(min: number, max: number): void {
+    const hadDuration = this.hasDuration();
+    this.minMinutes.set(min > 0 ? min : null);
+    this.maxMinutes.set(max < this.maxDurationMinutes ? max : null);
+    if (!hadDuration && this.hasDuration()) {
+      this.sourceType.set('Audio');
+    }
+  }
+
+  setPeriod(period: FilterPeriod | null): void {
+    this.period.set(period);
+    if (period !== 'custom') {
+      this.from.set('');
+      this.to.set('');
+    }
+  }
+
+  clear(): void {
+    this.set({
+      sourceType: null,
+      tagUids: [],
+      period: null,
+      from: '',
+      to: '',
+      minMinutes: null,
+      maxMinutes: null,
+    });
+  }
+
+  values(): FilterValues {
+    return {
+      sourceType: this.sourceType(),
+      tagUids: this.tagUids(),
+      period: this.period(),
+      from: this.from(),
+      to: this.to(),
+      minMinutes: this.minMinutes(),
+      maxMinutes: this.maxMinutes(),
+    };
+  }
+
+  set(values: FilterValues): void {
+    this.sourceType.set(values.sourceType);
+    this.tagUids.set(values.tagUids);
+    this.period.set(values.period);
+    this.from.set(values.from);
+    this.to.set(values.to);
+    this.minMinutes.set(values.minMinutes);
+    this.maxMinutes.set(values.maxMinutes);
+  }
+}
+
+/**
+ * Filtri applicati alla homepage (tipologia, tag, periodo, durata), validi per la lista e per i
+ * risultati della ricerca. Restano in memoria tra una pagina e l'altra, come la ricerca: aprendo una
+ * nota e tornando indietro i filtri sono ancora lì. Più tag valgono in OR.
+ */
+@Injectable({ providedIn: 'root' })
+export class NoteFilters extends FilterSelection {
+  private readonly store = inject(RecordsStore);
+
+  constructor() {
+    super(inject(APP_CONFIG).maxAudioDurationMinutes);
+  }
+
   /** Tag attivi assegnati ad almeno una nota, in ordine di nome: i tag che si possono scegliere. */
   readonly tags = computed(() => recordTags(this.store.records() ?? []));
 
@@ -50,10 +137,6 @@ export class NoteFilters {
     const uids = new Set(this.tagUids());
     return this.tags().filter((t) => uids.has(t.tagUid));
   });
-
-  private readonly hasDuration = computed(
-    () => this.minMinutes() !== null || this.maxMinutes() !== null,
-  );
 
   readonly chips = computed<FilterChip[]>(() => {
     const chips: FilterChip[] = [];
@@ -112,24 +195,6 @@ export class NoteFilters {
     };
   });
 
-  /** Dallo slider: estremi 0 e massimo valgono come nessun limite. */
-  setDuration(min: number, max: number): void {
-    const hadDuration = this.hasDuration();
-    this.minMinutes.set(min > 0 ? min : null);
-    this.maxMinutes.set(max < this.maxDurationMinutes ? max : null);
-    if (!hadDuration && this.hasDuration()) {
-      this.sourceType.set('Audio');
-    }
-  }
-
-  setPeriod(period: FilterPeriod | null): void {
-    this.period.set(period);
-    if (period !== 'custom') {
-      this.from.set('');
-      this.to.set('');
-    }
-  }
-
   remove(key: string): void {
     if (key === 'type') {
       this.sourceType.set(null);
@@ -142,14 +207,6 @@ export class NoteFilters {
       const tagUid = key.slice(4);
       this.tagUids.update((uids) => uids.filter((uid) => uid !== tagUid));
     }
-  }
-
-  clear(): void {
-    this.sourceType.set(null);
-    this.tagUids.set([]);
-    this.setPeriod(null);
-    this.minMinutes.set(null);
-    this.maxMinutes.set(null);
   }
 
   /** Giorni inclusi del periodo scelto, null senza filtro sul periodo. */
