@@ -26,6 +26,8 @@ const MOVE_TOLERANCE_PX = 10;
     // Con il mouse il browser trascinerebbe il collegamento.
     '(dragstart)': '$event.preventDefault()',
     '[class.swiping]': 'offset() !== null',
+    // Letta dallo scorrimento tra le pagine (page-slide.ts), che lascia il gesto alla riga aperta.
+    '[class.swipe-open]': 'open()',
     '[style.--swipe-x]': 'position()',
   },
 })

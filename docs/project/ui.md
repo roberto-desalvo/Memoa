@@ -82,6 +82,7 @@ Valgono per ogni schermata. Una nuova schermata o un nuovo componente le rispett
 
 - **Barra in basso**, in tutte le pagine, fissa e con il fondo delle liste: Home, Aggiungi (al centro) e Tag, solo icone. Aggiungi espande in orizzontale, sopra la barra, una pillola con Scrivi, Registra e Carica (icona con una piccola etichetta sotto) e la sua croce ruota a X; si chiude con un secondo tocco, toccando fuori, con Esc o scegliendo un'azione. Carica apre direttamente la scelta dei file.
 - Le pagine lasciano in fondo lo spazio della barra; i messaggi brevi compaiono sopra la barra.
+- **Home e Tag affiancate**: passando dall'una all'altra (dalla barra o con lo scorrimento) la pagina scorre lateralmente, la Home a sinistra e i Tag a destra, mentre la barra in basso resta ferma (View Transitions del router; senza supporto del browser la pagina cambia subito, nessuna animazione con la riduzione del movimento attiva). Scorrendo col dito verso sinistra dalla Home si va ai Tag, verso destra dai Tag si torna alla Home. Sulle righe delle liste vince il gesto della riga: verso destra scopre il cestino, e una riga aperta si chiude; lo scorrimento non vale con la selezione multipla attiva, sopra finestre e menu, nei campi e nei cursori.
 
 ---
 

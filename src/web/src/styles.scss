@@ -454,6 +454,66 @@ input[type='file'] {
   display: none;
 }
 
+// Passaggio tra Home e Tag (app/shared/page-slide.ts): le due pagine scorrono affiancate, la barra in
+// basso resta ferma. data-page-slide sull'elemento html dice la direzione.
+app-bottom-nav {
+  view-transition-name: bottom-nav;
+}
+
+::view-transition-group(bottom-nav) {
+  animation: none;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 250ms;
+  animation-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
+
+html[data-page-slide='forward'] {
+  &::view-transition-old(root) {
+    animation-name: page-slide-to-left;
+  }
+
+  &::view-transition-new(root) {
+    animation-name: page-slide-from-right;
+  }
+}
+
+html[data-page-slide='back'] {
+  &::view-transition-old(root) {
+    animation-name: page-slide-to-right;
+  }
+
+  &::view-transition-new(root) {
+    animation-name: page-slide-from-left;
+  }
+}
+
+@keyframes page-slide-to-left {
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes page-slide-from-right {
+  from {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes page-slide-to-right {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes page-slide-from-left {
+  from {
+    transform: translateX(-100%);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -461,5 +521,11 @@ input[type='file'] {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
   }
 }
