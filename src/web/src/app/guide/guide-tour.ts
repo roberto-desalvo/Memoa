@@ -1,6 +1,6 @@
 import { createGlobalPositionStrategy, createOverlayRef, OverlayRef } from '@angular/cdk/overlay';
 import { ComponentPortal } from '@angular/cdk/portal';
-import { inject, Injectable, Injector } from '@angular/core';
+import { inject, Injectable, Injector, signal } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { NavigationStart, Router } from '@angular/router';
 import { filter } from 'rxjs';
@@ -24,6 +24,12 @@ export class GuideTour {
   private readonly api = inject(MeApi);
   private readonly account = inject(AccountState);
   private readonly steps = guideSteps(inject(APP_CONFIG).maxAudioDurationMinutes);
+
+  /**
+   * Ancora del passo mostrato, null senza tour: la homepage la usa per mostrare l'icona dei filtri, che
+   * con il diario vuoto non c'è, solo durante quel passo.
+   */
+  readonly activeAnchor = signal<string | null>(null);
 
   private overlayRef: OverlayRef | null = null;
   private offered = false;
@@ -66,6 +72,8 @@ export class GuideTour {
     });
     const component = overlayRef.attach(new ComponentPortal(GuideOverlay));
     component.setInput('steps', this.steps);
+    this.activeAnchor.set(this.steps[0].anchor);
+    component.instance.stepChange.subscribe((step) => this.activeAnchor.set(step.anchor));
     component.instance.closed.subscribe(() => {
       this.close();
       this.dismiss();
@@ -76,6 +84,7 @@ export class GuideTour {
   private close(): void {
     this.overlayRef?.dispose();
     this.overlayRef = null;
+    this.activeAnchor.set(null);
   }
 
   /** Salva che la guida non va più proposta; rivista dal menu dopo averla chiusa non salva nulla. */

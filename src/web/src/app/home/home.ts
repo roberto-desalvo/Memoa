@@ -65,7 +65,7 @@ import { NoteFiltersPanel } from './note-filters-panel';
 export class Home implements OnInit, OnDestroy {
   private readonly msal = inject(MsalService);
   private readonly account = inject(AccountState);
-  private readonly guide = inject(GuideTour);
+  protected readonly guide = inject(GuideTour);
   private readonly api = inject(RecordsApi);
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);

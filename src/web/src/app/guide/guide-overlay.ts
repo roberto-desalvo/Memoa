@@ -175,6 +175,8 @@ export class GuideOverlay {
   readonly steps = input.required<GuideStep[]>();
   /** Guida completata o chiusa prima della fine: in entrambi i casi non va più proposta. */
   readonly closed = output<void>();
+  /** Passo mostrato, dopo il primo: la pagina può far comparire l'elemento da evidenziare. */
+  readonly stepChange = output<GuideStep>();
 
   protected readonly index = signal(0);
   protected readonly step = computed(() => this.steps()[this.index()]);
@@ -276,6 +278,7 @@ export class GuideOverlay {
 
   protected go(index: number): void {
     this.index.set(index);
+    this.stepChange.emit(this.step());
     // Il pulsante premuto può sparire (Indietro al primo passo): il focus torna su Avanti.
     afterNextRender(
       () => {

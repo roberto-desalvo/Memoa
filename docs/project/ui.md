@@ -148,7 +148,7 @@ Valgono per ogni schermata. Una nuova schermata o un nuovo componente le rispett
 ## Guida
 
 - **Proposta**: all'apertura della homepage, una volta per sessione, finché l'utente non ha completato né rifiutato la guida: una finestra ("Vuoi fare un giro di Memoa?") con "No, grazie" e "Inizia il tour". "No, grazie", Esc o un tocco fuori valgono come rifiuto.
-- **Tour**: la pagina viene oscurata tranne l'elemento del passo, con accanto (sotto se c'è spazio, altrimenti sopra; su telefono largo quanto lo schermo meno i margini) un fumetto con "N di 7", la X, titolo, testo e i pulsanti Salta, Indietro e Avanti ("Fine" all'ultimo passo). Passi: benvenuto (al centro), + della barra, lista delle note, ricerca, filtri (al centro se il diario è vuoto e l'icona non c'è), Tag della barra, menu utente. Esc vale come Salta, le frecce cambiano passo; la pagina sotto non si tocca.
+- **Tour**: la pagina viene oscurata tranne l'elemento del passo, con accanto (sotto se c'è spazio, altrimenti sopra; su telefono largo quanto lo schermo meno i margini) un fumetto con "N di 7", la X, titolo, testo e i pulsanti Salta, Indietro e Avanti ("Fine" all'ultimo passo). Passi: benvenuto (al centro), + della barra, lista delle note, ricerca, filtri (con il diario vuoto l'icona compare solo durante questo passo), Tag della barra, menu utente. Esc vale come Salta, le frecce cambiano passo; la pagina sotto non si tocca.
 - **Fine o rifiuto**: "Fine", "Salta", la X ed Esc chiudono la guida per sempre (salvato nell'account). Uscendo dalla homepage durante il tour la guida si chiude senza salvare e viene proposta al prossimo accesso.
 - **Menu utente → Guida**: avvia il tour senza la proposta, anche dopo averlo chiuso.
 

@@ -101,6 +101,10 @@
 
   @if (store.records(); as records) {
     @if (records.length === 0) {
+      <!-- Con il diario vuoto l'icona dei filtri compare solo durante il passo della guida che la mostra. -->
+      @if (guide.activeAnchor() === 'filters') {
+        <ng-container *ngTemplateOutlet="listHeader; context: { $implicit: null }" />
+      }
       <div class="page-state">
         <app-logo [size]="48" />
         <h2 class="text-body strong">Il tuo diario è vuoto</h2>
