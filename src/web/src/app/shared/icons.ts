@@ -39,6 +39,7 @@ const ICONS: Record<string, string> = {
   todo: '<circle cx="12" cy="12" r="8" />',
   error: '<circle cx="12" cy="12" r="9" /><path d="M12 7.5v5M12 16.5v.01" />',
   delete: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" />',
+  copy: '<rect x="9" y="9" width="12" height="12" rx="2" /><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" />',
   regenerate: '<path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v5h-5" />',
   tag: '<path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9-9-9Z" /><circle cx="8" cy="8" r="1.5" fill="currentColor" />',
   auto: '<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6.3 6.3l2.5 2.5M15.2 15.2l2.5 2.5M6.3 17.7l2.5-2.5M15.2 8.8l2.5-2.5" />',

@@ -494,6 +494,17 @@ export class RecordPage implements OnInit, OnDestroy {
     }
   }
 
+  /** Copia negli appunti il testo completo della nota, senza le evidenziazioni della ricerca. */
+  protected async copyText(text: string): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(text);
+      this.snackBar.open('Testo copiato.');
+    } catch (err) {
+      console.error('Copia del testo non riuscita', err);
+      this.snackBar.open('Copia non riuscita.');
+    }
+  }
+
   /** "Riprova" su un record in errore: torna "in elaborazione" e la pagina ne mostra l'avanzamento. */
   protected async retry(record: RecordDetail): Promise<void> {
     this.busy.set(true);

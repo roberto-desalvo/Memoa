@@ -281,6 +281,14 @@
       }
       <mat-card class="section">
         <mat-card-content>
+          <button
+            mat-icon-button
+            class="copy"
+            aria-label="Copia il testo"
+            (click)="copyText(record.text)"
+          >
+            <mat-icon svgIcon="copy" />
+          </button>
           <!-- Su una riga sola: con white-space: pre-wrap gli spazi tra i nodi sarebbero visibili. -->
           @let parts = textParts();
           <!-- Parti evidenziate: frammento della ricerca semantica oppure occorrenze della ricerca nel testo. -->

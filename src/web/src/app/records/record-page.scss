@@ -93,6 +93,13 @@ audio {
   overflow-wrap: anywhere;
 }
 
+// Copia in alto a destra: flottante, così solo le prime righe si accorciano e il resto del testo usa
+// tutta la larghezza (importante su telefono).
+.copy {
+  float: right;
+  margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-2)) 0 var(--space-1);
+}
+
 // Frammento trovato dalla ricerca semantica: tinta tenue dell'accento, senza cambiare il testo.
 mark {
   color: inherit;
