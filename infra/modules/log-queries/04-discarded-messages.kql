@@ -1,0 +1,13 @@
+// Messaggi di coda spostati nella coda poison, scartati perché non validi o con i tentativi esauriti.
+union AppTraces, AppExceptions
+| extend Categoria = tostring(Properties.CategoryName),
+    Testo = iff(Type == "AppExceptions", tostring(Properties.OriginalFormat), Message)
+| where Categoria endswith ".QueueProcessor" and Testo has "MaxDequeueCount"
+    or isnotempty(Properties.MessageId) and Testo has "non valido"
+    or Testo has "dopo" and Testo has "tentativi"
+| extend Esito = case(Categoria endswith ".QueueProcessor", "Spostato nella coda poison",
+    Testo has "non valido", "Non valido, scartato",
+    "Tentativi esauriti")
+| project TimeGenerated, Esito, Origine = extract(@"([^.]+)$", 1, Categoria), RecordUid = tostring(Properties.RecordUid),
+    Messaggio = Testo, Eccezione = OuterMessage
+| order by TimeGenerated desc

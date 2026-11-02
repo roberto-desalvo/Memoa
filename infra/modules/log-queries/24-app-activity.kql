@@ -1,0 +1,15 @@
+// Attività dell'app per giorno: solo conteggi, nessun dato personale.
+AppTraces
+| extend Categoria = tostring(Properties.CategoryName)
+| extend Attivita = case(
+    Categoria endswith ".CreateAudioUploadFunction", "Nota audio",
+    Categoria endswith ".CreateTextRecordFunction", "Nota di testo",
+    Categoria endswith ".DeleteRecordFunction", "Nota eliminata",
+    Categoria endswith ".SearchFunction", "Ricerca",
+    Categoria endswith ".TagFunctions" and Message has "creato", "Tag creato",
+    Categoria endswith ".UserProvisioningMiddleware" and Message endswith "creato", "Nuovo utente",
+    Categoria endswith ".DeleteAccountFunction", "Account eliminato",
+    "")
+| where isnotempty(Attivita)
+| summarize Eventi = count() by bin(TimeGenerated, 1d), Attivita
+| render columnchart

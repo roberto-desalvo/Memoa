@@ -1,0 +1,32 @@
+// Record avviati (upload, testo, riprova, rigenerazione, modifica del testo) senza un esito dopo oltre stuckAfter:
+// né indicizzati, né in errore, né eliminati. Basata sui messaggi di log: se cambiano i testi in codice, va aggiornata.
+let stuckAfter = 30m;
+let events = union AppTraces, AppExceptions
+    | extend Categoria = tostring(Properties.CategoryName), RecordUid = tostring(Properties.RecordUid),
+        Testo = iff(Type == "AppExceptions", tostring(Properties.OriginalFormat), Message)
+    | where isnotempty(RecordUid);
+let starts = events
+    | where Testo startswith "Upload audio autorizzato"
+        or Testo has "creato e accodato per l'indicizzazione"
+        or Testo has "riprovato dopo l'errore"
+        or Testo has "accodato per rigenerare"
+        or Testo has "modificato: accodato per l'indicizzazione"
+    | summarize Avvio = max(TimeGenerated) by RecordUid;
+let ends = events
+    | where Testo has "indicizzato ("
+        or Testo has "indicizzazione non necessaria"
+        or Testo has "eliminato"
+        or Categoria endswith ".ValidateUploadFunction" and Testo has "non valido"
+        or Categoria endswith ".EnqueueTranscriptionFunction" and Testo has "non riuscita"
+        or Categoria == "Memoa.Transcriber.TranscriptionJob" and Testo has "non trascritto"
+        or Testo has "Trascrizione del record" and Testo has "non riuscita"
+        or Categoria endswith ".IndexRecordFunction" and (Testo has "non riuscita" or Testo has "non indicizzabile")
+    | summarize Fine = max(TimeGenerated) by RecordUid;
+let lastEvents = events | summarize arg_max(TimeGenerated, Testo, Categoria) by RecordUid;
+starts
+| where Avvio < ago(stuckAfter)
+| join kind=leftouter ends on RecordUid
+| where isnull(Fine) or Fine < Avvio
+| join kind=inner lastEvents on RecordUid
+| project RecordUid, Avvio, UltimoEvento = TimeGenerated, UltimoMessaggio = Testo, Origine = extract(@"([^.]+)$", 1, Categoria)
+| order by Avvio desc

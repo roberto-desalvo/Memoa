@@ -1,0 +1,6 @@
+// Risposte HTTP 4xx e 5xx per endpoint e codice.
+AppRequests
+| where AppRoleName startswith "func-" and Name matches regex @"^(GET|POST|PUT|PATCH|DELETE) api/"
+| where toint(ResultCode) >= 400
+| summarize Risposte = count(), Ultima = max(TimeGenerated) by Endpoint = Name, ResultCode
+| order by Risposte desc

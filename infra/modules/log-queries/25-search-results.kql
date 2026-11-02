@@ -1,0 +1,8 @@
+// Ricerche per giorno, quante senza risultati e numero mediano di risultati.
+AppTraces
+| where tostring(Properties.CategoryName) endswith ".SearchFunction" and isnotempty(Properties.ResultCount)
+| extend Risultati = toint(Properties.ResultCount)
+| summarize Ricerche = count(), SenzaRisultati = countif(Risultati == 0), RisultatiP50 = percentile(Risultati, 50)
+    by Giorno = bin(TimeGenerated, 1d)
+| extend SenzaRisultatiPercento = round(100.0 * SenzaRisultati / Ricerche, 1)
+| order by Giorno desc

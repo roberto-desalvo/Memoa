@@ -1,0 +1,7 @@
+// Richieste HTTP delle Functions con e senza cold start, per giorno: quante e quanto durano.
+AppRequests
+| where AppRoleName startswith "func-" and Name matches regex @"^(GET|POST|PUT|PATCH|DELETE) api/"
+| extend ColdStart = tostring(Properties["azure.functions.coldstart.impacted"]) == "True"
+| summarize Richieste = count(), P50ms = round(percentile(DurationMs, 50)), P95ms = round(percentile(DurationMs, 95))
+    by Giorno = bin(TimeGenerated, 1d), ColdStart
+| order by Giorno desc, ColdStart desc

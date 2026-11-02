@@ -1,0 +1,14 @@
+// Trascrizioni completate da Azure AI Speech e passaggi al job di ripiego, con il motivo, per giorno.
+union AppTraces, AppExceptions
+| where tostring(Properties.CategoryName) endswith ".TranscribeRecordFunction"
+| extend Testo = iff(Type == "AppExceptions", tostring(Properties.OriginalFormat), Message)
+| extend Percorso = case(
+    isnotempty(Properties.Characters), "Azure AI Speech",
+    Testo has "Azure AI Speech disattivato", "Job: Speech disattivato",
+    Testo has "senza risposta entro", "Job: timeout",
+    Testo has "limiti di", "Job: limiti superati",
+    Testo has "ripiego sul job", "Job: errore di Speech",
+    "")
+| where isnotempty(Percorso)
+| summarize Trascrizioni = count() by bin(TimeGenerated, 1d), Percorso
+| render columnchart

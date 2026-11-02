@@ -1,0 +1,14 @@
+// Controllo privacy: cerca nella telemetria indirizzi email, token, firme SAS, query string e indirizzi IP non mascherati.
+// Deve restituire zero righe.
+union isfuzzy=true AppTraces, AppExceptions, AppRequests, AppDependencies, ContainerAppConsoleLogs_CL
+| extend Testo = strcat(Message, " ", OuterMessage, " ", Url, " ", Data, " ", Log_s, " ", tostring(Properties))
+| extend Problema = case(
+    Testo matches regex @"[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}", "Indirizzo email",
+    Testo has "Bearer " or Testo matches regex @"eyJ[A-Za-z0-9_-]{10,}\.eyJ", "Token",
+    Testo has "sig=", "Firma SAS",
+    Url contains "?" and not(Url matches regex @"\?(\*|([^=&]+=Redacted&?)+)$"), "Query string nell'URL",
+    isnotempty(ClientIP) and ClientIP != "0.0.0.0", "Indirizzo IP",
+    "")
+| where isnotempty(Problema)
+| project TimeGenerated, Type, AppRoleName, Problema, Origine = tostring(Properties.CategoryName), OperationId
+| order by TimeGenerated desc

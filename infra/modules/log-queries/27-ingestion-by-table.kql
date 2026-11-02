@@ -1,0 +1,5 @@
+// Dati fatturabili inviati al workspace, in MB per giorno e tabella.
+Usage
+| where IsBillable == true
+| summarize MB = round(sum(Quantity), 2) by bin(TimeGenerated, 1d), DataType
+| render columnchart

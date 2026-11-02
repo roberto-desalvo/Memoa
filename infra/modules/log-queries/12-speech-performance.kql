@@ -1,0 +1,13 @@
+// Azure AI Speech: tempo di trascrizione rispetto alla durata dell'audio (fattore tempo reale = secondi spesi
+// per secondo di audio). La durata viene dal log della normalizzazione, quindi serve un periodo che la includa.
+let durations = AppTraces
+    | where tostring(Properties.CategoryName) endswith ".NormalizeRecordFunction" and isnotempty(Properties.DurationSeconds)
+    | summarize DurataAudioS = todouble(take_any(Properties.DurationSeconds)) by RecordUid = tostring(Properties.RecordUid);
+AppTraces
+| where tostring(Properties.CategoryName) endswith ".TranscribeRecordFunction" and isnotempty(Properties.Characters)
+| project TimeGenerated, RecordUid = tostring(Properties.RecordUid), TempoS = todouble(Properties.ElapsedSeconds)
+| join kind=inner durations on RecordUid
+| extend FattoreTempoReale = TempoS / DurataAudioS
+| summarize Trascrizioni = count(), DurataAudioP50s = round(percentile(DurataAudioS, 50)), TempoP50s = round(percentile(TempoS, 50), 1),
+    TempoP95s = round(percentile(TempoS, 95), 1), FattoreP50 = round(percentile(FattoreTempoReale, 50), 3),
+    FattoreP95 = round(percentile(FattoreTempoReale, 95), 3)

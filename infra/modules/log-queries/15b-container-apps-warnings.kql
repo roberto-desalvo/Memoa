@@ -1,0 +1,8 @@
+// Avvisi dell'ambiente Container Apps (pull dell'immagine, segreti da Key Vault, KEDA, crash), esclusa la normale
+// terminazione con exit code 0.
+ContainerAppSystemLogs_CL
+| where Type_s == "Warning"
+| where not(Reason_s == "ContainerTerminated" and Log_s has "exit code '0'")
+| summarize Occorrenze = count(), Prima = min(TimeGenerated), Ultima = max(TimeGenerated), Esempio = take_any(Log_s)
+    by Job = JobName_s, Motivo = Reason_s
+| order by Ultima desc

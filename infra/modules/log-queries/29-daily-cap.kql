@@ -1,0 +1,13 @@
+// Ingestione giornaliera rispetto al limite del workspace e giorni in cui la raccolta si è fermata per il limite.
+// Il limite viene dal parametro logDailyCapGb del deploy.
+let capMb = todouble("{{dailyCapGb}}") * 1024;
+let stops = _LogOperation
+    | where Operation =~ "Data collection stopped"
+    | summarize Blocchi = count() by Giorno = startofday(TimeGenerated);
+Usage
+| where IsBillable == true
+| summarize MB = round(sum(Quantity), 1) by Giorno = startofday(TimeGenerated)
+| extend LimiteMB = round(capMb, 1), Percento = round(100.0 * MB / capMb)
+| join kind=leftouter stops on Giorno
+| project Giorno, MB, LimiteMB, Percento, LimiteRaggiunto = coalesce(Blocchi, 0) > 0
+| order by Giorno desc

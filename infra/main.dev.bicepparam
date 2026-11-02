@@ -11,7 +11,7 @@ param logDailyCapGb = '0.06'
 
 // Motore del job di trascrizione: 'whisper', 'parakeet' o 'faster-whisper'. Il deploy imposta l'immagine del motore scelto;
 // la pipeline del job poi la aggiorna solo con l'immagine dello stesso motore.
-param transcriberEngine = 'parakeet'
+param transcriberEngine = 'faster-whisper'
 
 // Feature flag: con false le Functions non chiamano Azure AI Speech e ogni trascrizione va al job.
 param useAzureSpeech = false

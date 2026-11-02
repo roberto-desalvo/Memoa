@@ -1,0 +1,7 @@
+// Azure OpenAI e Azure AI Speech: chiamate fallite per codice (429 = throttling, 5xx = errori del servizio), per ora.
+AppDependencies
+| where Target has ".openai.azure.com" or Target has ".cognitiveservices.azure.com"
+| where Success == false
+| extend Servizio = iff(Target has ".openai.azure.com", "Azure OpenAI", "Azure AI Speech")
+| summarize Fallite = count() by bin(TimeGenerated, 1h), Servizio, ResultCode
+| order by TimeGenerated desc

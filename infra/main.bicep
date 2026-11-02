@@ -159,6 +159,16 @@ module monitoring 'modules/monitoring.bicep' = {
   ]
 }
 
+// Query salvate per il monitoraggio (testi in modules/log-queries/*.kql).
+module logQueries 'modules/log-queries.bicep' = {
+  scope: rg
+  name: 'logQueries'
+  params: {
+    workspaceName: monitoring.outputs.logAnalyticsWorkspaceName
+    dailyCapGb: logDailyCapGb
+  }
+}
+
 module staticWebApp 'modules/static-web-app.bicep' = {
   scope: rg
   name: 'staticWebApp'

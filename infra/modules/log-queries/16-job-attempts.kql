@@ -1,0 +1,10 @@
+// Job di trascrizione: record con tentativi falliti, codici d'errore e, se c'è, l'esito finale.
+union AppTraces, AppExceptions
+| where AppRoleName == "memoa-transcriber" and tostring(Properties.CategoryName) == "Memoa.Transcriber.TranscriptionJob"
+| extend Testo = iff(Type == "AppExceptions", tostring(Properties.OriginalFormat), Message),
+    ErrorCode = tostring(Properties.ErrorCode), Tentativo = toint(Properties.Attempt)
+| where isnotnull(Tentativo) or isnotempty(Properties.Attempts) or Testo has "non trascritto"
+| summarize TentativiFalliti = dcountif(Tentativo, isnotnull(Tentativo)), Codici = make_set_if(ErrorCode, isnotempty(ErrorCode)),
+    EsitoFinale = take_anyif(ErrorCode, Testo has "non trascritto"), TentativiEsauriti = countif(isnotempty(Properties.Attempts)) > 0,
+    Ultimo = max(TimeGenerated) by RecordUid = tostring(Properties.RecordUid)
+| order by Ultimo desc

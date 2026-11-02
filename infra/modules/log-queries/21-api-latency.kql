@@ -1,0 +1,6 @@
+// Latenza delle API HTTP per endpoint (esclusi preflight CORS ed endpoint di amministrazione dell'host).
+AppRequests
+| where AppRoleName startswith "func-" and Name matches regex @"^(GET|POST|PUT|PATCH|DELETE) api/"
+| summarize Richieste = count(), P50ms = round(percentile(DurationMs, 50)), P95ms = round(percentile(DurationMs, 95)),
+    MaxMs = round(max(DurationMs)) by Endpoint = Name
+| order by P95ms desc

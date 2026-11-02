@@ -1,0 +1,18 @@
+// Tempo dalla creazione della nota alla prima indicizzazione, per tipo (audio o testo).
+let events = AppTraces
+    | extend Categoria = tostring(Properties.CategoryName), RecordUid = tostring(Properties.RecordUid)
+    | where isnotempty(RecordUid);
+let starts = events
+    | where Categoria endswith ".CreateAudioUploadFunction" and Message startswith "Upload audio autorizzato"
+        or Categoria endswith ".CreateTextRecordFunction"
+    | summarize Avvio = min(TimeGenerated), Tipo = take_any(iff(Categoria endswith ".CreateTextRecordFunction", "Testo", "Audio"))
+        by RecordUid;
+let ends = events
+    | where Categoria endswith ".IndexRecordFunction" and isnotempty(Properties.ChunkCount)
+    | summarize Fine = min(TimeGenerated) by RecordUid;
+starts
+| join kind=inner ends on RecordUid
+| where Fine >= Avvio
+| extend Secondi = (Fine - Avvio) / 1s
+| summarize Note = count(), P50s = round(percentile(Secondi, 50)), P95s = round(percentile(Secondi, 95)), MaxS = round(max(Secondi))
+    by Tipo

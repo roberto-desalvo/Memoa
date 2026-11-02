@@ -1,0 +1,8 @@
+// Errori ed eccezioni per Function (o componente), per ora. Esclusi i duplicati dello stesso errore registrati da
+// EF Core e dall'host (RpcException senza Function).
+union AppExceptions, (AppTraces | where SeverityLevel >= 3)
+| extend Origine = coalesce(tostring(Properties.functionName), tostring(Properties.CategoryName))
+| where isnotempty(Origine) and not(Origine startswith "Microsoft.EntityFrameworkCore")
+| extend Origine = trim_end("Function", extract(@"([^.]+)$", 1, Origine))
+| summarize Errori = count() by bin(TimeGenerated, 1h), Origine
+| render timechart

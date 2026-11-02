@@ -1,0 +1,9 @@
+// Job di trascrizione: lingua rilevata, probabilità e casi di ripiego sulla lingua dell'account (finale diversa dalla rilevata).
+AppTraces
+| where AppRoleName == "memoa-transcriber" and tostring(Properties.CategoryName) == "Memoa.Transcriber.TranscriptionJob"
+    and isnotempty(Properties.LanguageProbability)
+| extend Rilevata = tostring(Properties.DetectedLanguage), Finale = tostring(Properties.Language),
+    Probabilita = todouble(Properties.LanguageProbability)
+| summarize Trascrizioni = count(), ProbabilitaMin = round(min(Probabilita), 3), ProbabilitaP10 = round(percentile(Probabilita, 10), 3),
+    ProbabilitaP50 = round(percentile(Probabilita, 50), 3) by Rilevata, Finale, Ripiego = Rilevata != Finale
+| order by Trascrizioni desc

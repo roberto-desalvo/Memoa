@@ -1,0 +1,10 @@
+// Esecuzioni del job di trascrizione per giorno: avviate, completate, fallite e terminazioni anomale (exit code diverso da 0, OOM).
+ContainerAppSystemLogs_CL
+| where JobName_s endswith "-transcriber"
+| summarize Avviate = countif(Reason_s == "SuccessfulCreate"),
+    Completate = countif(Reason_s == "Completed"),
+    Fallite = countif(Reason_s == "BackoffLimitExceeded"),
+    TerminazioniAnomale = countif(Reason_s == "ContainerTerminated" and not(Log_s has "exit code '0'")),
+    AltriAvvisi = countif(Type_s == "Warning" and Reason_s !in ("ContainerTerminated", "BackoffLimitExceeded"))
+    by Giorno = bin(TimeGenerated, 1d)
+| order by Giorno desc

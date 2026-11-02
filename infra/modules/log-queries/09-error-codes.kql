@@ -1,0 +1,16 @@
+// Codici d'errore per passaggio. La normalizzazione è contata dall'esito registrato da EnqueueTranscription
+// (copre anche processing_failed); per il job si distinguono i tentativi falliti dall'esito finale.
+union AppTraces, AppExceptions
+| extend Categoria = tostring(Properties.CategoryName), ErrorCode = tostring(Properties.ErrorCode),
+    Testo = iff(Type == "AppExceptions", tostring(Properties.OriginalFormat), Message)
+| where isnotempty(ErrorCode) and not(Testo has "riprovato dopo l'errore")
+| where not(Categoria endswith ".NormalizeRecordFunction")
+| extend Passaggio = case(
+    Categoria endswith ".ValidateUploadFunction", "Validazione",
+    Categoria endswith ".EnqueueTranscriptionFunction", "Normalizzazione",
+    Categoria endswith ".TranscriptStore", "Trascrizione",
+    Categoria == "Memoa.Transcriber.TranscriptionJob" and isnotempty(Properties.Attempt), "Job (tentativo)",
+    Categoria == "Memoa.Transcriber.TranscriptionJob", "Job (esito)",
+    extract(@"([^.]+)$", 1, Categoria))
+| summarize Occorrenze = count(), Record = dcount(tostring(Properties.RecordUid)), Ultima = max(TimeGenerated) by Passaggio, ErrorCode
+| order by Occorrenze desc

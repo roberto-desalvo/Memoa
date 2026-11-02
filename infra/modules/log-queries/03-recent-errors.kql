@@ -1,0 +1,8 @@
+// Ultimi errori ed eccezioni, con RecordUid e OperationId per approfondire.
+union AppExceptions, (AppTraces | where SeverityLevel >= 3)
+| extend Origine = coalesce(tostring(Properties.functionName), tostring(Properties.CategoryName)),
+    Messaggio = iff(Type == "AppExceptions", strcat(tostring(Properties.OriginalFormat), " → ", OuterMessage), Message)
+| project TimeGenerated, AppRoleName, Origine, Tipo = iff(Type == "AppExceptions", ExceptionType, "log"), Messaggio,
+    RecordUid = tostring(Properties.RecordUid), OperationId
+| order by TimeGenerated desc
+| take 200

@@ -1,0 +1,12 @@
+// Funzione MemoaRecordTimeline(recordUid): tutti i log di Functions e job per un record, in ordine cronologico.
+// Include i log senza RecordUid delle stesse operazioni (es. InvocationError del worker).
+let entries = union AppTraces, AppExceptions
+    | where tostring(Properties.RecordUid) == recordUid;
+let operations = entries | where isnotempty(OperationId) | distinct OperationId;
+union AppTraces, AppExceptions
+| where tostring(Properties.RecordUid) == recordUid
+    or OperationId in (operations) and not(tostring(Properties.CategoryName) startswith "Microsoft.AspNetCore")
+| project TimeGenerated, AppRoleName, Origine = extract(@"([^.]+)$", 1, tostring(Properties.CategoryName)), Livello = SeverityLevel,
+    Messaggio = iff(Type == "AppExceptions", strcat(tostring(Properties.OriginalFormat), " → ", OuterMessage), Message),
+    Eccezione = ExceptionType
+| order by TimeGenerated asc

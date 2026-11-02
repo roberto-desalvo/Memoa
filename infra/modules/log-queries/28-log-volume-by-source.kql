@@ -1,0 +1,5 @@
+// Chi genera più log: volume di AppTraces per componente, categoria e livello.
+AppTraces
+| summarize Righe = count(), KB = round(sum(_BilledSize) / 1024.0, 1)
+    by AppRoleName, Categoria = tostring(Properties.CategoryName), Livello = SeverityLevel
+| top 30 by KB

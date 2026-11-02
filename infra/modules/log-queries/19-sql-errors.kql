@@ -1,0 +1,14 @@
+// Azure SQL: errori di connessione e di comando registrati da EF Core e SqlException, per tipo. Le riprese del database
+// in pausa che riescono con la retry logic non lasciano log; qui compaiono solo quelle che falliscono del tutto.
+union AppTraces, AppExceptions
+| extend Categoria = tostring(Properties.CategoryName)
+| where Categoria startswith "Microsoft.EntityFrameworkCore.Database" and SeverityLevel >= 3
+    or ExceptionType has "SqlException"
+| extend Tipo = case(
+    Categoria endswith ".Connection", "Connessione",
+    Categoria endswith ".Command", "Comando",
+    "SqlException"),
+    Dettaglio = substring(iff(Type == "AppExceptions", OuterMessage, Message), 0, 160)
+| summarize Occorrenze = count(), Ultima = max(TimeGenerated), Funzioni = make_set_if(tostring(Properties.functionName), isnotempty(Properties.functionName))
+    by Tipo, Dettaglio
+| order by Ultima desc

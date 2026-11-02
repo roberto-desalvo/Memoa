@@ -1,0 +1,21 @@
+// Funnel delle note audio: record distinti arrivati a ogni passaggio, tra quelli con l'upload autorizzato nel periodo.
+// Basata sui messaggi di log: se cambiano i testi in codice, va aggiornata.
+let steps = AppTraces
+    | extend Categoria = tostring(Properties.CategoryName), RecordUid = tostring(Properties.RecordUid)
+    | where isnotempty(RecordUid)
+    | extend Passaggio = case(
+        Categoria endswith ".CreateAudioUploadFunction" and Message startswith "Upload audio autorizzato", "1. Upload autorizzato",
+        Categoria endswith ".ValidateUploadFunction" and Message endswith "accodato per la normalizzazione", "2. Upload validato",
+        Categoria endswith ".NormalizeRecordFunction" and isnotempty(Properties.DurationSeconds), "3. Audio normalizzato",
+        Categoria endswith ".TranscribeRecordFunction" and isnotempty(Properties.Characters), "4. Trascritto",
+        Categoria == "Memoa.Transcriber.TranscriptionJob" and isnotempty(Properties.Characters), "4. Trascritto",
+        Categoria endswith ".IndexRecordFunction" and isnotempty(Properties.ChunkCount), "5. Indicizzato",
+        Categoria endswith ".TagRecordsFunction" and isnotempty(Properties.TagCount), "6. Tag assegnati",
+        "")
+    | where isnotempty(Passaggio);
+let audioRecords = steps | where Passaggio startswith "1." | distinct RecordUid;
+steps
+| where RecordUid in (audioRecords)
+| summarize Record = dcount(RecordUid) by Passaggio
+| order by Passaggio asc
+| render columnchart

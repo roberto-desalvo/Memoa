@@ -1,0 +1,16 @@
+// Chiamate ai servizi esterni: latenza, fallimenti e codici. Per Blob Storage i 404 sono in buona parte attesi
+// (controlli di esistenza per l'idempotenza). Azure SQL non compare: SqlClient non è strumentato.
+AppDependencies
+| where DependencyType != "InProc"
+| extend Servizio = case(
+    Target has ".blob.core.", "Blob Storage",
+    Target has ".queue.core.", "Code",
+    Target has ".openai.azure.com", "Azure OpenAI",
+    Target has ".cognitiveservices.azure.com", "Azure AI Speech",
+    Target has ".ciamlogin.com", "Entra External ID",
+    Target has ".vault.azure.net", "Key Vault",
+    Target startswith "localhost" or Target startswith "169.254.", "Interne (host, identità)",
+    Target)
+| summarize Chiamate = count(), Fallite = countif(Success == false), CodiciFalliti = make_set_if(ResultCode, Success == false),
+    P50ms = round(percentile(DurationMs, 50)), P95ms = round(percentile(DurationMs, 95)) by Servizio, AppRoleName
+| order by Chiamate desc

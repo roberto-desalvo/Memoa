@@ -1,0 +1,12 @@
+// Minuti di audio trascritti da Azure AI Speech per mese (rigenerazioni comprese), per stimarne il costo.
+// La durata viene dal log della normalizzazione: un record normalizzato fuori dal periodo non viene contato.
+let durations = AppTraces
+    | where tostring(Properties.CategoryName) endswith ".NormalizeRecordFunction" and isnotempty(Properties.DurationSeconds)
+    | summarize DurataAudioS = todouble(take_any(Properties.DurationSeconds)) by RecordUid = tostring(Properties.RecordUid);
+AppTraces
+| where tostring(Properties.CategoryName) endswith ".TranscribeRecordFunction" and isnotempty(Properties.Characters)
+| project TimeGenerated, RecordUid = tostring(Properties.RecordUid)
+| join kind=leftouter durations on RecordUid
+| summarize Trascrizioni = count(), SenzaDurata = countif(isnull(DurataAudioS)), Minuti = round(sum(DurataAudioS) / 60, 1)
+    by Mese = startofmonth(TimeGenerated)
+| order by Mese desc

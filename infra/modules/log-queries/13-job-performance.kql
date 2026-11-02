@@ -1,0 +1,21 @@
+// Job di trascrizione: tempo rispetto alla durata dell'audio, per motore. Il motore si ricava dal log di caricamento
+// del modello della stessa esecuzione (AppRoleInstance); Parakeet usa anche Whisper per la lingua, quindi ha la precedenza.
+let engines = AppTraces
+    | where AppRoleName == "memoa-transcriber" and tostring(Properties.CategoryName) startswith "Memoa.Transcriber.Engine."
+    | summarize Classi = make_set(tostring(Properties.CategoryName)) by AppRoleInstance
+    | extend Motore = case(set_has_element(Classi, "Memoa.Transcriber.Engine.ParakeetEngine"), "Parakeet",
+        set_has_element(Classi, "Memoa.Transcriber.Engine.FasterWhisperEngine"), "faster-whisper",
+        "Whisper");
+let durations = AppTraces
+    | where tostring(Properties.CategoryName) endswith ".NormalizeRecordFunction" and isnotempty(Properties.DurationSeconds)
+    | summarize DurataAudioS = todouble(take_any(Properties.DurationSeconds)) by RecordUid = tostring(Properties.RecordUid);
+AppTraces
+| where AppRoleName == "memoa-transcriber" and tostring(Properties.CategoryName) == "Memoa.Transcriber.TranscriptionJob"
+    and isnotempty(Properties.Characters)
+| project TimeGenerated, AppRoleInstance, RecordUid = tostring(Properties.RecordUid), TempoS = todouble(Properties.ElapsedSeconds)
+| join kind=leftouter engines on AppRoleInstance
+| join kind=leftouter durations on RecordUid
+| extend Motore = coalesce(Motore, "sconosciuto"), FattoreTempoReale = TempoS / DurataAudioS
+| summarize Trascrizioni = count(), DurataAudioP50s = round(percentile(DurataAudioS, 50)), TempoP50s = round(percentile(TempoS, 50)),
+    TempoP95s = round(percentile(TempoS, 95)), FattoreP50 = round(percentile(FattoreTempoReale, 50), 2),
+    FattoreP95 = round(percentile(FattoreTempoReale, 95), 2) by Motore

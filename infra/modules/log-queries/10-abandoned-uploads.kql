@@ -1,0 +1,11 @@
+// Upload autorizzati, annullati dal client dopo un errore e scaduti senza file, per giorno.
+AppTraces
+| extend Categoria = tostring(Properties.CategoryName)
+| extend Esito = case(
+    Categoria endswith ".CreateAudioUploadFunction", "Autorizzato",
+    Categoria endswith ".CancelAudioUploadFunction", "Annullato dal client",
+    Categoria endswith ".ExpireAudioUploadFunction" and Message has "mai completato", "Scaduto senza file",
+    "")
+| where isnotempty(Esito)
+| summarize Upload = count() by bin(TimeGenerated, 1d), Esito
+| render columnchart

@@ -1,0 +1,9 @@
+// Esecuzioni, fallimenti e durata per Function: dagli span "function <Nome>" del worker, che coprono anche i
+// trigger di Event Grid (in AppRequests compaiono tutti come POST /runtime/webhooks/eventgrid).
+AppDependencies
+| where DependencyType == "InProc" and Target startswith "function "
+| extend Function = substring(Target, 9)
+| summarize Esecuzioni = count(), Fallite = countif(Success == false), DurataP50ms = round(percentile(DurationMs, 50)),
+    DurataP95ms = round(percentile(DurationMs, 95)) by Function
+| extend SuccessoPercento = round(100.0 * (Esecuzioni - Fallite) / Esecuzioni, 1)
+| order by Fallite desc, Esecuzioni desc

@@ -65,6 +65,7 @@ Contenuti: [Infrastruttura come codice](#infrastruttura-come-codice) · [Ambient
   - IP masking attivo su Application Insights;
   - `SensitiveDataProcessor` (in `src/shared`) toglie dalle tracce indirizzi IP, query string degli URL, testo delle query SQL ed `enduser.id`.
 - **Livelli di log delle Functions** (`host.json`): `Warning` in generale, `Information` per il codice delle funzioni.
+- **Query salvate**: nel workspace, distribuite da Bicep (`infra/modules/log-queries.bicep`, testi in `infra/modules/log-queries/*.kql`), divise per categoria (salute, pipeline, trascrizione, dipendenze, API e utilizzo, costi e log, privacy). `MemoaRecordTimeline("<RecordUid>")` mostra il percorso di un record. Molte query riconoscono i passaggi dai message template dei log: se cambiano i testi in codice, vanno aggiornate.
 
 ---
 

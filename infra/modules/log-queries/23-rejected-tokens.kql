@@ -1,0 +1,6 @@
+// Token rifiutati dalle Functions, per motivo e giorno.
+AppTraces
+| where tostring(Properties.CategoryName) endswith ".TokenValidator" and Message startswith "Token rifiutato"
+| extend Motivo = coalesce(tostring(Properties.Reason), "Scope richiesto assente")
+| summarize Rifiuti = count() by bin(TimeGenerated, 1d), Motivo
+| render columnchart

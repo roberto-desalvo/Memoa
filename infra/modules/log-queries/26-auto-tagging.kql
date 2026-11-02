@@ -1,0 +1,9 @@
+// Assegnazione automatica dei tag: tag per nota (passaggio per record) e note per tag (passaggio per tag).
+// Utile per tarare Tagging__MinSimilarity.
+AppTraces
+| where tostring(Properties.CategoryName) endswith ".TagRecordsFunction"
+| extend Tipo = case(isnotempty(Properties.TagCount), "Tag per nota", isnotempty(Properties.RecordCount), "Note per tag", ""),
+    Assegnati = toint(coalesce(tostring(Properties.TagCount), tostring(Properties.RecordCount)))
+| where isnotempty(Tipo)
+| summarize Passaggi = count(), Zero = countif(Assegnati == 0), Media = round(avg(Assegnati), 1), P50 = percentile(Assegnati, 50),
+    Max = max(Assegnati) by Tipo
