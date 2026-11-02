@@ -17,6 +17,7 @@ export class RecordsStore {
   readonly records = signal<RecordSummary[] | null>(null);
   readonly loadFailed = signal(false);
 
+  private readonly deleted = new Set<string>();
   private active = false;
   private loading = false;
   private timer?: ReturnType<typeof setTimeout>;
@@ -80,8 +81,15 @@ export class RecordsStore {
     this.schedule();
   }
 
+  /** Toglie dalla lista un record eliminato e lo ricorda, perché la cronologia non riapra la sua pagina. */
   remove(recordUid: string): void {
+    this.deleted.add(recordUid);
     this.records.update((records) => records?.filter((r) => r.recordUid !== recordUid) ?? null);
+  }
+
+  /** Record eliminato dall'utente in questa sessione. */
+  isDeleted(recordUid: string): boolean {
+    return this.deleted.has(recordUid);
   }
 
   private schedule(): void {
