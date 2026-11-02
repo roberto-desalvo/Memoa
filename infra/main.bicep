@@ -169,6 +169,19 @@ module logQueries 'modules/log-queries.bicep' = {
   }
 }
 
+// Workbook di monitoraggio con le stesse query, una scheda per categoria.
+module monitoringWorkbook 'modules/monitoring-workbook.bicep' = {
+  scope: rg
+  name: 'monitoringWorkbook'
+  params: {
+    location: location
+    tags: tags
+    environmentName: environmentName
+    workspaceName: monitoring.outputs.logAnalyticsWorkspaceName
+    dailyCapGb: logDailyCapGb
+  }
+}
+
 module staticWebApp 'modules/static-web-app.bicep' = {
   scope: rg
   name: 'staticWebApp'
