@@ -124,13 +124,15 @@ import { TEXT_ACCEPT } from '../uploads/text-file';
       transform: rotate(45deg);
     }
 
-    // Pillola centrata sopra Aggiungi, che si espande in orizzontale dal centro.
+    // Pillola centrata sopra Aggiungi, che si espande in orizzontale dal centro: larga quasi quanto la
+    // pagina su telefono (32 px di margine per lato), al massimo 28rem sugli schermi grandi.
     .add-actions {
       position: absolute;
       bottom: calc(100% + var(--space-2));
       left: 50%;
       display: flex;
       gap: var(--space-1);
+      width: min(100% - 2 * var(--space-6), 28rem);
       padding: var(--space-1);
       background: var(--mat-sys-surface-container-lowest);
       border: 1px solid var(--mat-sys-outline-variant);
@@ -157,6 +159,7 @@ import { TEXT_ACCEPT } from '../uploads/text-file';
       a,
       button {
         display: flex;
+        flex: 1;
         flex-direction: column;
         align-items: center;
         gap: 2px;
