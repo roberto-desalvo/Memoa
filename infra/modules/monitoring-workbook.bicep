@@ -151,8 +151,9 @@ var definition = {
     tabGroup('transcription', [
       queryItem('speech-vs-fallback', logQueries['speech-vs-fallback'], 'barchart', '50', {})
       queryItem('speech-performance', logQueries['speech-performance'], 'table', '50', {})
-      queryItem('job-performance', logQueries['job-performance'], 'table', '50', {})
       queryItem('job-language-detection', logQueries['job-language-detection'], 'table', '50', {})
+      queryItem('job-performance', logQueries['job-performance'], 'table', '100', {})
+      queryItem('job-runs', logQueries['job-runs'], 'table', '100', exportRecordUid)
       queryItem('job-executions', logQueries['job-executions'], 'table', '50', {})
       queryItem('container-apps-warnings', logQueries['container-apps-warnings'], 'table', '50', {})
       queryItem('job-attempts', logQueries['job-attempts'], 'table', '100', exportRecordUid)

@@ -70,9 +70,14 @@ var logQueries = {
     query: loadTextContent('12-speech-performance.kql')
   }
   'job-performance': {
-    displayName: '13 Prestazioni del job per motore'
+    displayName: '13 Confronto del job per modello'
     category: categories.transcription
     query: loadTextContent('13-job-performance.kql')
+  }
+  'job-runs': {
+    displayName: '13b Esecuzioni del job'
+    category: categories.transcription
+    query: loadTextContent('13b-job-runs.kql')
   }
   'job-language-detection': {
     displayName: '14 Rilevamento della lingua nel job'

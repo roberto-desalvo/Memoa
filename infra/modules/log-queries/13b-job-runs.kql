@@ -1,0 +1,34 @@
+// Job di trascrizione: ogni esecuzione con motore, modello, configurazione, durata dell'audio e tempo impiegato.
+// Fattore = secondi spesi per secondo di audio; il tempo comprende il caricamento del modello. La fascia di durata
+// permette di confrontare modelli su audio di lunghezza simile.
+let runs = AppTraces
+    | where AppRoleName == "memoa-transcriber" and tostring(Properties.CategoryName) startswith "Memoa.Transcriber.Engine."
+        and (isnotempty(Properties.ModelPath) or isnotempty(Properties.ModelDirectory))
+    | extend Classe = extract(@"Engine\.(\w+)Engine$", 1, tostring(Properties.CategoryName)),
+        Percorso = coalesce(tostring(Properties.ModelPath), tostring(Properties.ModelDirectory))
+    // Parakeet carica anche Whisper tiny per la lingua: vale il modello del motore principale.
+    | extend Priorita = case(Classe == "Parakeet", 0, Classe == "FasterWhisper", 1, 2)
+    | summarize arg_min(Priorita, Classe, Percorso, Properties) by AppRoleInstance
+    | extend Motore = case(Classe == "Parakeet", "Parakeet", Classe == "FasterWhisper", "faster-whisper", "Whisper"),
+        Modello = extract(@"([^/]+)/?$", 1, Percorso),
+        Configurazione = strcat(tostring(Properties.ProcessorCount), " vCPU, ", coalesce(tostring(Properties.Threads), "?"), " thread",
+            iff(isnotempty(Properties.BeamSize), strcat(", beam ", tostring(Properties.BeamSize), ", batch ", tostring(Properties.BatchSize)), ""))
+    | project AppRoleInstance, Motore, Modello, Configurazione;
+let durations = AppTraces
+    | where tostring(Properties.CategoryName) in ("Memoa.Functions.Functions.NormalizeRecordFunction", "Memoa.Normalizer.NormalizationJob")
+        and isnotempty(Properties.DurationSeconds)
+    | summarize DurataAudioS = todouble(take_any(Properties.DurationSeconds)) by RecordUid = tostring(Properties.RecordUid);
+AppTraces
+| where AppRoleName == "memoa-transcriber" and tostring(Properties.CategoryName) == "Memoa.Transcriber.TranscriptionJob"
+    and isnotempty(Properties.Characters)
+| project TimeGenerated, AppRoleInstance, RecordUid = tostring(Properties.RecordUid), TempoS = round(todouble(Properties.ElapsedSeconds), 1),
+    Caratteri = toint(Properties.Characters), Lingua = tostring(Properties.Language),
+    ProbabilitaLingua = round(todouble(Properties.LanguageProbability), 3)
+| join kind=leftouter runs on AppRoleInstance
+| join kind=leftouter durations on RecordUid
+| extend Fattore = round(TempoS / DurataAudioS, 2),
+    Fascia = case(isnull(DurataAudioS), "sconosciuta", DurataAudioS < 60, "1: < 1 min", DurataAudioS < 300, "2: 1-5 min",
+        DurataAudioS < 600, "3: 5-10 min", "4: >= 10 min")
+| project TimeGenerated, RecordUid, Motore = coalesce(Motore, "sconosciuto"), Modello = coalesce(Modello, "sconosciuto"), Configurazione,
+    Fascia, DurataAudioS, TempoS, Fattore, Caratteri, Lingua, ProbabilitaLingua
+| order by Fascia asc, Fattore asc

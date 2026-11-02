@@ -1,21 +1,47 @@
-// Job di trascrizione: tempo rispetto alla durata dell'audio, per motore. Il motore si ricava dal log di caricamento
-// del modello della stessa esecuzione (AppRoleInstance); Parakeet usa anche Whisper per la lingua, quindi ha la precedenza.
-let engines = AppTraces
+// Job di trascrizione: confronto per motore, modello e configurazione, tenendo conto della durata dell'audio.
+// Il tempo comprende il caricamento del modello (ogni esecuzione lo ricarica), quindi oltre al fattore tempo reale
+// (secondi spesi per secondo di audio) una regressione lineare separa il costo fisso (CostoFissoS) dal costo per
+// minuto di audio (SecondiPerMinutoAudio); serve con almeno 3 durate diverse. La durata viene dal log della
+// normalizzazione: le esecuzioni senza durata nel periodo sono escluse e contate in SenzaDurata.
+let runs = AppTraces
     | where AppRoleName == "memoa-transcriber" and tostring(Properties.CategoryName) startswith "Memoa.Transcriber.Engine."
-    | summarize Classi = make_set(tostring(Properties.CategoryName)) by AppRoleInstance
-    | extend Motore = case(set_has_element(Classi, "Memoa.Transcriber.Engine.ParakeetEngine"), "Parakeet",
-        set_has_element(Classi, "Memoa.Transcriber.Engine.FasterWhisperEngine"), "faster-whisper",
-        "Whisper");
+        and (isnotempty(Properties.ModelPath) or isnotempty(Properties.ModelDirectory))
+    | extend Classe = extract(@"Engine\.(\w+)Engine$", 1, tostring(Properties.CategoryName)),
+        Percorso = coalesce(tostring(Properties.ModelPath), tostring(Properties.ModelDirectory))
+    // Parakeet carica anche Whisper tiny per la lingua: vale il modello del motore principale.
+    | extend Priorita = case(Classe == "Parakeet", 0, Classe == "FasterWhisper", 1, 2)
+    | summarize arg_min(Priorita, Classe, Percorso, Properties) by AppRoleInstance
+    | extend Motore = case(Classe == "Parakeet", "Parakeet", Classe == "FasterWhisper", "faster-whisper", "Whisper"),
+        Modello = extract(@"([^/]+)/?$", 1, Percorso),
+        Configurazione = strcat(tostring(Properties.ProcessorCount), " vCPU, ", coalesce(tostring(Properties.Threads), "?"), " thread",
+            iff(isnotempty(Properties.BeamSize), strcat(", beam ", tostring(Properties.BeamSize), ", batch ", tostring(Properties.BatchSize)), ""))
+    | project AppRoleInstance, Motore, Modello, Configurazione;
 let durations = AppTraces
-    | where tostring(Properties.CategoryName) endswith ".NormalizeRecordFunction" and isnotempty(Properties.DurationSeconds)
+    | where tostring(Properties.CategoryName) in ("Memoa.Functions.Functions.NormalizeRecordFunction", "Memoa.Normalizer.NormalizationJob")
+        and isnotempty(Properties.DurationSeconds)
     | summarize DurataAudioS = todouble(take_any(Properties.DurationSeconds)) by RecordUid = tostring(Properties.RecordUid);
 AppTraces
 | where AppRoleName == "memoa-transcriber" and tostring(Properties.CategoryName) == "Memoa.Transcriber.TranscriptionJob"
     and isnotempty(Properties.Characters)
-| project TimeGenerated, AppRoleInstance, RecordUid = tostring(Properties.RecordUid), TempoS = todouble(Properties.ElapsedSeconds)
-| join kind=leftouter engines on AppRoleInstance
+| project AppRoleInstance, RecordUid = tostring(Properties.RecordUid), TempoS = todouble(Properties.ElapsedSeconds)
+| join kind=leftouter runs on AppRoleInstance
 | join kind=leftouter durations on RecordUid
-| extend Motore = coalesce(Motore, "sconosciuto"), FattoreTempoReale = TempoS / DurataAudioS
-| summarize Trascrizioni = count(), DurataAudioP50s = round(percentile(DurataAudioS, 50)), TempoP50s = round(percentile(TempoS, 50)),
-    TempoP95s = round(percentile(TempoS, 95)), FattoreP50 = round(percentile(FattoreTempoReale, 50), 2),
-    FattoreP95 = round(percentile(FattoreTempoReale, 95), 2) by Motore
+| extend Motore = coalesce(Motore, "sconosciuto"), Modello = coalesce(Modello, "sconosciuto"), Configurazione = coalesce(Configurazione, "")
+// Senza durata Fattore è nullo e i percentili lo ignorano.
+| extend Fattore = iff(DurataAudioS > 0, TempoS / DurataAudioS, real(null))
+| summarize SenzaDurata = countif(isnull(DurataAudioS) or DurataAudioS <= 0),
+    Esecuzioni = countif(DurataAudioS > 0),
+    MinutiAudio = round(sumif(DurataAudioS, DurataAudioS > 0) / 60, 1),
+    DurataAudioP50s = round(percentile(DurataAudioS, 50)),
+    FattoreComplessivo = round(sumif(TempoS, DurataAudioS > 0) / sumif(DurataAudioS, DurataAudioS > 0), 2),
+    FattoreP50 = round(percentile(Fattore, 50), 2),
+    FattoreP95 = round(percentile(Fattore, 95), 2),
+    Durate = dcountif(DurataAudioS, DurataAudioS > 0),
+    n = todouble(countif(DurataAudioS > 0)), sx = sumif(DurataAudioS, DurataAudioS > 0), sy = sumif(TempoS, DurataAudioS > 0),
+    sxx = sumif(DurataAudioS * DurataAudioS, DurataAudioS > 0), sxy = sumif(DurataAudioS * TempoS, DurataAudioS > 0)
+    by Motore, Modello, Configurazione
+| extend Pendenza = iff(Durate >= 3 and n * sxx - sx * sx > 0, (n * sxy - sx * sy) / (n * sxx - sx * sx), real(null))
+| extend SecondiPerMinutoAudio = round(Pendenza * 60, 1), CostoFissoS = round((sy - Pendenza * sx) / n, 1)
+| project Motore, Modello, Configurazione, Esecuzioni, SenzaDurata, MinutiAudio, DurataAudioP50s, FattoreComplessivo, FattoreP50,
+    FattoreP95, SecondiPerMinutoAudio, CostoFissoS
+| order by FattoreComplessivo asc
