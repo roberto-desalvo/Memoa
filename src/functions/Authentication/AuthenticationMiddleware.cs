@@ -1,5 +1,3 @@
-using System.Collections.Concurrent;
-using System.Reflection;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Azure.Functions.Worker;
@@ -15,8 +13,6 @@ namespace Memoa.Functions.Authentication;
 /// </summary>
 public sealed class AuthenticationMiddleware(TokenValidator validator) : IFunctionsWorkerMiddleware
 {
-    private static readonly ConcurrentDictionary<string, bool> AnonymousFunctions = new();
-
     public async Task Invoke(FunctionContext context, FunctionExecutionDelegate next)
     {
         var httpContext = context.GetHttpContext();
@@ -57,15 +53,5 @@ public sealed class AuthenticationMiddleware(TokenValidator validator) : IFuncti
     }
 
     private static bool IsAnonymous(FunctionDefinition definition) =>
-        AnonymousFunctions.GetOrAdd(definition.Id, _ =>
-        {
-            // EntryPoint ha la forma "Namespace.Classe.Metodo"; le funzioni stanno in questo assembly.
-            var separator = definition.EntryPoint.LastIndexOf('.');
-            var type = typeof(AuthenticationMiddleware).Assembly
-                .GetType(definition.EntryPoint[..separator]);
-            var method = type?.GetMethod(definition.EntryPoint[(separator + 1)..]);
-
-            return method?.GetCustomAttribute<AllowAnonymousAttribute>() is not null
-                || type?.GetCustomAttribute<AllowAnonymousAttribute>() is not null;
-        });
+        FunctionAttributes.Has<AllowAnonymousAttribute>(definition);
 }

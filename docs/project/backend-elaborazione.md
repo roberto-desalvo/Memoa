@@ -15,6 +15,7 @@ Contenuti: [Backend](#backend) · [Normalizzazione](#normalizzazione) · [Compon
 - Grant gratuito mensile: 250.000 esecuzioni e 100.000 GB-s per sottoscrizione. Lo storage account di sistema delle Functions costa pochi centesimi.
 - Senza istanze "always ready" ci sono cold start.
 - Niente modelli pesanti (Whisper) nelle Functions: il ripiego della trascrizione gira in un Container Apps Job. ffmpeg invece sì, come binario statico nel pacchetto (vedi [Normalizzazione](#normalizzazione)).
+- **Utente applicativo**: `GetMe` (HTTP, `GET /me`) lo crea se non esiste (idempotente, gestisce le richieste parallele), allinea l'email al claim del token e restituisce `{ showGuide }`; `DismissGuide` (HTTP, `PUT /me/guide`, corpo `{ "dismissed": true }`) salva la prima chiusura della guida. Finché l'utente non esiste le altre funzioni HTTP rispondono `403 user_not_registered` (vedi [sicurezza-identita.md](sicurezza-identita.md#autenticazione)).
 
 ---
 
@@ -120,7 +121,7 @@ Entrambe passano dalla coda di trascrizione, quindi prima Azure AI Speech e poi,
 - Prima i blob, poi il database: se il database fallisce l'utente può riprovare, mentre l'ordine inverso lascerebbe file senza record. Ogni passo è idempotente.
 - **Messaggi in coda**: non vengono rimossi (quelli invisibili, come `upload-expiry`, non si possono leggere). Contengono solo identificativi e URL di blob, e gli handler ignorano i record che non esistono più.
 - I file eliminati restano recuperabili per 14 giorni (soft delete dello storage).
-- **Limiti noti**: un record ancora in elaborazione può far scrivere un blob alla pipeline dopo l'eliminazione, e il file resta; dopo l'eliminazione dell'account, una richiesta da un'altra scheda aperta ricrea un utente applicativo vuoto.
+- **Limiti noti**: un record ancora in elaborazione può far scrivere un blob alla pipeline dopo l'eliminazione, e il file resta; dopo l'eliminazione dell'account, un'altra scheda aperta riceve `403 user_not_registered`, torna alla homepage e ricrea un utente applicativo vuoto.
 
 ---
 

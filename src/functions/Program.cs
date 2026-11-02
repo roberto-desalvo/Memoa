@@ -26,8 +26,8 @@ builder.Services.AddOptions<AuthOptions>()
     .ValidateOnStart();
 builder.Services.AddSingleton<TokenValidator>();
 builder.UseMiddleware<AuthenticationMiddleware>();
-// Dopo l'autenticazione: usa l'utente validato.
-builder.UseMiddleware<UserProvisioningMiddleware>();
+// Dopo l'autenticazione: usa l'utente validato. L'utente applicativo lo crea solo GET /me.
+builder.UseMiddleware<UserRegistrationMiddleware>();
 // Eliminazione dell'account di accesso in Entra External ID: rimandata, per ora l'account resta.
 builder.Services.AddSingleton<IIdentityAccountService, RetainedIdentityAccountService>();
 

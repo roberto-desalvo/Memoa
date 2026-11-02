@@ -14,6 +14,11 @@ public sealed class User
     /// <summary>"it" o "en" (<see cref="Languages"/>).</summary>
     public string PreferredLanguage { get; set; } = Languages.Italian;
 
+    /// <summary>
+    /// Quando l'utente ha completato o rifiutato la guida dell'app (UTC); null finché va proposta.
+    /// </summary>
+    public DateTime? GuideDismissedAt { get; set; }
+
     public DateTime CreatedAt { get; set; }
 
     public List<Record> Records { get; set; } = [];

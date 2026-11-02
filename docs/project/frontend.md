@@ -34,9 +34,11 @@ Contenuti: [App](#app) · [Installazione e service worker](#installazione-e-serv
 
 ## Struttura
 
-- Angular 22, componenti standalone, una cartella per funzionalità in `src/web/src/app`: `auth`, `config`, `home`, `notes`, `recording`, `records`, `settings`, `tags`, `uploads`.
+- Angular 22, componenti standalone, una cartella per funzionalità in `src/web/src/app`: `account`, `auth`, `config`, `guide`, `home`, `notes`, `recording`, `records`, `settings`, `tags`, `uploads`.
 - **Route**: `/` (elenco), `/new/:mode` (nuova nota), `/records/:recordUid`, `/tags`, `/tags/new`, `/tags/:tagUid`, `/settings`, `/about`. Tutte protette da `MsalGuard`.
 - **Autenticazione**: MSAL (`@azure/msal-angular`) con login a redirect sul tenant Entra External ID dell'ambiente. `MsalInterceptor` aggiunge il token solo alle chiamate verso le Functions, mai verso lo storage.
+- **Registrazione dell'utente applicativo**: la homepage chiama `GET /me` (`AccountState`, una sola chiamata anche con richieste concorrenti, poi la risposta resta in memoria per la sessione) e solo dopo carica la lista. Un interceptor riconosce `403 user_not_registered` su qualunque chiamata, azzera lo stato e torna alla homepage, che chiama di nuovo `/me`.
+- **Guida**: componente proprio su `@angular/cdk` Overlay (`guide/`), nessuna libreria esterna. Gli elementi evidenziati hanno l'attributo `data-guide`.
 - **Configurazione**: letta a runtime da `config.json` (URL delle Functions, authority, client ID, scope, durata massima degli audio). La stessa build vale per dev e prod. Il file è generato dalla pipeline per ogni ambiente.
 - **Durata massima degli audio** (`maxAudioDurationMinutes`, oggi 30 minuti): si imposta in un solo punto, il parametro Bicep `maxAudioDurationMinutes`, che diventa l'impostazione `Audio__MaxDurationMinutes` delle Functions (usata dalla normalizzazione). La pipeline del frontend la legge dalla Function App e la scrive in `config.json`. In locale va riportata a mano in `local.settings.json` e in `public/config.json`.
 

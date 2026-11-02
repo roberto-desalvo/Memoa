@@ -1,4 +1,4 @@
-import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
+import { provideHttpClient, withInterceptors, withInterceptorsFromDi } from '@angular/common/http';
 import {
   ApplicationConfig,
   isDevMode,
@@ -12,6 +12,7 @@ import { MAT_SNACK_BAR_DEFAULT_OPTIONS, MatSnackBarConfig } from '@angular/mater
 import { provideRouter, withComponentInputBinding, withViewTransitions } from '@angular/router';
 import { provideServiceWorker } from '@angular/service-worker';
 import { IPublicClientApplication } from '@azure/msal-browser';
+import { unregisteredUserInterceptor } from './account/unregistered-user.interceptor';
 import { routes } from './app.routes';
 import { provideMsal } from './auth/msal';
 import { APP_CONFIG, AppConfig } from './config/app-config';
@@ -33,7 +34,7 @@ export function appConfig(
         withViewTransitions({ onViewTransitionCreated: slideBetweenPages }),
       ),
       // MsalInterceptor è un interceptor di classe: va registrato tramite DI.
-      provideHttpClient(withInterceptorsFromDi()),
+      provideHttpClient(withInterceptorsFromDi(), withInterceptors([unregisteredUserInterceptor])),
       { provide: APP_CONFIG, useValue: config },
       provideMsal(config, msalInstance),
       provideAppInitializer(registerIcons),

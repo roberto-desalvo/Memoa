@@ -15,7 +15,8 @@ Contenuti: [Account](#account) · [Contenuti in ingresso](#contenuti-in-ingresso
 
 | Funzionalità | Descrizione | Priorità | Stato |
 |---|---|---|---|
-| Autenticazione | Registrazione, login e logout con Entra External ID. L'utente applicativo si crea al primo accesso. | core | ✅ |
+| Autenticazione | Registrazione, login e logout con Entra External ID. L'utente applicativo si crea all'apertura della homepage (`GET /me`); prima le altre chiamate vengono rifiutate e l'app torna alla homepage. | core | ✅ |
+| Guida | Tour guidato della homepage (aggiunta, lista, ricerca, filtri, tag, menu utente), proposto finché l'utente non lo completa o lo rifiuta; sempre disponibile dal menu utente, alla voce Guida. | core | ✅ |
 | Lingua dell'account | Italiano o inglese, scelta alla registrazione e modificabile dalle impostazioni. Vale per interfaccia e riassunti, e fa da ripiego per la trascrizione. | core | 🟡 modificabile dalle impostazioni, ma alla registrazione vale l'italiano e l'interfaccia è solo in italiano |
 
 ---

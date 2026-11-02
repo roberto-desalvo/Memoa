@@ -20,7 +20,7 @@ Contenuti: [Convenzioni](#convenzioni) · [Users](#users) · [Records](#records)
 
 ## Users
 
-Utente applicativo, creato alla prima richiesta autenticata.
+Utente applicativo, creato da `GET /me` (chiamata dal frontend all'apertura della homepage).
 
 | Colonna | Tipo | Note |
 |---|---|---|
@@ -28,6 +28,7 @@ Utente applicativo, creato alla prima richiesta autenticata.
 | EntraObjectId | uniqueidentifier, univoco | Claim `oid`. Ogni ambiente ha il proprio tenant e il proprio database. |
 | Email | nvarchar(320) | Dal claim opzionale `email`. Aggiornata se cambia, mai svuotata se il claim manca. |
 | PreferredLanguage | varchar(5) | `it` / `en`, `it` alla creazione. |
+| GuideDismissedAt | datetime2, null | Quando l'utente ha completato o rifiutato la guida (prima volta). Null finché la guida va proposta. |
 | CreatedAt | datetime2 | |
 
 ---

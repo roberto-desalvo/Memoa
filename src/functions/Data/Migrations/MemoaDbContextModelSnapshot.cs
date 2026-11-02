@@ -302,6 +302,9 @@ namespace Memoa.Functions.Data.Migrations
                     b.Property<Guid>("EntraObjectId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<DateTime?>("GuideDismissedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("PreferredLanguage")
                         .IsRequired()
                         .HasMaxLength(5)

@@ -49,6 +49,7 @@ import { UploadQueue } from '../uploads/upload-queue';
       <button
         mat-icon-button
         class="add"
+        data-guide="add"
         [class.active]="addOpen()"
         aria-label="Aggiungi una nota"
         aria-controls="add-actions"
@@ -61,6 +62,7 @@ import { UploadQueue } from '../uploads/upload-queue';
         mat-icon-button
         routerLink="/tags"
         routerLinkActive="active"
+        data-guide="tags"
         ariaCurrentWhenActive="page"
         aria-label="Tag"
       >

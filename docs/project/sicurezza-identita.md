@@ -23,7 +23,7 @@ Contenuti: [Autenticazione](#autenticazione) · [Identità gestite](#identità-g
   - API: token v2 (`aud` = client ID dell'API), scope `access_as_user`, claim opzionale `email`;
   - frontend (SPA): redirect URI della Static Web App più quelli locali, permessi per l'API e per `openid offline_access`, con consenso dell'amministratore (nei tenant esterni gli utenti non possono concederlo).
 - **Frontend**: login con MSAL. Il token va alle Functions con CORS abilitato solo per le origini del frontend.
-- **Functions**: un middleware valida il bearer token su tutte le funzioni HTTP, tranne quelle marcate anonime. Controlla firma e issuer dal documento OpenID del tenant, audience e scope `access_as_user`. Un secondo middleware crea l'utente applicativo alla prima richiesta autenticata. Ogni funzione opera solo sui record dell'utente del token (claim `oid`, l'unico dato dell'utente ammesso nei log).
+- **Functions**: un middleware valida il bearer token su tutte le funzioni HTTP, tranne quelle marcate anonime. Controlla firma e issuer dal documento OpenID del tenant, audience e scope `access_as_user`. L'utente applicativo lo crea solo `GET /me`, che il frontend chiama all'apertura della homepage: un secondo middleware risponde `403` con `{ "error": "user_not_registered" }` a tutte le altre funzioni autenticate finché l'utente non esiste (le funzioni marcate `[AllowUnregisteredUser]`, oggi solo `GET /me`, passano comunque). Il frontend, ricevuto quel codice, torna alla homepage e chiama di nuovo `/me`. Ogni funzione opera solo sui record dell'utente del token (claim `oid`, l'unico dato dell'utente ammesso nei log).
 
 ---
 

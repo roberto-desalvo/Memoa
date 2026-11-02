@@ -88,7 +88,7 @@ Valgono per ogni schermata. Una nuova schermata o un nuovo componente le rispett
 
 ## Homepage
 
-- **Intestazione**: una sola riga, il campo di ricerca (stile Gmail o Keep, a pillola) con dentro, a destra, l'avatar del menu utente (iniziali su tinta tenue), con nome dell'account, Impostazioni, Informazioni ed Esci. Il nome dell'app compare solo come testo del campo vuoto ("Cerca in Memoa"). Stesso fondo della pagina, resta in alto scorrendo.
+- **Intestazione**: una sola riga, il campo di ricerca (stile Gmail o Keep, a pillola) con dentro, a destra, l'avatar del menu utente (iniziali su tinta tenue), con nome dell'account, Impostazioni, Guida, Informazioni ed Esci. Il nome dell'app compare solo come testo del campo vuoto ("Cerca in Memoa"). Stesso fondo della pagina, resta in alto scorrendo.
 - **Filtri**: a destra della riga del primo gruppo ("Oggi", "Ieri" o il mese), alla stessa altezza, l'icona dei filtri (nel colore d'accento su una tinta tenue con il pannello aperto o con filtri attivi). Il tocco apre e chiude, con una breve animazione, un pannello sotto la riga con:
   - **Tipologia**: Audio o Testo, a scelta singola (toccando di nuovo quella scelta la si toglie).
   - **Tag**: i tag attivi assegnati alle note, in ordine di nome, a scelta multipla; con più tag compaiono le note che ne hanno almeno uno. I tag disattivati non compaiono. I tag si filtrano solo da qui.
@@ -142,6 +142,15 @@ Valgono per ogni schermata. Una nuova schermata o un nuovo componente le rispett
   - **Tag** (nel menu ⋮, solo per i record pronti): finestra con l'elenco dei tag da selezionare e un campo "Nuovo tag" per crearne uno (solo il nome), con Annulla e Salva. Un tag tolto qui non viene più assegnato in automatico alla nota. La stessa finestra si usa per più note dalla selezione multipla della homepage.
   - **Modifica**: pulsante primario in fondo alla pagina, solo per i record pronti. Titolo, data e ora e, se c'è, testo; dopo una modifica del testo la nota viene indicizzata di nuovo.
 - Dopo una modifica del testo o una rigenerazione si resta sulla pagina, che mostra l'avanzamento.
+
+---
+
+## Guida
+
+- **Proposta**: all'apertura della homepage, una volta per sessione, finché l'utente non ha completato né rifiutato la guida: una finestra ("Vuoi fare un giro di Memoa?") con "No, grazie" e "Inizia il tour". "No, grazie", Esc o un tocco fuori valgono come rifiuto.
+- **Tour**: la pagina viene oscurata tranne l'elemento del passo, con accanto (sotto se c'è spazio, altrimenti sopra; su telefono largo quanto lo schermo meno i margini) un fumetto con "N di 7", la X, titolo, testo e i pulsanti Salta, Indietro e Avanti ("Fine" all'ultimo passo). Passi: benvenuto (al centro), + della barra, lista delle note, ricerca, filtri (al centro se il diario è vuoto e l'icona non c'è), Tag della barra, menu utente. Esc vale come Salta, le frecce cambiano passo; la pagina sotto non si tocca.
+- **Fine o rifiuto**: "Fine", "Salta", la X ed Esc chiudono la guida per sempre (salvato nell'account). Uscendo dalla homepage durante il tour la guida si chiude senza salvare e viene proposta al prossimo accesso.
+- **Menu utente → Guida**: avvia il tour senza la proposta, anche dopo averlo chiuso.
 
 ---
 

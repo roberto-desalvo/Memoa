@@ -23,13 +23,15 @@
 } @else {
   <!-- Intestazione: il campo di ricerca, con l'avatar del menu utente dentro, a destra. -->
   <header class="page-header search-header">
-    <app-search-bar class="search-bar">
+    <app-search-bar class="search-bar" data-guide="search">
       <button
         mat-icon-button
         type="button"
         class="user-button"
         aria-label="Menu utente"
+        data-guide="user-menu"
         [matMenuTriggerFor]="userMenu"
+        (menuClosed)="onUserMenuClosed()"
       >
         @if (initials) {
           <span class="avatar" aria-hidden="true">{{ initials }}</span>
@@ -50,6 +52,10 @@
     <mat-icon svgIcon="settings" />
     <span>Impostazioni</span>
   </a>
+  <button mat-menu-item (click)="requestGuide()">
+    <mat-icon svgIcon="help" />
+    <span>Guida</span>
+  </button>
   <a mat-menu-item routerLink="/about">
     <mat-icon svgIcon="info" />
     <span>Informazioni</span>
@@ -60,7 +66,7 @@
   </button>
 </mat-menu>
 
-<main>
+<main data-guide="notes">
   <!-- Filtri attivi, subito sotto la ricerca: la X di ciascuno lo toglie. -->
   @if (filters.active()) {
     <mat-chip-set class="active-filters" aria-label="Filtri attivi">
@@ -165,10 +171,10 @@
         }
       }
     }
-  } @else if (store.loadFailed()) {
+  } @else if (store.loadFailed() || registerFailed()) {
     <div class="page-state" role="alert">
       <p class="error"><mat-icon svgIcon="error" />Impossibile caricare le note.</p>
-      <button mat-flat-button (click)="store.refresh()">Riprova</button>
+      <button mat-flat-button (click)="retry()">Riprova</button>
     </div>
   } @else {
     <div class="page-state" aria-live="polite">
@@ -190,6 +196,7 @@
       mat-icon-button
       type="button"
       class="filters-button"
+      data-guide="filters"
       aria-label="Filtri"
       aria-controls="note-filters"
       [class.active]="filtersOpen() || filters.active()"

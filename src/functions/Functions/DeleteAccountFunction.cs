@@ -29,7 +29,7 @@ public sealed class DeleteAccountFunction(
     {
         var entraObjectId = currentUser.RequiredEntraObjectId;
 
-        // Creato da UserProvisioningMiddleware prima di questa funzione.
+        // Garantito da UserRegistrationMiddleware prima di questa funzione.
         var userId = await db.Users
             .Where(u => u.EntraObjectId == entraObjectId)
             .Select(u => u.Id)

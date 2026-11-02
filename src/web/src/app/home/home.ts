@@ -1,5 +1,5 @@
 import { NgTemplateOutlet } from '@angular/common';
-import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
+import { Component, computed, effect, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatDialog } from '@angular/material/dialog';
@@ -11,6 +11,9 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { RouterLink } from '@angular/router';
 import { MsalService } from '@azure/msal-angular';
+import { AccountState } from '../account/account-state';
+import { Me } from '../account/me-api';
+import { GuideTour } from '../guide/guide-tour';
 import { ListGroup, listGroup, NoteDatePipe } from '../notes/note-date';
 import { RecordsApi, RecordSummary } from '../records/records-api';
 import { RecordsStore } from '../records/records-store';
@@ -61,6 +64,8 @@ import { NoteFiltersPanel } from './note-filters-panel';
 })
 export class Home implements OnInit, OnDestroy {
   private readonly msal = inject(MsalService);
+  private readonly account = inject(AccountState);
+  private readonly guide = inject(GuideTour);
   private readonly api = inject(RecordsApi);
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
@@ -97,12 +102,73 @@ export class Home implements OnInit, OnDestroy {
     (r: RecordSummary) => r.recordUid,
   );
 
+  /** `/me` non riuscita: la lista non si carica finché l'utente non risulta registrato. */
+  protected readonly registerFailed = signal(false);
+
+  /** "Guida" scelta dal menu utente: parte alla chiusura del menu, dopo che il focus è tornato all'avatar. */
+  private guideRequested = false;
+  private destroyed = false;
+
+  constructor() {
+    // Al primo accesso della sessione, e di nuovo se una chiamata risponde che l'utente non è registrato
+    // (AccountState).
+    effect(() => {
+      if (this.account.me() === null) {
+        void this.register();
+      }
+    });
+  }
+
   ngOnInit(): void {
-    this.store.start();
+    // Utente già registrato in questa sessione: la lista parte subito, senza chiamare /me.
+    if (this.account.me() !== null) {
+      this.store.start();
+    }
   }
 
   ngOnDestroy(): void {
+    this.destroyed = true;
     this.store.stop();
+  }
+
+  protected retry(): void {
+    if (this.registerFailed()) {
+      void this.register();
+    } else {
+      void this.store.refresh();
+    }
+  }
+
+  protected requestGuide(): void {
+    this.guideRequested = true;
+  }
+
+  protected onUserMenuClosed(): void {
+    if (this.guideRequested) {
+      this.guideRequested = false;
+      this.guide.start();
+    }
+  }
+
+  private async register(): Promise<void> {
+    this.registerFailed.set(false);
+    let me: Me;
+    try {
+      me = await this.account.ensureRegistered();
+    } catch (err) {
+      console.error('Registrazione dell’utente non riuscita', err);
+      this.registerFailed.set(true);
+      return;
+    }
+    if (this.destroyed) {
+      return;
+    }
+    // Con la homepage già aperta start() non ricarica: refresh() aggiorna subito (una sola richiesta).
+    this.store.start();
+    void this.store.refresh();
+    if (me.showGuide) {
+      void this.guide.offer();
+    }
   }
 
   /** Cestino scoperto dallo scorrimento: chiede conferma; annullando la nota torna al suo posto. */

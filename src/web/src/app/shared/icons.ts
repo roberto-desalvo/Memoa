@@ -13,6 +13,7 @@ const ICONS: Record<string, string> = {
   settings:
     '<path d="M4 6h8M18 6h2M4 12h2M12 12h8M4 18h10" /><circle cx="15" cy="6" r="3" />' +
     '<circle cx="9" cy="12" r="3" /><circle cx="17" cy="18" r="3" />',
+  help: '<circle cx="12" cy="12" r="9" /><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17v.01" />',
   info: '<circle cx="12" cy="12" r="9" /><path d="M12 11v5.5M12 7.5v.01" />',
   logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />',
   audio: '<path d="M4 10v4M8 7v10M12 4v16M16 8v8M20 10v4" />',
