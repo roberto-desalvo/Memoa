@@ -1,9 +1,28 @@
-<mat-toolbar class="page-header">
-  <a mat-icon-button routerLink="/" aria-label="Torna alle note">
-    <mat-icon svgIcon="back" />
-  </a>
-  <h1>Tag</h1>
-</mat-toolbar>
+<!-- Con tag selezionati l'intestazione mostra quanti sono e il cestino, sopra lo strato di selezione. -->
+@if (selection.selecting()) {
+  <mat-toolbar class="page-header selection-header">
+    <button mat-icon-button aria-label="Annulla la selezione" (click)="selection.clear()">
+      <mat-icon svgIcon="close" />
+    </button>
+    <h1 class="selection-count" aria-live="polite">
+      {{
+        selection.selected().length === 1
+          ? '1 tag selezionato'
+          : selection.selected().length + ' tag selezionati'
+      }}
+    </h1>
+    <button mat-icon-button aria-label="Elimina i tag selezionati" (click)="deleteSelected()">
+      <mat-icon svgIcon="delete" />
+    </button>
+  </mat-toolbar>
+} @else {
+  <mat-toolbar class="page-header">
+    <a mat-icon-button routerLink="/" aria-label="Torna alle note">
+      <mat-icon svgIcon="back" />
+    </a>
+    <h1>Tag</h1>
+  </mat-toolbar>
+}
 
 @if (tags(); as tags) {
   @if (tags.length === 0) {
@@ -22,28 +41,59 @@
     </div>
     <ul class="note-list">
       @for (tag of tags; track tag.tagUid) {
-        <li class="tag-item">
-          <a class="note-link tag-link" [routerLink]="['/tags', tag.tagUid]">
-            <span class="title strong" [class.muted]="!tag.isActive">{{ tag.name }}</span>
-            @if (tag.description) {
-              <span class="description text-secondary muted">{{ tag.description }}</span>
-            }
-            <span class="meta">
-              <span class="text-label muted">
-                {{ countLabel(tag.recordCount) }}{{ tag.isActive ? '' : ' · Disattivato' }}
-              </span>
-              @if (tag.status === 'Assigning') {
-                <span class="status"><mat-icon svgIcon="pending" />Assegnazione in corso</span>
+        <li
+          appSwipeReveal
+          [swipeDisabled]="selection.selecting()"
+          [open]="selection.isSwiped(tag)"
+          (openChange)="selection.setSwiped(tag, $event)"
+        >
+          <!-- Spazio scoperto scorrendo il tag verso destra: il cestino. -->
+          <button
+            type="button"
+            class="row-delete"
+            data-swipe-action
+            aria-label="Elimina il tag"
+            [tabindex]="selection.isSwiped(tag) ? 0 : -1"
+            (click)="deleteSwiped(tag)"
+          >
+            <mat-icon svgIcon="delete" />
+          </button>
+          <!--
+            La riga scorre con il collegamento e l'interruttore. Con la selezione attiva il tap sulla riga
+            aggiunge o toglie il tag dalla selezione, non lo apre, e l'interruttore è disattivato.
+          -->
+          <div
+            class="swipe-row tag-row"
+            [class.selected]="selection.isSelected(tag)"
+            appLongPress
+            (longPress)="selection.select(tag)"
+            (click)="selection.selecting() && selection.toggle(tag)"
+          >
+            <a
+              class="note-link tag-link"
+              [routerLink]="selection.selecting() ? null : ['/tags', tag.tagUid]"
+            >
+              <span class="title strong" [class.muted]="!tag.isActive">{{ tag.name }}</span>
+              @if (tag.description) {
+                <span class="description text-secondary muted">{{ tag.description }}</span>
               }
-            </span>
-          </a>
-          <mat-slide-toggle
-            class="toggle"
-            [checked]="tag.isActive"
-            [disabled]="toggling().has(tag.tagUid)"
-            [attr.aria-label]="'Assegnazione automatica di ' + tag.name"
-            (change)="setActive(tag, $event.checked)"
-          />
+              <span class="meta">
+                <span class="text-label muted">
+                  {{ countLabel(tag.recordCount) }}{{ tag.isActive ? '' : ' · Disattivato' }}
+                </span>
+                @if (tag.status === 'Assigning') {
+                  <span class="status"><mat-icon svgIcon="pending" />Assegnazione in corso</span>
+                }
+              </span>
+            </a>
+            <mat-slide-toggle
+              class="toggle"
+              [checked]="tag.isActive"
+              [disabled]="toggling().has(tag.tagUid) || selection.selecting()"
+              [attr.aria-label]="'Assegnazione automatica di ' + tag.name"
+              (change)="setActive(tag, $event.checked)"
+            />
+          </div>
         </li>
       }
     </ul>
@@ -60,4 +110,9 @@
   <div class="page-state" aria-live="polite">
     <mat-spinner diameter="32" aria-label="Caricamento dei tag" />
   </div>
+}
+
+<!-- Con la selezione attiva uno strato trasparente copre la pagina, tranne i tag e l'intestazione. -->
+@if (selection.selecting()) {
+  <app-selection-scrim (dismiss)="selection.clear()" />
 }

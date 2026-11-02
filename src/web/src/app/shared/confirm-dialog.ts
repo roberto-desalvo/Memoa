@@ -69,3 +69,21 @@ export const DELETE_NOTE_DIALOG: ConfirmDialogData = {
 export function deleteNotesDialog(count: number): ConfirmDialogData {
   return count === 1 ? DELETE_NOTE_DIALOG : { ...DELETE_NOTE_DIALOG, title: `Eliminare ${count} note?` };
 }
+
+/** Conferma dell'eliminazione di un tag, uguale nella pagina Tag e nella pagina del tag. */
+export const DELETE_TAG_DIALOG: ConfirmDialogData = {
+  title: 'Eliminare il tag?',
+  message: 'Il tag viene tolto da tutte le note. Le note non vengono eliminate.',
+  confirm: 'Elimina',
+};
+
+/** Conferma dell'eliminazione di più tag insieme dalla pagina Tag, con il numero nel titolo. */
+export function deleteTagsDialog(count: number): ConfirmDialogData {
+  return count === 1
+    ? DELETE_TAG_DIALOG
+    : {
+        title: `Eliminare ${count} tag?`,
+        message: 'I tag vengono tolti da tutte le note. Le note non vengono eliminate.',
+        confirm: 'Elimina',
+      };
+}

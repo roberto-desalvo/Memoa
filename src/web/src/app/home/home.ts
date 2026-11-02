@@ -1,4 +1,4 @@
-import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnDestroy, OnInit } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatChipListboxChange, MatChipsModule } from '@angular/material/chips';
 import { MatDialog } from '@angular/material/dialog';
@@ -10,7 +10,6 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { RouterLink } from '@angular/router';
 import { MsalService } from '@azure/msal-angular';
-import { firstValueFrom } from 'rxjs';
 import { ListGroup, listGroup, NoteDatePipe } from '../notes/note-date';
 import { RecordsApi, RecordSummary, RecordTag } from '../records/records-api';
 import { RecordsStore } from '../records/records-store';
@@ -18,8 +17,11 @@ import { NoteSearch } from '../search/note-search';
 import { SearchBar } from '../search/search-bar';
 import { AppLogo } from '../shared/app-logo';
 import { deleteNotesDialog, openConfirmDialog } from '../shared/confirm-dialog';
+import { deleteItems } from '../shared/delete-items';
+import { ListSelection } from '../shared/list-selection';
 import { LongPress } from '../shared/long-press';
 import { NoteRow } from '../shared/note-row';
+import { SelectionScrim } from '../shared/selection-scrim';
 import { SwipeReveal } from '../shared/swipe-reveal';
 import { openRecordTagsDialog } from '../tags/record-tags-dialog';
 import { TagFilter } from '../tags/tag-filter';
@@ -35,6 +37,7 @@ import { UploadQueue } from '../uploads/upload-queue';
     NoteRow,
     NoteSearch,
     SearchBar,
+    SelectionScrim,
     SwipeReveal,
     MatButtonModule,
     MatChipsModule,
@@ -48,8 +51,8 @@ import { UploadQueue } from '../uploads/upload-queue';
   styleUrl: './home.scss',
   host: {
     class: 'page',
-    '[class.selecting]': 'selecting()',
-    '(document:keydown.escape)': 'clearSelection(); swiped.set(null)',
+    '[class.selecting]': 'selection.selecting()',
+    '(document:keydown.escape)': 'selection.dismiss()',
   },
 })
 export class Home implements OnInit, OnDestroy {
@@ -94,18 +97,11 @@ export class Home implements OnInit, OnDestroy {
     );
   });
 
-  /**
-   * Record selezionati: il primo con la pressione prolungata, gli altri con un tocco (o un'altra
-   * pressione prolungata). Un record che non è più nella lista sparisce dalla selezione.
-   */
-  private readonly selectedUids = signal<ReadonlySet<string>>(new Set());
-  protected readonly selected = computed(() =>
-    (this.store.records() ?? []).filter((r) => this.selectedUids().has(r.recordUid)),
+  /** Note selezionate con la pressione prolungata e nota scorsa verso destra, con il cestino scoperto. */
+  protected readonly selection = new ListSelection(
+    () => this.store.records() ?? [],
+    (r: RecordSummary) => r.recordUid,
   );
-  protected readonly selecting = computed(() => this.selected().length > 0);
-
-  /** Nota scorsa verso destra, con il cestino scoperto: una alla volta. */
-  protected readonly swiped = signal<string | null>(null);
 
   ngOnInit(): void {
     this.store.start();
@@ -115,47 +111,14 @@ export class Home implements OnInit, OnDestroy {
     this.store.stop();
   }
 
-  /** Lo strato sopra la pagina chiude la selezione solo con un tocco iniziato su di esso. */
-  protected scrimArmed = false;
-
-  protected isSelected(record: RecordSummary): boolean {
-    return this.selectedUids().has(record.recordUid);
-  }
-
-  protected isSwiped(record: RecordSummary): boolean {
-    return this.swiped() === record.recordUid;
-  }
-
   /** Cestino scoperto dallo scorrimento: chiede conferma; annullando la nota torna al suo posto. */
   protected async deleteSwiped(record: RecordSummary): Promise<void> {
     await this.delete([record]);
-    this.swiped.set(null);
-  }
-
-  /** Aggiunge il record alla selezione (pressione prolungata). */
-  protected select(record: RecordSummary): void {
-    this.scrimArmed = false;
-    this.swiped.set(null);
-    this.selectedUids.update((uids) => new Set(uids).add(record.recordUid));
-  }
-
-  /** Tocco su un record mentre la selezione è attiva: lo aggiunge o lo toglie. */
-  protected toggle(record: RecordSummary): void {
-    this.selectedUids.update((uids) => {
-      const next = new Set(uids);
-      if (!next.delete(record.recordUid)) {
-        next.add(record.recordUid);
-      }
-      return next;
-    });
-  }
-
-  protected clearSelection(): void {
-    this.selectedUids.set(new Set());
+    this.selection.swiped.set(null);
   }
 
   protected async deleteSelected(): Promise<void> {
-    const records = this.selected();
+    const records = this.selection.selected();
     if (records.length > 0) {
       await this.delete(records);
     }
@@ -163,9 +126,9 @@ export class Home implements OnInit, OnDestroy {
 
   /** Tag delle note selezionate; dopo il salvataggio la selezione si chiude. */
   protected async editSelectedTags(): Promise<void> {
-    const records = this.selected();
+    const records = this.selection.selected();
     if (records.length > 0 && (await openRecordTagsDialog(this.dialog, records))) {
-      this.clearSelection();
+      this.selection.clear();
     }
   }
 
@@ -187,25 +150,13 @@ export class Home implements OnInit, OnDestroy {
     if ((await openConfirmDialog(this.dialog, deleteNotesDialog(records.length))) !== 'confirm') {
       return;
     }
-    const results = await Promise.allSettled(
-      records.map((r) => firstValueFrom(this.api.delete(r.recordUid))),
+    const deleted = await deleteItems(
+      records,
+      (r) => this.api.delete(r.recordUid),
+      this.snackBar,
+      (count) => (count === 1 ? '1 nota' : `${count} note`),
     );
-    let failed = 0;
-    results.forEach((result, i) => {
-      if (result.status === 'fulfilled') {
-        this.store.remove(records[i].recordUid);
-      } else {
-        failed++;
-        console.error('Eliminazione non riuscita', result.reason);
-      }
-    });
-    if (failed > 0) {
-      this.snackBar.open(
-        failed === records.length
-          ? 'Eliminazione non riuscita. Riprova più tardi.'
-          : `Non è stato possibile eliminare ${failed === 1 ? '1 nota' : `${failed} note`} su ${records.length}. Riprova più tardi.`,
-      );
-    }
+    deleted.forEach((r) => this.store.remove(r.recordUid));
   }
 }
 

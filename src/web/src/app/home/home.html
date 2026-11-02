@@ -1,12 +1,18 @@
 <!--
   Con note selezionate l'intestazione mostra quante sono, i tag e il cestino, sopra lo strato di selezione.
 -->
-@if (selecting()) {
+@if (selection.selecting()) {
   <mat-toolbar class="page-header selection-header">
-    <button mat-icon-button aria-label="Annulla la selezione" (click)="clearSelection()">
+    <button mat-icon-button aria-label="Annulla la selezione" (click)="selection.clear()">
       <mat-icon svgIcon="close" />
     </button>
-    <h1 class="selection-count" aria-live="polite">{{ selected().length }} note selezionate</h1>
+    <h1 class="selection-count" aria-live="polite">
+      {{
+        selection.selected().length === 1
+          ? '1 nota selezionata'
+          : selection.selected().length + ' note selezionate'
+      }}
+    </h1>
     <button mat-icon-button aria-label="Tag delle note selezionate" (click)="editSelectedTags()">
       <mat-icon svgIcon="tag" />
     </button>
@@ -107,9 +113,9 @@
               @for (record of group.records; track record.recordUid) {
                 <li
                   appSwipeReveal
-                  [swipeDisabled]="selecting()"
-                  [open]="isSwiped(record)"
-                  (openChange)="swiped.set($event ? record.recordUid : null)"
+                  [swipeDisabled]="selection.selecting()"
+                  [open]="selection.isSwiped(record)"
+                  (openChange)="selection.setSwiped(record, $event)"
                 >
                   <!-- Spazio scoperto scorrendo la nota verso destra: il cestino. -->
                   <button
@@ -117,7 +123,7 @@
                     class="row-delete"
                     data-swipe-action
                     aria-label="Elimina la nota"
-                    [tabindex]="isSwiped(record) ? 0 : -1"
+                    [tabindex]="selection.isSwiped(record) ? 0 : -1"
                     (click)="deleteSwiped(record)"
                   >
                     <mat-icon svgIcon="delete" />
@@ -128,12 +134,12 @@
                     toglie la nota dalla selezione e non la apre.
                   -->
                   <a
-                    class="note-link"
-                    [class.selected]="isSelected(record)"
+                    class="note-link swipe-row"
+                    [class.selected]="selection.isSelected(record)"
                     appLongPress
-                    (longPress)="select(record)"
-                    [routerLink]="selecting() ? null : ['/records', record.recordUid]"
-                    (click)="selecting() && toggle(record)"
+                    (longPress)="selection.select(record)"
+                    [routerLink]="selection.selecting() ? null : ['/records', record.recordUid]"
+                    (click)="selection.selecting() && selection.toggle(record)"
                   >
                     <app-note-row
                       [sourceType]="record.sourceType"
@@ -167,18 +173,7 @@
   }
 </main>
 
-<!--
-  Con la selezione attiva uno strato trasparente copre la pagina (intestazione con la ricerca, filtri,
-  barra di navigazione): sopra restano solo le note, che si aggiungono o tolgono dalla selezione, e il cestino
-  nell'intestazione. Toccando altrove si chiude la selezione. Conta solo un tocco
-  iniziato sullo strato, non il rilascio della pressione che ha selezionato la nota.
--->
-@if (selecting()) {
-  <div
-    class="selection-scrim"
-    aria-hidden="true"
-    (pointerdown)="scrimArmed = true"
-    (click)="scrimArmed && clearSelection()"
-    (contextmenu)="$event.preventDefault(); clearSelection()"
-  ></div>
+<!-- Con la selezione attiva uno strato trasparente copre la pagina, tranne le note e l'intestazione. -->
+@if (selection.selecting()) {
+  <app-selection-scrim (dismiss)="selection.clear()" />
 }

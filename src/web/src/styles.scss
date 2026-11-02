@@ -376,6 +376,79 @@ p {
   }
 }
 
+// Voce di una lista con scorrimento ed eliminazione (homepage, pagina Tag; direttiva appSwipeReveal sul
+// li): la riga (swipe-row) copre il cestino e lo scopre scorrendo verso destra (--swipe-x); lo scorrimento
+// verticale resta della pagina.
+.swipe-item {
+  position: relative;
+  overflow: hidden;
+  touch-action: pan-y;
+}
+
+// Riga selezionabile con la pressione prolungata: niente menu del browser né selezione del testo.
+.swipe-row {
+  position: relative;
+  z-index: 1;
+  background: var(--mat-sys-surface-container-lowest);
+  transform: translateX(var(--swipe-x, 0));
+  transition: transform 200ms ease;
+  -webkit-touch-callout: none;
+  user-select: none;
+
+  // Le righe selezionate hanno lo stesso sfondo del passaggio del mouse: sul telefono l'ultima riga toccata
+  // resta in :hover, e con due colori diversi si distinguerebbe dalle altre selezionate.
+  &:hover,
+  &.selected {
+    background: var(--mat-sys-surface-container-low);
+  }
+
+  .swiping > & {
+    transition: none;
+  }
+
+  // Con la selezione attiva le righe restano sopra lo strato, per aggiungerle o toglierle con un tocco.
+  .page.selecting & {
+    z-index: 31;
+  }
+}
+
+// Cestino nello spazio a sinistra lasciato dallo scorrimento, nel rosso del tema.
+.row-delete {
+  position: absolute;
+  inset: 0 auto 0 0;
+  display: grid;
+  place-items: center;
+  width: 72px;
+  padding: 0;
+  color: var(--mat-sys-error);
+  background: color-mix(in srgb, var(--mat-sys-error) 10%, var(--mat-sys-surface-container-lowest));
+  border: 0;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--mat-sys-error);
+    outline-offset: -2px;
+  }
+}
+
+// Intestazione della selezione multipla: sopra lo strato e sopra le righe che le scorrono sotto, con il
+// numero delle voci selezionate e le azioni.
+.page-header.selection-header {
+  z-index: 32;
+}
+
+.selection-count {
+  align-self: center;
+  font-family: inherit;
+}
+
+// Strato trasparente sopra la pagina mentre la selezione è attiva (app-selection-scrim).
+.selection-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+}
+
 // Filtri per tag della homepage: i chip in una sola riga che scorre in orizzontale, senza barra.
 .tag-filters .mdc-evolution-chip-set__chips {
   flex-wrap: nowrap;

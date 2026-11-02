@@ -14,7 +14,7 @@ import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { PAGE_POLL_INTERVAL_MS } from '../config/polling';
 import { NoteDatePipe } from '../notes/note-date';
-import { openConfirmDialog } from '../shared/confirm-dialog';
+import { DELETE_TAG_DIALOG, openConfirmDialog } from '../shared/confirm-dialog';
 import { NoteRow } from '../shared/note-row';
 import {
   MAX_TAG_DESCRIPTION_LENGTH,
@@ -200,11 +200,7 @@ export class TagPage implements OnInit, OnDestroy {
     if (!tag) {
       return;
     }
-    const result = await openConfirmDialog(this.dialog, {
-      title: 'Eliminare il tag?',
-      message: 'Il tag viene tolto da tutte le note. Le note non vengono eliminate.',
-      confirm: 'Elimina',
-    });
+    const result = await openConfirmDialog(this.dialog, DELETE_TAG_DIALOG);
     if (result !== 'confirm') {
       return;
     }

@@ -6,8 +6,9 @@ export const SWIPE_REVEAL_PX = 72;
 const MOVE_TOLERANCE_PX = 10;
 
 /**
- * Scorrimento verso destra di una voce della lista: sull'elemento della voce (il li), che contiene la riga
- * e l'azione scoperta (marcata con data-swipe-action, il cestino in homepage). La riga si sposta con la
+ * Scorrimento verso destra di una voce della lista: sull'elemento della voce (il li, classe swipe-item),
+ * che contiene la riga (classe swipe-row) e l'azione scoperta (marcata con data-swipe-action, il cestino
+ * row-delete in homepage e nella pagina Tag); gli stili sono in styles.scss. La riga si sposta con la
  * variabile CSS --swipe-x. Da chiusa, rilasciata oltre metà dello spazio, la voce resta aperta; da aperta
  * basta uno scorrimento verso sinistra per chiuderla. Lo scorrimento verticale resta della pagina. La voce
  * aperta si chiude anche toccando la riga (che allora non si apre) o un punto qualsiasi fuori dalla voce;
@@ -16,6 +17,7 @@ const MOVE_TOLERANCE_PX = 10;
 @Directive({
   selector: '[appSwipeReveal]',
   host: {
+    class: 'swipe-item',
     '(pointerdown)': 'start($event)',
     '(pointermove)': 'move($event)',
     '(pointerup)': 'end()',
