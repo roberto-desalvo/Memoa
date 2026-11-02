@@ -41,6 +41,9 @@ param outputContainerName string
 @description('Durata massima di un\'esecuzione in secondi.')
 param replicaTimeout int
 
+@description('Variabili d\'ambiente specifiche del job ({ name, value }), oltre a quelle comuni.')
+param env array = []
+
 @description('Esecuzioni contemporanee massime.')
 param maxExecutions int = 2
 
@@ -116,7 +119,7 @@ resource job 'Microsoft.App/jobs@2025-01-01' = {
             cpu: json(cpu)
             memory: memory
           }
-          env: [
+          env: concat([
             { name: 'AZURE_CLIENT_ID', value: identityClientId }
             { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: appInsightsConnectionString }
             { name: 'DataStorage__BlobServiceUri', value: dataBlobEndpoint }
@@ -124,7 +127,7 @@ resource job 'Microsoft.App/jobs@2025-01-01' = {
             { name: 'Job__Queue', value: queueName }
             { name: 'Job__InputContainer', value: inputContainerName }
             { name: 'Job__OutputContainer', value: outputContainerName }
-          ]
+          ], env)
         }
       ]
     }

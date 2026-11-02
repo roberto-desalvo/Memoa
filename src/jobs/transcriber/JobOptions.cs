@@ -33,8 +33,18 @@ public sealed class JobOptions
     public string Queue { get; set; } = string.Empty;
 
     /// <summary>
+    /// Motore di trascrizione, impostato dal target del Dockerfile: ogni immagine contiene solo i modelli
+    /// del proprio motore.
+    /// </summary>
+    [AllowedValues(WhisperEngineName, ParakeetEngineName)]
+    public string Engine { get; set; } = WhisperEngineName;
+
+    public const string WhisperEngineName = "whisper";
+    public const string ParakeetEngineName = "parakeet";
+
+    /// <summary>
     /// Durata massima accettata, in secondi: le registrazioni più lunghe vengono rifiutate con l'esito
-    /// "audio_too_long" senza trascriverle (su CPU circa 3 volte il tempo reale).
+    /// "audio_too_long" senza trascriverle (Whisper su CPU impiega circa 3 volte il tempo reale).
     /// </summary>
     [Range(1, 30 * 60)]
     public int MaxDurationSeconds { get; set; } = 10 * 60;
@@ -98,4 +108,43 @@ public sealed class WhisperOptions
         ["it"] = "Allora... oggi è stata una giornata lunga, ma alla fine è andata bene! E domani, invece, cosa farò? Vedremo.",
         ["en"] = "So... today was a long day, but in the end it went well! And tomorrow, though, what will I do? We'll see.",
     };
+}
+
+/// <summary>Configurazione del motore Parakeet (sezione "Parakeet", percorsi impostati dal Dockerfile).</summary>
+public sealed class ParakeetOptions
+{
+    public const string SectionName = "Parakeet";
+
+    /// <summary>
+    /// Cartella del modello sherpa-onnx Parakeet TDT 0.6B v3 int8: encoder.int8.onnx, decoder.int8.onnx,
+    /// joiner.int8.onnx e tokens.txt.
+    /// </summary>
+    [Required]
+    public string ModelDirectory { get; set; } = string.Empty;
+
+    /// <summary>Modello Silero VAD (ONNX), che divide l'audio in segmenti di parlato.</summary>
+    [Required]
+    public string VadModelPath { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Modello GGML di Whisper per il rilevamento della lingua (tiny): Parakeet non restituisce la lingua
+    /// trascritta.
+    /// </summary>
+    [Required]
+    public string LanguageModelPath { get; set; } = string.Empty;
+
+    /// <summary>Probabilità minima della lingua rilevata; sotto questa soglia si usa la lingua dell'account.</summary>
+    [Range(0.0, 1.0)]
+    public double LanguageProbabilityThreshold { get; set; } = 0.5;
+
+    /// <summary>
+    /// Durata massima di un segmento di parlato, in secondi: oltre, la VAD lo spezza anche senza pausa.
+    /// Segmenti più lunghi danno più contesto al modello ma richiedono più memoria.
+    /// </summary>
+    [Range(5, 60)]
+    public float MaxSpeechSeconds { get; set; } = 20;
+
+    /// <summary>Thread di ONNX Runtime e di whisper.cpp; se assente, Environment.ProcessorCount.</summary>
+    [Range(1, 64)]
+    public int? Threads { get; set; }
 }

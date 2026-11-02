@@ -24,8 +24,21 @@ param sqlServerName string
 @description('Limite giornaliero di ingestione di Log Analytics in GB. La somma dei due ambienti va tenuta entro i 5 GB gratuiti al mese.')
 param logDailyCapGb string
 
-@description('Immagine del worker di trascrizione (es. ghcr.io/<owner>/memoa-transcriber:<tag>).')
+@description('Motore del job di trascrizione: sceglie quale delle due immagini usare.')
+@allowed([
+  'whisper'
+  'parakeet'
+])
+param transcriberEngine string = 'whisper'
+
+@description('Immagine del job di trascrizione con Whisper (es. ghcr.io/<owner>/memoa-transcriber:<tag>).')
 param transcriberImage string
+
+@description('Immagine del job di trascrizione con Parakeet (es. ghcr.io/<owner>/memoa-transcriber-parakeet:<tag>).')
+param transcriberParakeetImage string
+
+@description('Feature flag: con false le Functions non chiamano Azure AI Speech e ogni trascrizione va al job.')
+param useAzureSpeech bool = true
 
 @description('Utente GitHub proprietario del token per GHCR. Vuoto se le immagini sono pubbliche.')
 param ghcrUsername string = ''
@@ -239,6 +252,7 @@ module functionApp 'modules/function-app.bicep' = {
     openAiEndpoint: openAi.outputs.endpoint
     embeddingDeploymentName: openAi.outputs.embeddingDeploymentName
     speechEndpoint: speech.outputs.endpoint
+    speechEnabled: useAzureSpeech
     maxAudioDurationMinutes: maxAudioDurationMinutes
     authAuthority: authAuthority
     authAudience: authAudience
@@ -288,8 +302,9 @@ module containerAppsEnv 'modules/container-apps-env.bicep' = {
   }
 }
 
-// Ripiego della trascrizione: coda di ripiego (scritta dalla Function se Azure AI Speech non risponde) →
-// Whisper sulla copia normalizzata → file di testo nel contenitore delle trascrizioni.
+// Ripiego della trascrizione: coda di ripiego (scritta dalla Function se Azure AI Speech non risponde o è
+// disattivato) → Whisper o Parakeet sulla copia normalizzata → file di testo nel contenitore delle
+// trascrizioni. Il motore è nell'immagine: transcriberEngine sceglie quale usare.
 module transcriber 'modules/queue-job.bicep' = {
   scope: rg
   name: 'transcriber'
@@ -301,7 +316,7 @@ module transcriber 'modules/queue-job.bicep' = {
     environmentId: containerAppsEnv.outputs.id
     identityId: identities.outputs.transcriberIdentityId
     identityClientId: identities.outputs.transcriberClientId
-    image: transcriberImage
+    image: transcriberEngine == 'parakeet' ? transcriberParakeetImage : transcriberImage
     cpu: transcriberCpu
     memory: transcriberMemory
     ghcrUsername: ghcrUsername
@@ -313,8 +328,16 @@ module transcriber 'modules/queue-job.bicep' = {
     queueName: dataStorage.outputs.transcriptionFallbackQueueName
     inputContainerName: dataStorage.outputs.audioContainerName
     outputContainerName: dataStorage.outputs.transcriptsContainerName
-    // Registrazioni fino a 10 minuti su CPU (circa 3 volte il tempo reale), con margine. Deve restare sotto
-    // Job__VisibilityTimeout del worker (65 minuti).
+    // Whisper impiega circa 3 volte il tempo reale: solo registrazioni fino a 10 minuti. Parakeet, molto più
+    // veloce, accetta la durata massima dell'app.
+    env: [
+      {
+        name: 'Job__MaxDurationSeconds'
+        value: string(transcriberEngine == 'parakeet' ? maxAudioDurationMinutes * 60 : 600)
+      }
+    ]
+    // 10 minuti di audio con Whisper, con margine. Deve restare sotto Job__VisibilityTimeout del worker
+    // (65 minuti).
     replicaTimeout: 3600
   }
 }

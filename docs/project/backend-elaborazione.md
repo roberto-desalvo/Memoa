@@ -48,7 +48,7 @@ Negli esiti `.error.json` il codice d'errore sta nei metadati del blob.
 |---|---|---|
 | `normalization` | URL dell'originale | `NormalizeRecord` |
 | `transcription` | `TranscriptionRequest`: URL della copia `.opus` e lingua dell'account | `TranscribeRecord` |
-| `transcription-fallback` | stesso `TranscriptionRequest` | job di trascrizione (Whisper) |
+| `transcription-fallback` | stesso `TranscriptionRequest` | job di trascrizione (Whisper o Parakeet) |
 | `indexing` | RecordUid | `IndexRecord` |
 | `tagging` | `TaggingRequest`: RecordUid oppure TagUid | `TagRecords` |
 | `upload-expiry` | RecordUid, invisibile fino alla scadenza del SAS + 15 minuti | `ExpireAudioUpload` |
@@ -64,8 +64,8 @@ Negli esiti `.error.json` il codice d'errore sta nei metadati del blob.
 3. **`ValidateUpload`** (Event Grid): controlla la dimensione senza leggere il file (vuoto o oltre 350 MB), collega il file come allegato e scrive l'URL su `normalization`. Se il file non è valido porta il record a "in errore" e non accoda nulla; il file resta, per poterlo analizzare.
 4. **`NormalizeRecord`** (coda): `ffmpeg` verifica formato reale e durata e crea la copia Ogg Opus in `audio`. Se il file va scartato scrive invece l'esito `.error.json`.
 5. **`EnqueueTranscription`** (Event Grid): per la copia `.opus` salva percorso e durata e scrive su `transcription`; per l'esito porta il record a "in errore".
-6. **`TranscribeRecord`** (coda): invia la copia ad Azure AI Speech con timeout di 30 s + 10 s per minuto di audio, salva testo (`Text` e `OriginalTranscript`) e lingua nel database e scrive il RecordUid su `indexing`. Se il servizio non risponde entro il timeout, restituisce 429/413 o fallisce all'ultimo tentativo, inoltra il messaggio su `transcription-fallback`.
-7. **Ripiego**: il job di trascrizione (Whisper, solo audio fino a 10 minuti) scrive `.txt` o `.error.json` in `transcripts`. **`EnqueueIndexing`** (Event Grid) salva testo e lingua e scrive su `indexing`, oppure porta il record a "in errore".
+6. **`TranscribeRecord`** (coda): invia la copia ad Azure AI Speech con timeout di 30 s + 10 s per minuto di audio, salva testo (`Text` e `OriginalTranscript`) e lingua nel database e scrive il RecordUid su `indexing`. Se il servizio non risponde entro il timeout, restituisce 429/413 o fallisce all'ultimo tentativo, inoltra il messaggio su `transcription-fallback`. Con la feature flag `Speech__Enabled` a `false` (`useAzureSpeech` in `infra/main.bicep`) non chiama il servizio e inoltra subito ogni messaggio, dopo aver controllato record e copia normalizzata.
+7. **Ripiego**: il job di trascrizione (Whisper, solo audio fino a 10 minuti, oppure Parakeet, fino alla durata massima dell'app) scrive `.txt` o `.error.json` in `transcripts`. **`EnqueueIndexing`** (Event Grid) salva testo e lingua e scrive su `indexing`, oppure porta il record a "in errore".
 8. **`IndexRecord`** (coda): divide il testo in frammenti, ne calcola gli embedding (nella stessa richiesta anche quello del titolo), li sostituisce in una transazione e porta il record a "pronto". Poi scrive il RecordUid su `tagging` (anche per un messaggio duplicato su un record già pronto, così un errore di scrittura sulla coda dopo il salvataggio non fa perdere i tag).
 9. **`TagRecords`** (coda): assegna i tag automatici (vedi [Tag](#tag)).
 
@@ -162,7 +162,7 @@ Entrambe passano dalla coda di trascrizione, quindi prima Azure AI Speech e poi,
 
 ## Registry delle immagini
 
-**Decisione**: GitHub Container Registry, immagine privata del job di trascrizione (Whisper e modello).
+**Decisione**: GitHub Container Registry, immagini private del job di trascrizione, una per motore con i propri modelli: `memoa-transcriber` (Whisper) e `memoa-transcriber-parakeet`. Il motore in uso lo sceglie `transcriberEngine` nel deploy dell'infrastruttura; la pipeline aggiorna il job solo con l'immagine dello stesso motore.
 
 - Gratuito a questi volumi. Push dalle GitHub Actions con `GITHUB_TOKEN`.
 - Container Apps non supporta le identità gestite su registry diversi da ACR: il pull usa un personal access token con scope `read:packages`, salvato in Key Vault.

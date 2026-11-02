@@ -4,7 +4,7 @@
 
 Trascrizione degli audio, embedding per la ricerca semantica e modelli per le funzionalità avanzate. Il flusso che collega questi passaggi è in [backend-elaborazione.md](backend-elaborazione.md).
 
-Contenuti: [Trascrizione](#trascrizione) · [Ripiego con Whisper](#ripiego-con-whisper) · [Embedding](#embedding) · [Da definire](#da-definire) · [Appendice: alternative scartate](#appendice-alternative-scartate)
+Contenuti: [Trascrizione](#trascrizione) · [Job di trascrizione](#job-di-trascrizione) · [Embedding](#embedding) · [Da definire](#da-definire) · [Appendice: alternative scartate](#appendice-alternative-scartate)
 
 ---
 
@@ -13,6 +13,8 @@ Contenuti: [Trascrizione](#trascrizione) · [Ripiego con Whisper](#ripiego-con-w
 ![Trascrizione di una nota audio](../schemas/trascrizione.svg)
 
 **Decisione**: Azure AI Speech, fast transcription, risorsa S0 in West Europe, chiamata da `TranscribeRecord` dietro l'interfaccia `ITranscriber`.
+
+- **Feature flag**: `useAzureSpeech` nei `.bicepparam` (`Speech__Enabled` nelle Functions, predefinito `true`). Con `false`, `TranscribeRecord` non chiama il servizio e inoltra ogni messaggio al [job di trascrizione](#job-di-trascrizione), dopo aver controllato record e copia normalizzata. La risorsa Speech resta distribuita: senza chiamate non costa nulla.
 
 - **Chiamata**: REST diretta (API `2024-11-15`), senza SDK e senza retry interni: i retry li fa la coda. Invia la copia Ogg Opus normalizzata (circa 7,5 MB per 30 minuti), ben sotto i limiti del servizio.
 - **Lingua**: locale candidati `it-IT` ed `en-US`. Vale la lingua con più parlato tra le frasi riconosciute; se nessuna frase ha un locale candidato, vale la lingua dell'account.
@@ -24,15 +26,28 @@ Contenuti: [Trascrizione](#trascrizione) · [Ripiego con Whisper](#ripiego-con-w
 
 ---
 
-## Ripiego con Whisper
+## Job di trascrizione
 
-**Decisione**: Container Apps Job con Whisper self-hosted, avviato dalla coda `transcription-fallback` quando Azure AI Speech non risponde entro il timeout, risponde 429/413 o fallisce all'ultimo tentativo.
+**Decisione**: Container Apps Job con un motore self-hosted su CPU, avviato dalla coda `transcription-fallback` quando Azure AI Speech non risponde entro il timeout, risponde 429/413 o fallisce all'ultimo tentativo, oppure per ogni trascrizione se Azure AI Speech è disattivato. Due motori, ciascuno in una propria immagine; quello in uso lo sceglie `transcriberEngine` nei `.bicepparam` (predefinito `whisper`). Il motore sta dietro l'interfaccia `ITranscriptionEngine`.
 
-- **Motore**: Whisper.net (whisper.cpp su CPU), modello large-v3-turbo quantizzato q5_0 (GGML), incluso nell'immagine. Il motore sta dietro l'interfaccia `ITranscriptionEngine`.
-- **Risorse**: 4 vCPU e 8 GiB. Misurato circa 3 volte il tempo reale (12 minuti per 4 minuti di audio), quindi accetta solo registrazioni fino a 10 minuti: le più lunghe vanno in errore con `audio_too_long`.
+- **Risorse**: 4 vCPU e 8 GiB (massimo del profilo Consumption), dentro il grant gratuito di Container Apps (180.000 vCPU-s al mese per sottoscrizione): il tempo di elaborazione è anche il costo.
+- **Esito**: `.txt` con lingua, lingua rilevata, probabilità e motore nei metadati, oppure `.error.json` con il codice della fase non riuscita.
+
+### Whisper
+
+- **Motore**: Whisper.net (whisper.cpp su CPU), modello large-v3-turbo quantizzato q5_0 (GGML), incluso nell'immagine `memoa-transcriber`.
+- **Velocità**: misurato circa 3 volte il tempo reale con 4 vCPU (12 minuti per 4 minuti di audio), quindi accetta solo registrazioni fino a 10 minuti: le più lunghe vanno in errore con `audio_too_long`. Il collo di bottiglia è l'encoder, identico a quello di large-v3, più un passaggio in più per il rilevamento della lingua.
 - **Lingua**: rilevata tra italiano e inglese sui primi 30 secondi. Sotto la probabilità minima (0,5, da tarare) vale la lingua dell'account.
 - **Punteggiatura**: un prompt iniziale per lingua, breve e punteggiato, perché Whisper senza prompt non mette la punteggiatura.
-- **Esito**: `.txt` con lingua, lingua rilevata, probabilità e motore nei metadati, oppure `.error.json` con il codice della fase non riuscita.
+
+### Parakeet
+
+- **Motore**: NVIDIA Parakeet TDT 0.6B v3 (25 lingue europee, tra cui italiano e inglese), versione int8 per sherpa-onnx (ONNX Runtime su CPU, pacchetto NuGet `org.k2fsa.sherpa.onnx`), incluso nell'immagine `memoa-transcriber-parakeet`. Licenza CC-BY-4.0.
+- **Velocità**: prova in locale con 4 thread su una CPU da portatile (Ryzen 7 3700U), sugli stessi audio sintetici in italiano: Parakeet 0,4-0,7 volte la durata dell'audio (157 s in 64 s, 50 s in 34 s, rilevamento della lingua incluso), Whisper large-v3-turbo oltre 6 volte (interrotto dopo 5,5 minuti su 50 s di audio). Almeno 10 volte più veloce di Whisper; i tempi assoluti su Container Apps vanno misurati.
+- **Durata**: accetta la durata massima dell'app (30 minuti). La VAD Silero divide l'audio in segmenti di parlato di al più 20 secondi, trascritti uno alla volta: il modello ONNX usa l'attention completa, quindi la memoria crescerebbe con la durata.
+- **Lingua**: Parakeet non restituisce la lingua trascritta: la rileva Whisper tiny tra italiano e inglese sui primi 30 secondi, con la stessa soglia e lo stesso ripiego sulla lingua dell'account di Whisper.
+- **Punteggiatura**: nativa, con maiuscole, senza prompt.
+- **Da verificare**: qualità sulle registrazioni reali in italiano e velocità sulle vCPU di Container Apps.
 
 ---
 
@@ -61,7 +76,7 @@ Contenuti: [Trascrizione](#trascrizione) · [Ripiego con Whisper](#ripiego-con-w
 
 **Azure AI Speech batch**: 0,18 $ per ora, ma asincrona, quindi non adatta alla chiamata diretta da una Function.
 
-**Whisper come motore principale**: troppo lento su CPU (circa 3 volte il tempo reale) e senza punteggiatura senza prompt. Le GPU serverless di Container Apps (T4, A100) lo accelererebbero, ma richiedono quota GPU, un'immagine CUDA di diversi GB e cold start più lunghi: non convenienti a questi volumi.
+**Whisper come motore principale**: troppo lento su CPU (circa 3 volte il tempo reale) e senza punteggiatura senza prompt. Parakeet, molto più veloce, può invece diventarlo disattivando Azure AI Speech con la feature flag. Le GPU serverless di Container Apps (T4, A100) lo accelererebbero, ma richiedono quota GPU, un'immagine CUDA di diversi GB e cold start più lunghi: non convenienti a questi volumi.
 
 **Mistral Voxtral** (Voxtral Mini Transcribe 3, 0,0035 $ al minuto, endpoint UE): nel piano gratuito le richieste possono essere usate per addestrare i modelli; da agosto 2026 l'accesso API è limitato ai clienti business.
 

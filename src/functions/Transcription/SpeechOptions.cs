@@ -14,4 +14,10 @@ public sealed class SpeechOptions
     /// <summary>Endpoint con il sottodominio personalizzato, es. https://&lt;risorsa&gt;.cognitiveservices.azure.com/.</summary>
     [Required]
     public Uri? Endpoint { get; set; }
+
+    /// <summary>
+    /// Feature flag: se false la Function di trascrizione non chiama Azure AI Speech e inoltra ogni
+    /// messaggio al job di trascrizione (coda di ripiego). Impostata da useAzureSpeech in infra/main.bicep.
+    /// </summary>
+    public bool Enabled { get; set; } = true;
 }

@@ -1,4 +1,6 @@
 # Aggiorna l'immagine di un Container Apps Job su un ambiente. Chiamato dalla pipeline dell'immagine del job.
+# Riceve le immagini di tutte le varianti (es. una per motore di trascrizione) e usa quella dello stesso
+# repository dell'immagine attuale del job: la variante la sceglie il deploy dell'infrastruttura.
 # Le esecuzioni già avviate finiscono con l'immagine precedente; le successive usano la nuova.
 name: Container Apps Job (deploy)
 
@@ -12,8 +14,8 @@ on:
         description: Nome breve del job (es. transcriber), come in infra/modules/queue-job.bicep.
         type: string
         required: true
-      image:
-        description: Immagine completa di tag (es. ghcr.io/<owner>/memoa-transcriber:<sha>).
+      images:
+        description: Immagini complete di tag, separate da spazi (es. ghcr.io/<owner>/memoa-transcriber:<sha>).
         type: string
         required: true
 
@@ -24,7 +26,7 @@ jobs:
     env:
       RESOURCE_GROUP: rg-memoa-${{ inputs.environment }}
       JOB_NAME: caj-memoa-${{ inputs.environment }}-${{ inputs.job }}
-      IMAGE: ${{ inputs.image }}
+      IMAGES: ${{ inputs.images }}
     steps:
       - uses: azure/login@v2
         with:
@@ -35,14 +37,31 @@ jobs:
       # PATCH del solo template, con l'immagine sostituita: l'identità della pipeline ha il ruolo
       # Container Apps Jobs Contributor sul job, ma nessun permesso di assegnare le identità gestite,
       # che "az containerapp job update" rimanderebbe nel corpo della richiesta.
+      # Senza un'immagine dello stesso repository di quella attuale (es. l'immagine segnaposto del primo
+      # deploy) il job non cambia: l'immagine si imposta con il deploy dell'infrastruttura.
       - name: Aggiornamento dell'immagine
+        id: update
         run: |
           job_url="https://management.azure.com/subscriptions/$(az account show --query id -o tsv)/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.App/jobs/$JOB_NAME?api-version=2025-01-01"
-          body=$(az rest --method get --url "$job_url" --query properties.template -o json \
-            | jq -c --arg image "$IMAGE" '{properties: {template: (.containers[0].image = $image)}}')
+          template=$(az rest --method get --url "$job_url" --query properties.template -o json)
+          current=$(jq -r '.containers[0].image' <<< "$template")
+          image=""
+          for candidate in $IMAGES; do
+            if [ "${candidate%:*}" = "${current%:*}" ]; then
+              image="$candidate"
+            fi
+          done
+          if [ -z "$image" ]; then
+            echo "::warning::Nessuna delle immagini pubblicate corrisponde a $current: job non aggiornato"
+            echo "updated=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          body=$(jq -c --arg image "$image" '{properties: {template: (.containers[0].image = $image)}}' <<< "$template")
           az rest --method patch --url "$job_url" --body "$body" --output none
+          echo "updated=true" >> "$GITHUB_OUTPUT"
 
       - name: Attesa del completamento
+        if: steps.update.outputs.updated == 'true'
         run: |
           job_id="/subscriptions/$(az account show --query id -o tsv)/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.App/jobs/$JOB_NAME"
           az resource wait --ids "$job_id" --api-version 2025-01-01 --timeout 600 \

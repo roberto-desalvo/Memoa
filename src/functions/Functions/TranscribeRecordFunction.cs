@@ -22,8 +22,9 @@ namespace Memoa.Functions.Functions;
 /// normalizzata ad Azure AI Speech e salva testo e lingua direttamente nel database, senza blob della
 /// trascrizione, poi scrive il RecordUid sulla coda di indicizzazione.
 /// Se il servizio non risponde entro il timeout, si superano i limiti o falliscono tutti i tentativi, il
-/// messaggio va invece sulla coda di ripiego, letta dal job di trascrizione con Whisper; il flusso prosegue
-/// dal blob della trascrizione (<see cref="EnqueueIndexingFunction"/>).
+/// messaggio va invece sulla coda di ripiego, letta dal job di trascrizione (Whisper o Parakeet); il flusso prosegue
+/// dal blob della trascrizione (<see cref="EnqueueIndexingFunction"/>). Con Azure AI Speech disattivato
+/// (<see cref="SpeechOptions.Enabled"/>) ogni messaggio va direttamente sulla coda di ripiego.
 /// Idempotente: la coda consegna almeno una volta; i messaggi di un record non più in elaborazione o già
 /// trascritto non richiamano il servizio.
 /// </summary>
@@ -34,6 +35,7 @@ public sealed class TranscribeRecordFunction(
     TranscriptStore transcripts,
     IOptions<ContainerOptions> containers,
     IOptions<AudioOptions> audioOptions,
+    IOptions<SpeechOptions> speechOptions,
     ILogger<TranscribeRecordFunction> logger)
 {
     /// <summary>Uguale a extensions.queues.maxDequeueCount in host.json.</summary>
@@ -116,28 +118,38 @@ public sealed class TranscribeRecordFunction(
             return new TranscriptionOutput { IndexingMessage = record.RecordUid.ToString("D") };
         }
 
-        BinaryData audio;
-        try
-        {
-            // Copia Ogg Opus a 32 kbps: circa 7,5 MB per 30 minuti, si legge in memoria.
-            audio = (await blobService
-                .GetBlobContainerClient(blobUri.BlobContainerName)
-                .GetBlobClient(blobUri.BlobName)
-                .DownloadContentAsync(cancellationToken)).Value.Content;
-        }
-        catch (RequestFailedException ex) when (ex.Status == 404)
-        {
-            // Il record esiste ma la copia no: nemmeno il job di ripiego potrebbe trascriverla.
-            logger.LogError("Record {RecordUid}: copia normalizzata non trovata", recordUid);
-            await transcripts.SetErrorAsync(record, Transcript.AudioDownloadFailed, cancellationToken);
-            return TranscriptionOutput.None;
-        }
+        var blob = blobService
+            .GetBlobContainerClient(blobUri.BlobContainerName)
+            .GetBlobClient(blobUri.BlobName);
 
         var fallback = new TranscriptionOutput
         {
             // Stesso contratto della coda di trascrizione: il job non legge il database.
             FallbackMessage = new TranscriptionRequest(blobUri.ToUri().ToString(), record.User.PreferredLanguage).Serialize(),
         };
+
+        if (!speechOptions.Value.Enabled)
+        {
+            // Il job non scrive alcun esito se la copia manca: il controllo resta qui, senza scaricarla.
+            if (!await blob.ExistsAsync(cancellationToken))
+            {
+                return await SetMissingCopyErrorAsync(record, cancellationToken);
+            }
+
+            logger.LogInformation("Record {RecordUid}: Azure AI Speech disattivato, trascrizione affidata al job", recordUid);
+            return fallback;
+        }
+
+        BinaryData audio;
+        try
+        {
+            // Copia Ogg Opus a 32 kbps: circa 7,5 MB per 30 minuti, si legge in memoria.
+            audio = (await blob.DownloadContentAsync(cancellationToken)).Value.Content;
+        }
+        catch (RequestFailedException ex) when (ex.Status == 404)
+        {
+            return await SetMissingCopyErrorAsync(record, cancellationToken);
+        }
 
         // Se manca la durata della copia normalizzata si usa il massimo accettato.
         var durationMinutes = attachment.DurationSeconds / 60.0 ?? audioOptions.Value.MaxDurationMinutes;
@@ -182,6 +194,14 @@ public sealed class TranscribeRecordFunction(
         {
             IndexingMessage = await transcripts.SaveTranscriptAsync(record, result.Text, result.Language, cancellationToken),
         };
+    }
+
+    /// <summary>Il record esiste ma la copia no: nemmeno il job di ripiego potrebbe trascriverla.</summary>
+    private async Task<TranscriptionOutput> SetMissingCopyErrorAsync(Record record, CancellationToken cancellationToken)
+    {
+        logger.LogError("Record {RecordUid}: copia normalizzata non trovata", record.RecordUid);
+        await transcripts.SetErrorAsync(record, Transcript.AudioDownloadFailed, cancellationToken);
+        return TranscriptionOutput.None;
     }
 
     /// <summary>
@@ -244,7 +264,7 @@ public sealed class TranscriptionOutput
     [QueueOutput("%Queues:Indexing%", Connection = "DataStorage")]
     public string? IndexingMessage { get; init; }
 
-    /// <summary><see cref="TranscriptionRequest"/> in JSON per il job di trascrizione con Whisper.</summary>
+    /// <summary><see cref="TranscriptionRequest"/> in JSON per il job di trascrizione.</summary>
     [QueueOutput("%Queues:TranscriptionFallback%", Connection = "DataStorage")]
     public string? FallbackMessage { get; init; }
 }

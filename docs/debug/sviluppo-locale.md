@@ -43,6 +43,7 @@ Copiare `src/functions/local.settings.example.json` in `src/functions/local.sett
 | `Sql__ConnectionString` | Database dev, con `Authentication=Active Directory Default` |
 | `OpenAI__Endpoint` | Endpoint dell'account Azure OpenAI dev |
 | `Speech__Endpoint` | Endpoint di Azure AI Speech dev, con il sottodominio personalizzato |
+| `Speech__Enabled` | `true`; con `false` la trascrizione va direttamente al job (come `useAzureSpeech` in `infra/main.bicep`) |
 | `Audio__MaxDurationMinutes` | `30`, come `maxAudioDurationMinutes` in `infra/main.bicep` |
 
 `AZURE_TOKEN_CREDENTIALS=AzureCliCredential` fa usare solo l'account di Azure CLI ([perché](#database-e-migration)). CORS è già aperto su `http://localhost:4200`.

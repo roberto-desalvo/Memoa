@@ -10,7 +10,8 @@ public sealed class Ffmpeg(IOptions<JobOptions> options)
 {
     /// <summary>
     /// Decodifica la prima traccia audio in campioni PCM float32 mono, il formato di ingresso di
-    /// Whisper. Il file intermedio viene scritto accanto all'ingresso, nella cartella di lavoro del job.
+    /// Whisper e Parakeet. Il file intermedio viene scritto accanto all'ingresso, nella cartella di
+    /// lavoro del job.
     /// </summary>
     public async Task<float[]> DecodeToPcmAsync(string inputPath, int sampleRate, CancellationToken cancellationToken)
     {

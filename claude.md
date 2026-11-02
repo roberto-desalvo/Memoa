@@ -35,7 +35,7 @@ Il documento delle decisioni (`docs/project.md`, indice dei file in `docs/projec
 | Code | Azure Storage Queue (nello stesso storage account dei dati) |
 | Eventi | Event Grid (piano Basic) |
 | Normalizzazione audio | Function attivata dalla coda di normalizzazione, con la build statica di ffmpeg (eugeneware/ffmpeg-static, Linux x64, senza ffprobe) scaricata dalla pipeline e inclusa nel pacchetto di deploy; copia Ogg Opus mono 32 kbps |
-| Trascrizione | Azure AI Speech (fast transcription, risorsa S0 in West Europe, autenticazione Entra ID) chiamato da una Function; ripiego su Whisper self-hosted (Whisper.net, large-v3-turbo) in un Container Apps Job, worker in C# .NET |
+| Trascrizione | Azure AI Speech (fast transcription, risorsa S0 in West Europe, autenticazione Entra ID) chiamato da una Function, disattivabile con la feature flag `useAzureSpeech`; ripiego su un Container Apps Job self-hosted su CPU, worker in C# .NET, con il motore scelto da `transcriberEngine`: Whisper (Whisper.net, large-v3-turbo) o Parakeet (sherpa-onnx, Parakeet TDT 0.6B v3 int8, lingua rilevata con Whisper tiny), un'immagine per motore |
 | Registry | GitHub Container Registry (immagini private) |
 | IaC | Bicep |
 | CI/CD | GitHub Actions |
@@ -51,12 +51,12 @@ Il documento delle decisioni (`docs/project.md`, indice dei file in `docs/projec
 3. Evento Event Grid "blob creato" → **Function di validazione**: controlla il file e lo collega come allegato al record esistente; se valido scrive l'URL del blob sulla **coda di normalizzazione**, altrimenti porta il record a "in errore" senza accodare nulla; il file non viene eliminato, per poterlo analizzare.
 4. **Function di normalizzazione** (attivata dalla coda di normalizzazione): `ffmpeg` verifica formato reale e durata (dal riepilogo di `ffmpeg -i`, senza ffprobe) e crea la copia Ogg Opus nel contenitore dell'**audio normalizzato** (`<oid>/<RecordUid>.opus`, durata nei metadati del blob). Se il file va scartato scrive invece nello stesso contenitore l'esito `<oid>/<RecordUid>.error.json`, con il solo codice d'errore.
 5. Evento "blob creato" → Function: per la copia `.opus` salva durata e percorso nel database e scrive sulla **coda di trascrizione**; per l'esito `.error.json` porta il record a "in errore".
-6. **Function di trascrizione** (attivata dalla coda di trascrizione): invia la copia normalizzata ad **Azure AI Speech** (fast transcription), con timeout di 30 secondi più 10 secondi per minuto di audio, salva testo (in `Text` e `OriginalTranscript`) e lingua **direttamente nel database**, senza file su Blob Storage, e scrive l'identificativo sulla **coda di indicizzazione**.
-7. **Ripiego**: se Azure AI Speech non risponde entro il timeout o si superano i limiti, la Function scrive invece il messaggio sulla **coda di ripiego** (`transcription-fallback`), che avvia il **job di trascrizione** con Whisper self-hosted. Il job accetta solo registrazioni fino a 10 minuti (le più lunghe vengono rifiutate) e scrive il file di testo nel contenitore delle **trascrizioni**. Evento "blob creato" → Function: per la trascrizione `<oid>/<RecordUid>.txt` salva testo e lingua nel database e scrive l'identificativo sulla coda di indicizzazione; per l'esito `<oid>/<RecordUid>.error.json` porta il record a "in errore".
+6. **Function di trascrizione** (attivata dalla coda di trascrizione): invia la copia normalizzata ad **Azure AI Speech** (fast transcription), con timeout di 30 secondi più 10 secondi per minuto di audio, salva testo (in `Text` e `OriginalTranscript`) e lingua **direttamente nel database**, senza file su Blob Storage, e scrive l'identificativo sulla **coda di indicizzazione**. Con la feature flag `Speech__Enabled` a `false` (`useAzureSpeech` nei `.bicepparam`) non chiama il servizio e, dopo aver controllato record e copia normalizzata, scrive subito il messaggio sulla coda di ripiego.
+7. **Ripiego**: se Azure AI Speech non risponde entro il timeout o si superano i limiti (o è disattivato), la Function scrive invece il messaggio sulla **coda di ripiego** (`transcription-fallback`), che avvia il **job di trascrizione** self-hosted. Con Whisper il job accetta solo registrazioni fino a 10 minuti (le più lunghe vengono rifiutate), con Parakeet fino alla durata massima dell'app; scrive il file di testo nel contenitore delle **trascrizioni**. Evento "blob creato" → Function: per la trascrizione `<oid>/<RecordUid>.txt` salva testo e lingua nel database e scrive l'identificativo sulla coda di indicizzazione; per l'esito `<oid>/<RecordUid>.error.json` porta il record a "in errore".
 8. **Function di indicizzazione**: legge il testo dal database, lo divide in frammenti, calcola l'embedding di ciascun frammento e del titolo, sostituisce in una transazione i frammenti del record e salva lo stato "pronto"; poi scrive l'identificativo sulla **coda dei tag** (`tagging`).
 9. **Function dei tag** (attivata dalla coda dei tag): assegna i tag automatici al record (vedi [Tag](#tag)).
 
-La rigenerazione della trascrizione e il "riprova" seguono lo stesso percorso: coda di trascrizione, prima Azure AI Speech, poi eventualmente il ripiego.
+La rigenerazione della trascrizione e il "riprova" seguono lo stesso percorso: coda di trascrizione, prima Azure AI Speech (se attivo), poi eventualmente il ripiego.
 
 ### Flusso testo
 
@@ -121,7 +121,7 @@ La Function HTTP salva il testo, con titolo e data della nota, nel database e, p
 - Bicep per tutto ciò che supporta, incluse le registrazioni delle app Entra External ID tramite l'estensione Microsoft Graph, con un deploy separato a livello di tenant (`targetScope = 'tenant'`) per ciascun tenant esterno.
 - I tenant Entra External ID sono collegati alla sottoscrizione tramite **gruppi di risorse dedicati non gestiti da Bicep**: non includerli mai nei deployment stacks.
 - Authority e audience di Entra External ID sono **per ambiente** (un tenant per ambiente).
-- Pipeline GitHub Actions separate: frontend, Functions (che include ffmpeg nel pacchetto), schema del database, immagine di trascrizione.
+- Pipeline GitHub Actions separate: frontend, Functions (che include ffmpeg nel pacchetto), schema del database, immagini di trascrizione (una per motore; la pipeline aggiorna il job solo con l'immagine del motore già in uso, che sceglie il deploy dell'infrastruttura).
 - Storage account dei dati: soft delete e versioning (14 giorni), ridondanza GRS, blocco CanNotDelete.
 - In locale Azurite non emette eventi Event Grid: vanno simulati.
 

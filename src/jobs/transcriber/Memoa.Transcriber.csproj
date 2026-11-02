@@ -18,6 +18,9 @@
     <PackageReference Include="Microsoft.Extensions.Options.DataAnnotations" Version="10.0.14" />
     <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.20.1" />
     <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.20.1" />
+    <!-- Motore Parakeet (ONNX Runtime su CPU) e VAD Silero; include le librerie native. -->
+    <PackageReference Include="org.k2fsa.sherpa.onnx" Version="2.0.1" />
+    <!-- Motore Whisper e, con Parakeet, rilevamento della lingua con Whisper tiny. -->
     <PackageReference Include="Whisper.net" Version="1.9.1" />
     <!-- Runtime nativo di whisper.cpp per CPU. -->
     <PackageReference Include="Whisper.net.Runtime" Version="1.9.1" />

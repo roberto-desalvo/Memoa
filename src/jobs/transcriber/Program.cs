@@ -24,10 +24,6 @@ builder.Services.AddOptions<JobOptions>()
     .Bind(builder.Configuration.GetSection(JobOptions.SectionName))
     .ValidateDataAnnotations()
     .ValidateOnStart();
-builder.Services.AddOptions<WhisperOptions>()
-    .Bind(builder.Configuration.GetSection(WhisperOptions.SectionName))
-    .ValidateDataAnnotations()
-    .ValidateOnStart();
 
 // In Azure DefaultAzureCredential usa l'identità user-assigned indicata da AZURE_CLIENT_ID.
 var credential = new DefaultAzureCredential();
@@ -41,8 +37,25 @@ builder.Services.AddSingleton(sp => new QueueServiceClient(
         new QueueClientOptions { MessageEncoding = QueueMessageEncoding.Base64 })
     .GetQueueClient(sp.GetRequiredService<IOptions<JobOptions>>().Value.Queue));
 builder.Services.AddSingleton<Ffmpeg>();
-// Unico punto in cui si sceglie il motore di trascrizione.
-builder.Services.AddSingleton<ITranscriptionEngine, WhisperEngine>();
+
+// Unico punto in cui si sceglie il motore di trascrizione, da Job__Engine (impostato dal target del
+// Dockerfile). Si validano solo le opzioni del motore scelto: l'immagine contiene solo i suoi modelli.
+if (builder.Configuration[$"{JobOptions.SectionName}:{nameof(JobOptions.Engine)}"] == JobOptions.ParakeetEngineName)
+{
+    builder.Services.AddOptions<ParakeetOptions>()
+        .Bind(builder.Configuration.GetSection(ParakeetOptions.SectionName))
+        .ValidateDataAnnotations()
+        .ValidateOnStart();
+    builder.Services.AddSingleton<ITranscriptionEngine, ParakeetEngine>();
+}
+else
+{
+    builder.Services.AddOptions<WhisperOptions>()
+        .Bind(builder.Configuration.GetSection(WhisperOptions.SectionName))
+        .ValidateDataAnnotations()
+        .ValidateOnStart();
+    builder.Services.AddSingleton<ITranscriptionEngine, WhisperEngine>();
+}
 builder.Services.AddSingleton<TranscriptionJob>();
 
 using var host = builder.Build();

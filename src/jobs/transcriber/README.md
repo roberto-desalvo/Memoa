@@ -1,18 +1,18 @@
 # Job di trascrizione
 
-Ripiego della trascrizione: Container Apps Job (worker .NET 10 + ffmpeg + Whisper.net) avviato dallo scaler KEDA sulla coda `transcription-fallback`. Ogni esecuzione elabora un messaggio e termina.
+Ripiego della trascrizione: Container Apps Job (worker .NET 10 + ffmpeg + un motore di trascrizione su CPU) avviato dallo scaler KEDA sulla coda `transcription-fallback`. Ogni esecuzione elabora un messaggio e termina. Il motore è Whisper (Whisper.net) oppure Parakeet (sherpa-onnx), uno per immagine: vedi [Motore di trascrizione](#motore-di-trascrizione).
 
-La trascrizione normale la fa la Function `TranscribeRecord` (coda `transcription`) con Azure AI Speech, e salva il testo direttamente nel database. Solo se il servizio non risponde entro il timeout, si superano i limiti (HTTP 429 o 413) o falliscono tutti i tentativi, la Function inoltra lo stesso messaggio su `transcription-fallback`, e il flusso passa da questo job e dal blob della trascrizione.
+La trascrizione normale la fa la Function `TranscribeRecord` (coda `transcription`) con Azure AI Speech, e salva il testo direttamente nel database. Solo se il servizio non risponde entro il timeout, si superano i limiti (HTTP 429 o 413) o falliscono tutti i tentativi, la Function inoltra lo stesso messaggio su `transcription-fallback`, e il flusso passa da questo job e dal blob della trascrizione. Con Azure AI Speech disattivato (`useAzureSpeech = false` nei `.bicepparam`, cioè `Speech__Enabled=false` nelle Functions) ogni trascrizione passa da questo job.
 
 1. Legge un messaggio dalla coda, invisibile per 65 minuti. Il messaggio è il JSON `{"blobUrl": "...", "fallbackLanguage": "it"}` in base64, scritto da `TranscribeRecord` (contratto in `src/shared/Pipeline/TranscriptionRequest.cs`).
-2. Legge la durata dai metadati della copia normalizzata (`durationseconds`): oltre `Job__MaxDurationSeconds` (predefinito 600, cioè 10 minuti) scrive l'esito `audio_too_long` senza trascrivere. Altrimenti scarica la copia da `audio/<oid>/<RecordUid>.opus` in una cartella temporanea.
+2. Legge la durata dai metadati della copia normalizzata (`durationseconds`): oltre `Job__MaxDurationSeconds` scrive l'esito `audio_too_long` senza trascrivere. Il deploy la imposta in base al motore: 600 (10 minuti) con Whisper, la durata massima dell'app (30 minuti) con Parakeet. Altrimenti scarica la copia da `audio/<oid>/<RecordUid>.opus` in una cartella temporanea.
 3. `ffmpeg` la decodifica in PCM float32 mono a 16 kHz.
-4. Whisper rileva la lingua sui primi 30 secondi, scegliendo solo tra italiano e inglese. Se la probabilità è sotto `Whisper__LanguageProbabilityThreshold` (predefinita 0,5) usa `fallbackLanguage`, la lingua dell'account.
-5. Trascrive nella lingua scelta, con un prompt iniziale punteggiato in quella lingua (`Whisper__Prompts__it`, `Whisper__Prompts__en`; predefiniti in `JobOptions.cs`) che spinge Whisper a usare la punteggiatura, e scrive **uno** dei due blob nel contenitore `transcripts`, solo se nessuno dei due esiste già (scrittura condizionale):
+4. Rileva la lingua sui primi 30 secondi, scegliendo solo tra italiano e inglese (con Parakeet tramite Whisper tiny). Se la probabilità è sotto la soglia (`Whisper__LanguageProbabilityThreshold` o `Parakeet__LanguageProbabilityThreshold`, predefinita 0,5) usa `fallbackLanguage`, la lingua dell'account.
+5. Trascrive (vedi [Motore di trascrizione](#motore-di-trascrizione)) e scrive **uno** dei due blob nel contenitore `transcripts`, solo se nessuno dei due esiste già (scrittura condizionale):
 
 | Blob | Quando | Metadati |
 |---|---|---|
-| `<oid>/<RecordUid>.txt` | Trascrizione riuscita (UTF-8) | `language` (lingua usata), `detectedlanguage` e `languageprobability` (esito del rilevamento), `engine` (es. `whisper.net/ggml-large-v3-turbo-q5_0`) |
+| `<oid>/<RecordUid>.txt` | Trascrizione riuscita (UTF-8) | `language` (lingua usata), `detectedlanguage` e `languageprobability` (esito del rilevamento), `engine` (`whisper.net/ggml-large-v3-turbo-q5_0` o `sherpa-onnx/parakeet-tdt-0.6b-v3-int8`) |
 | `<oid>/<RecordUid>.error.json` | Trascrizione scartata | `errorcode`; corpo `{"errorCode":"..."}` |
 
 6. Elimina il messaggio. L'evento "blob creato" sul contenitore `transcripts` fa proseguire il flusso: la Function deve distinguere i due casi dal suffisso del nome (`Transcript.TryParse`).
@@ -30,8 +30,8 @@ Definiti in `src/shared/Pipeline/Transcript.cs`. Ogni codice indica la fase non 
 | `invalid_request` | Subito: il messaggio identifica il record ma la lingua di ripiego non è supportata | `Users.PreferredLanguage` e `TranscribeRecord` |
 | `audio_download_failed` | All'ultimo tentativo: lettura della copia normalizzata non riuscita | Ruolo di lettura su `audio` dell'identità del job, rete, spazio su disco della replica |
 | `audio_decode_failed` | Subito, senza retry: ffmpeg non decodifica la copia in PCM | ffmpeg nell'immagine (`Job__FfmpegPath`), copia corrotta |
-| `model_load_failed` | Subito, senza retry: Whisper non carica il modello | Riga di log "Caricamento del modello": percorso, dimensione del file, memoria disponibile. Poi `Whisper__ModelPath`, checksum, memoria del job |
-| `transcription_failed` | All'ultimo tentativo: errore del motore durante rilevamento della lingua o trascrizione | Runtime nativo di Whisper.net, memoria |
+| `model_load_failed` | Subito, senza retry: il motore non carica un modello | Riga di log "Caricamento del modello" (Whisper) o "Caricamento dei modelli" (Parakeet): percorso, dimensione del file, memoria disponibile. Poi i percorsi dei modelli (`Whisper__ModelPath`, `Parakeet__*`), checksum, memoria del job |
+| `transcription_failed` | All'ultimo tentativo: errore del motore durante rilevamento della lingua o trascrizione | Runtime nativo di Whisper.net o sherpa-onnx, memoria |
 | `transcript_upload_failed` | All'ultimo tentativo: scrittura della trascrizione non riuscita | Ruolo di scrittura su `transcripts` dell'identità del job |
 | `processing_timeout` | Subito, senza retry: esecuzione interrotta dal SIGTERM allo scadere del `replicaTimeout` | Durata dell'audio rispetto alle vCPU del job |
 | `processing_failed` | Messaggio oltre `Job__MaxDequeueCount` tentativi (predefinito 3) senza causa registrata: l'ultima esecuzione è terminata senza poter scrivere l'esito (memoria esaurita, replica arrestata) | Cronologia delle esecuzioni del job in Container Apps |
@@ -46,11 +46,25 @@ Casi senza esito, con il solo log:
 
 ## Motore di trascrizione
 
-Il job dipende solo da `ITranscriptionEngine` (`Engine/`): riceve il file Opus e la lingua di ripiego e restituisce testo e lingua. L'implementazione attuale è `WhisperEngine` (whisper.cpp su CPU tramite Whisper.net); un'alternativa, ad esempio un'API cloud, si registra al suo posto in `Program.cs`.
+Il job dipende solo da `ITranscriptionEngine` (`Engine/`): riceve il file Opus e la lingua di ripiego e restituisce testo e lingua. Le implementazioni sono due, ciascuna nella propria immagine con i soli modelli che le servono; il motore lo sceglie `Job__Engine`, impostato dal target del `Dockerfile` (`Program.cs` registra il motore e ne valida solo le opzioni).
 
-Il modello è `ggml-large-v3-turbo-q5_0.bin` (circa 550 MB), incluso nell'immagine dal `Dockerfile`: scaricato da Hugging Face a una revisione fissata e verificato con lo SHA-256. Per cambiarlo vanno aggiornati URL, checksum e `Whisper__ModelPath`.
+| | `WhisperEngine` (target `whisper`) | `ParakeetEngine` (target `parakeet`) |
+|---|---|---|
+| Immagine | `ghcr.io/<owner>/memoa-transcriber` | `ghcr.io/<owner>/memoa-transcriber-parakeet` |
+| Libreria | Whisper.net (whisper.cpp) | sherpa-onnx (ONNX Runtime), più Whisper.net per la lingua |
+| Modelli | `ggml-large-v3-turbo-q5_0.bin` (circa 550 MB) | Parakeet TDT 0.6B v3 int8 (circa 670 MB), Silero VAD, Whisper `ggml-tiny.bin` (circa 75 MB) |
+| Lingua | Rilevata da large-v3-turbo | Rilevata da Whisper tiny: Parakeet non la restituisce |
+| Punteggiatura | Prompt iniziale per lingua (`Whisper__Prompts__<lingua>`) | Nativa, con maiuscole |
+| Audio lungo | Finestre di 30 s di whisper.cpp | Segmenti di parlato della VAD, al più `Parakeet__MaxSpeechSeconds` (20 s): il modello ONNX usa l'attention completa |
+| Durata massima | 10 minuti | Durata massima dell'app (30 minuti) |
 
-Con 4 vCPU (dev e prod) Whisper impiega circa 3 volte la durata dell'audio: per questo il job accetta solo registrazioni fino a 10 minuti, che restano entro il `replicaTimeout` di 60 minuti.
+I modelli sono scaricati dal `Dockerfile` da indirizzi fissati e verificati con lo SHA-256: Whisper da Hugging Face (`ggerganov/whisper.cpp`, revisione fissata), Parakeet e Silero VAD dalla release `asr-models` di sherpa-onnx. Per cambiarli vanno aggiornati URL e checksum. Licenze: Whisper MIT, Parakeet CC-BY-4.0, Silero VAD MIT.
+
+Con Whisper e 4 vCPU (dev e prod) la trascrizione impiega circa 3 volte la durata dell'audio: per questo accetta solo registrazioni fino a 10 minuti, che restano entro il `replicaTimeout` di 60 minuti.
+
+### Scegliere il motore
+
+Nei `.bicepparam` dell'ambiente: `transcriberEngine = 'whisper'` oppure `'parakeet'`, poi il deploy dell'infrastruttura. Il deploy imposta l'immagine del motore (`TRANSCRIBER_IMAGE_<ENV>` o `TRANSCRIBER_PARAKEET_IMAGE_<ENV>`) e la durata massima (`Job__MaxDurationSeconds`). La pipeline del job pubblica sempre entrambe le immagini, ma aggiorna il job solo con quella dello stesso repository dell'immagine in uso: non cambia il motore scelto.
 
 ## Configurazione
 
@@ -66,29 +80,49 @@ Variabili d'ambiente impostate da `infra/modules/queue-job.bicep`:
 | `AZURE_CLIENT_ID` | Client ID dell'identità `id-memoa-<env>-transcriber` |
 | `APPLICATIONINSIGHTS_CONNECTION_STRING` | Facoltativa: senza, i log restano sulla console |
 
-Impostata dal `Dockerfile`: `Whisper__ModelPath`. Facoltative: `Whisper__LanguageProbabilityThreshold`, `Whisper__Threads` (predefinito: le vCPU viste dal processo, che in Container Apps possono superare quelle del job), `Whisper__Prompts__<lingua>` (stringa vuota per trascrivere senza prompt), `Job__MaxDurationSeconds`, `Job__MaxDequeueCount`, `Job__VisibilityTimeout` (formato `hh:mm:ss`, deve superare il `replicaTimeout`), `Job__FfmpegPath`.
+Impostate dal `Dockerfile`: `Job__Engine` e i percorsi dei modelli (`Whisper__ModelPath`; `Parakeet__ModelDirectory`, `Parakeet__VadModelPath`, `Parakeet__LanguageModelPath`). Facoltative con Parakeet: `Parakeet__LanguageProbabilityThreshold`, `Parakeet__MaxSpeechSeconds`, `Parakeet__Threads`. Facoltative con Whisper e comuni: `Whisper__LanguageProbabilityThreshold`, `Whisper__Threads` (predefinito: le vCPU viste dal processo, che in Container Apps possono superare quelle del job), `Whisper__Prompts__<lingua>` (stringa vuota per trascrivere senza prompt), `Job__MaxDurationSeconds`, `Job__MaxDequeueCount`, `Job__VisibilityTimeout` (formato `hh:mm:ss`, deve superare il `replicaTimeout`), `Job__FfmpegPath`.
 
 ## Esecuzione in locale
 
-Richiede ffmpeg nel `PATH`, il modello scaricato in locale e un login con `az login`; il proprio utente deve avere sullo storage dati dev gli stessi ruoli dell'identità del job (lettura di `audio`, scrittura su `transcripts`, Queue Data Message Processor su `transcription-fallback`). Il runtime nativo per Windows è incluso nel pacchetto `Whisper.net.Runtime`.
+Richiede ffmpeg nel `PATH`, i modelli del motore scaricati in locale e un login con `az login`; il proprio utente deve avere sullo storage dati dev gli stessi ruoli dell'identità del job (lettura di `audio`, scrittura su `transcripts`, Queue Data Message Processor su `transcription-fallback`). I runtime nativi per Windows sono inclusi nei pacchetti `Whisper.net.Runtime` e `org.k2fsa.sherpa.onnx`.
 
 ```powershell
-Invoke-WebRequest https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-q5_0.bin -OutFile $env:TEMP\ggml-large-v3-turbo-q5_0.bin
 $env:DataStorage__BlobServiceUri = "https://<storage-dati-dev>.blob.core.windows.net/"
 $env:DataStorage__QueueServiceUri = "https://<storage-dati-dev>.queue.core.windows.net/"
 $env:Job__Queue = "transcription-fallback"
 $env:Job__InputContainer = "audio"
 $env:Job__OutputContainer = "transcripts"
+```
+
+Con Whisper:
+
+```powershell
+Invoke-WebRequest https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-q5_0.bin -OutFile $env:TEMP\ggml-large-v3-turbo-q5_0.bin
 $env:Whisper__ModelPath = "$env:TEMP\ggml-large-v3-turbo-q5_0.bin"
 dotnet run --project src/jobs/transcriber
 ```
 
-Con Docker (il contesto è `src/`, perché l'immagine include anche `src/shared`):
+Con Parakeet (l'archivio del modello si estrae con `tar`, incluso in Windows):
 
 ```powershell
-docker build -f src/jobs/transcriber/Dockerfile -t memoa-transcriber src
+Invoke-WebRequest https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8.tar.bz2 -OutFile $env:TEMP\parakeet.tar.bz2
+tar -xjf $env:TEMP\parakeet.tar.bz2 -C $env:TEMP
+Invoke-WebRequest https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/silero_vad.onnx -OutFile $env:TEMP\silero_vad.onnx
+Invoke-WebRequest https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin -OutFile $env:TEMP\ggml-tiny.bin
+$env:Job__Engine = "parakeet"
+$env:Parakeet__ModelDirectory = "$env:TEMP\sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8"
+$env:Parakeet__VadModelPath = "$env:TEMP\silero_vad.onnx"
+$env:Parakeet__LanguageModelPath = "$env:TEMP\ggml-tiny.bin"
+dotnet run --project src/jobs/transcriber
+```
+
+Con Docker (il contesto è `src/`, perché l'immagine include anche `src/shared`; senza `--target` si costruisce Whisper):
+
+```powershell
+docker build -f src/jobs/transcriber/Dockerfile --target whisper -t memoa-transcriber src
+docker build -f src/jobs/transcriber/Dockerfile --target parakeet -t memoa-transcriber-parakeet src
 ```
 
 ## Immagine
 
-La pipeline `.github/workflows/transcriber.yml` pubblica `ghcr.io/<owner>/memoa-transcriber` con i tag `<sha>` e `<branch>`, poi aggiorna il job dell'ambiente (`main` → dev, `prod` → prod) con il tag `<sha>`. Il deploy dell'infrastruttura usa invece `TRANSCRIBER_IMAGE_<ENV>` (il tag del branch): vedi [infra/README.md](../../../infra/README.md#deploy).
+La pipeline `.github/workflows/transcriber.yml` pubblica entrambe le immagini, `ghcr.io/<owner>/memoa-transcriber` (Whisper) e `ghcr.io/<owner>/memoa-transcriber-parakeet`, con i tag `<sha>` e `<branch>`, poi aggiorna il job dell'ambiente (`main` → dev, `prod` → prod) con il tag `<sha>` dell'immagine dello stesso motore già in uso. Se il job ha ancora l'immagine segnaposto non lo aggiorna. Il deploy dell'infrastruttura usa invece `TRANSCRIBER_IMAGE_<ENV>` o `TRANSCRIBER_PARAKEET_IMAGE_<ENV>` (il tag del branch), secondo `transcriberEngine`: vedi [infra/README.md](../../../infra/README.md#deploy).

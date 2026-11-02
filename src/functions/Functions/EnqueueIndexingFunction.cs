@@ -18,7 +18,7 @@ namespace Memoa.Functions.Functions;
 
 /// <summary>
 /// Ripiego della trascrizione, attivato dall'evento "blob creato" sul contenitore delle trascrizioni, dove
-/// il job di trascrizione con Whisper scrive uno dei due blob di <see cref="Transcript"/>. Il job elabora
+/// il job di trascrizione (Whisper o Parakeet) scrive uno dei due blob di <see cref="Transcript"/>. Il job elabora
 /// solo i messaggi che <see cref="TranscribeRecordFunction"/> inoltra sulla coda di ripiego quando Azure AI
 /// Speech non risponde: negli altri casi la trascrizione va direttamente nel database, senza blob.
 /// <list type="bullet">

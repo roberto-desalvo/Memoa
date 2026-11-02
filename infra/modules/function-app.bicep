@@ -28,6 +28,9 @@ param embeddingDeploymentName string
 @description('Endpoint di Azure AI Speech con il sottodominio personalizzato.')
 param speechEndpoint string
 
+@description('Feature flag: con false la trascrizione non chiama Azure AI Speech e va direttamente al job.')
+param speechEnabled bool
+
 @description('Durata massima di un audio in minuti (normalizzazione; il frontend la legge da qui nel deploy).')
 param maxAudioDurationMinutes int
 
@@ -183,6 +186,7 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
         { name: 'OpenAI__Endpoint', value: openAiEndpoint }
         { name: 'OpenAI__EmbeddingDeployment', value: embeddingDeploymentName }
         { name: 'Speech__Endpoint', value: speechEndpoint }
+        { name: 'Speech__Enabled', value: string(speechEnabled) }
         // Letta anche dalla pipeline del frontend per config.json (web-deploy.yml).
         { name: 'Audio__MaxDurationMinutes', value: string(maxAudioDurationMinutes) }
         // Validazione dei token di accesso emessi da Entra External ID (middleware delle Functions).

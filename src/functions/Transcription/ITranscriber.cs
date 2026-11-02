@@ -2,7 +2,7 @@ namespace Memoa.Functions.Transcription;
 
 /// <summary>
 /// Servizio di trascrizione chiamato dalla Function, sostituibile (es. un'altra API cloud al posto di
-/// Azure AI Speech). Il ripiego sul job con Whisper resta fuori dall'interfaccia, nella Function.
+/// Azure AI Speech). Il ripiego sul job di trascrizione resta fuori dall'interfaccia, nella Function.
 /// </summary>
 public interface ITranscriber
 {
