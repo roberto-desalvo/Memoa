@@ -40,8 +40,11 @@ param transcriberCpu string = '4.0'
 @description('Memoria del job di trascrizione.')
 param transcriberMemory string = '8Gi'
 
-@description('Giorni dopo i quali i file audio (originali e normalizzati) passano al tier Cool.')
-param audioCoolAfterDays int = 90
+@description('Giorni dopo i quali gli audio originali passano al tier Cold.')
+param uploadsColdAfterDays int = 1
+
+@description('Giorni dopo i quali le copie normalizzate passano al tier Cool.')
+param audioCoolAfterDays int = 30
 
 @description('Durata massima di un audio in minuti, per la registrazione e per i file caricati: unico punto in cui si imposta (Functions e, tramite la pipeline, config.json del frontend).')
 @minValue(1)
@@ -134,6 +137,7 @@ module dataStorage 'modules/data-storage.bicep' = {
     tags: tags
     name: take('st${compactName}data', 24)
     allowedOrigins: allowedOrigins
+    uploadsColdAfterDays: uploadsColdAfterDays
     audioCoolAfterDays: audioCoolAfterDays
     functionIdentityName: functionIdentityName
     transcriberIdentityName: transcriberIdentityName

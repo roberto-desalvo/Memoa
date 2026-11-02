@@ -8,7 +8,10 @@ param name string
 @description('Origini autorizzate a caricare file direttamente con token SAS.')
 param allowedOrigins array
 
-@description('Giorni dopo i quali i file audio (originali e normalizzati) passano al tier Cool.')
+@description('Giorni dopo i quali gli audio originali passano al tier Cold.')
+param uploadsColdAfterDays int
+
+@description('Giorni dopo i quali le copie normalizzate passano al tier Cool.')
 param audioCoolAfterDays int
 
 @description('Nome dell\'identità user-assigned delle Functions (stesso resource group).')
@@ -167,7 +170,8 @@ resource lifecycle 'Microsoft.Storage/storageAccounts/managementPolicies@2023-05
           }
         }
         {
-          name: 'audio-to-cool'
+          // Gli originali si rileggono solo per rinormalizzare: Cold quasi subito.
+          name: 'uploads-to-cold'
           enabled: true
           type: 'Lifecycle'
           definition: {
@@ -177,6 +181,27 @@ resource lifecycle 'Microsoft.Storage/storageAccounts/managementPolicies@2023-05
               ]
               prefixMatch: [
                 '${uploadsContainerName}/'
+              ]
+            }
+            actions: {
+              baseBlob: {
+                tierToCold: {
+                  daysAfterModificationGreaterThan: uploadsColdAfterDays
+                }
+              }
+            }
+          }
+        }
+        {
+          name: 'audio-to-cool'
+          enabled: true
+          type: 'Lifecycle'
+          definition: {
+            filters: {
+              blobTypes: [
+                'blockBlob'
+              ]
+              prefixMatch: [
                 '${audioContainerName}/'
               ]
             }

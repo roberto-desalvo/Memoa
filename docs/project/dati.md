@@ -43,7 +43,7 @@ Contenuti: [Database](#database) · [Accesso ai dati e migration](#accesso-ai-da
   - riproduzione: solo lettura della copia normalizzata, valido 2 ore, firmato da `GetRecordAudio` dopo aver verificato che il record appartenga all'utente.
 - **CORS**: PUT, GET, HEAD e OPTIONS solo dalle origini del frontend.
 - **Costo**: nessun piano gratuito permanente, ma trascurabile. Hot circa 0,02 $/GB al mese, circa il doppio con GRS. La copia Opus occupa circa 0,25 MB al minuto, mentre gli originali possono arrivare a 350 MB.
-- **Ciclo di vita**: originali e copie normalizzate passano al tier Cool dopo 90 giorni.
+- **Ciclo di vita**: gli originali passano al tier Cold dopo 1 giorno (si rileggono solo per rinormalizzare); le copie normalizzate al tier Cool dopo 30 giorni.
 - **Trascrizioni del ripiego**: conservazione dopo il salvataggio nel database da definire (per ora nessuna regola).
 
 ---
