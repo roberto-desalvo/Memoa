@@ -28,7 +28,7 @@ Contenuti: [Trascrizione](#trascrizione) · [Job di trascrizione](#job-di-trascr
 
 ## Job di trascrizione
 
-**Decisione**: Container Apps Job con un motore self-hosted su CPU, avviato dalla coda `transcription-fallback` quando Azure AI Speech non risponde entro il timeout, risponde 429/413 o fallisce all'ultimo tentativo, oppure per ogni trascrizione se Azure AI Speech è disattivato. Due motori, ciascuno in una propria immagine; quello in uso lo sceglie `transcriberEngine` nei `.bicepparam` (predefinito `whisper`). Il motore sta dietro l'interfaccia `ITranscriptionEngine`.
+**Decisione**: Container Apps Job con un motore self-hosted su CPU, avviato dalla coda `transcription-fallback` quando Azure AI Speech non risponde entro il timeout, risponde 429/413 o fallisce all'ultimo tentativo, oppure per ogni trascrizione se Azure AI Speech è disattivato. Tre motori, ciascuno in una propria immagine; quello in uso lo sceglie `transcriberEngine` nei `.bicepparam` (predefinito `whisper`). Il motore sta dietro l'interfaccia `ITranscriptionEngine`; il worker resta in .NET anche con faster-whisper, che gira come script Python avviato dal worker.
 
 - **Risorse**: 4 vCPU e 8 GiB (massimo del profilo Consumption), dentro il grant gratuito di Container Apps (180.000 vCPU-s al mese per sottoscrizione): il tempo di elaborazione è anche il costo.
 - **Esito**: `.txt` con lingua, lingua rilevata, probabilità e motore nei metadati, oppure `.error.json` con il codice della fase non riuscita.
@@ -43,11 +43,32 @@ Contenuti: [Trascrizione](#trascrizione) · [Job di trascrizione](#job-di-trascr
 ### Parakeet
 
 - **Motore**: NVIDIA Parakeet TDT 0.6B v3 (25 lingue europee, tra cui italiano e inglese), versione int8 per sherpa-onnx (ONNX Runtime su CPU, pacchetto NuGet `org.k2fsa.sherpa.onnx`), incluso nell'immagine `memoa-transcriber-parakeet`. Licenza CC-BY-4.0.
-- **Velocità**: prova in locale con 4 thread su una CPU da portatile (Ryzen 7 3700U), sugli stessi audio sintetici in italiano: Parakeet 0,4-0,7 volte la durata dell'audio (157 s in 64 s, 50 s in 34 s, rilevamento della lingua incluso), Whisper large-v3-turbo oltre 6 volte (interrotto dopo 5,5 minuti su 50 s di audio). Almeno 10 volte più veloce di Whisper; i tempi assoluti su Container Apps vanno misurati.
+- **Velocità**: il più veloce dei tre (vedi [Confronto](#confronto-tra-i-motori)): 0,4-0,7 volte la durata dell'audio più il caricamento dei modelli.
 - **Durata**: accetta la durata massima dell'app (30 minuti). La VAD Silero divide l'audio in segmenti di parlato di al più 20 secondi, trascritti uno alla volta: il modello ONNX usa l'attention completa, quindi la memoria crescerebbe con la durata.
 - **Lingua**: Parakeet non restituisce la lingua trascritta: la rileva Whisper tiny tra italiano e inglese sui primi 30 secondi, con la stessa soglia e lo stesso ripiego sulla lingua dell'account di Whisper.
 - **Punteggiatura**: nativa, con maiuscole, senza prompt.
+- **Qualità**: sulla prova qualche errore su parole brevi ("uffici" per "ufficio", "ci era" per "c'era"), numeri in cifre.
 - **Da verificare**: qualità sulle registrazioni reali in italiano e velocità sulle vCPU di Container Apps.
+
+### faster-whisper
+
+- **Motore**: faster-whisper 1.2.1 (CTranslate2 su CPU), modello large-v3-turbo in formato CTranslate2 (`deepdml/faster-whisper-large-v3-turbo-ct2`, MIT, float16 quantizzato int8 al caricamento), incluso nell'immagine `memoa-transcriber-faster-whisper` con Python e le dipendenze fissate.
+- **Integrazione**: `FasterWhisperEngine` decodifica l'audio con ffmpeg e avvia lo script `FasterWhisper/transcribe.py`, con richiesta e risultato in JSON; su stderr solo il tipo dell'eccezione. Il resto del job (coda, blob, idempotenza, esiti) è lo stesso degli altri motori.
+- **Velocità**: circa 4 volte la durata dell'audio sulla prova locale, più veloce di Whisper.net ma molto più lento di Parakeet; come Whisper accetta solo registrazioni fino a 10 minuti.
+- **Lingua e punteggiatura**: come Whisper (stesso modello): rilevamento tra italiano e inglese e prompt iniziale per lingua, con gli stessi predefiniti. Ricerca greedy (`FasterWhisper__BeamSize` = 1); la VAD Silero inclusa salta i silenzi.
+- **Qualità**: la migliore sulla prova, senza errori.
+
+### Confronto tra i motori
+
+Prova in locale, 4 thread su una CPU da portatile (Ryzen 7 3700U, AVX2 lento), audio sintetico in italiano di 50 s, un'esecuzione per motore come nel job (caricamento del modello incluso):
+
+| Motore | Tempo | Rapporto con la durata | Errori sul testo |
+|---|---|---|---|
+| Parakeet (sherpa-onnx, int8) | 54 s (34 s senza caricamento) | 1,1x (0,7x) | 3 parole brevi |
+| faster-whisper (CTranslate2, int8, greedy) | 210 s (caricamento 11 s) | 4,2x | nessuno |
+| Whisper.net (whisper.cpp, q5_0) | oltre 330 s, interrotto | oltre 6,5x | non misurati |
+
+Su un audio di 157 s Parakeet è sceso a 0,41x (caricamento escluso): il costo fisso pesa meno sugli audio lunghi. I tempi assoluti su Container Apps sono diversi (Whisper.net lì impiega circa 3 volte la durata), quindi conta il rapporto tra i motori. L'audio sintetico è più pulito delle registrazioni reali: qualità e velocità vanno verificate sulle note vere prima di scegliere il motore.
 
 ---
 

@@ -30,4 +30,9 @@
     <ProjectReference Include="..\..\shared\Memoa.Shared.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Script del motore faster-whisper, avviato da FasterWhisperEngine accanto al worker. -->
+    <None Include="FasterWhisper\transcribe.py" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

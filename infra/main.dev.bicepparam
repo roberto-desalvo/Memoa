@@ -9,7 +9,7 @@ param sqlServerName = readEnvironmentVariable('SQL_SERVER_NAME')
 // dev + prod = 0,16 GB al giorno, cioè circa i 5 GB gratuiti al mese.
 param logDailyCapGb = '0.06'
 
-// Motore del job di trascrizione: 'whisper' o 'parakeet'. Il deploy imposta l'immagine del motore scelto;
+// Motore del job di trascrizione: 'whisper', 'parakeet' o 'faster-whisper'. Il deploy imposta l'immagine del motore scelto;
 // la pipeline del job poi la aggiorna solo con l'immagine dello stesso motore.
 param transcriberEngine = 'whisper'
 
@@ -18,10 +18,12 @@ param useAzureSpeech = true
 
 // Immagini segnaposto finché la pipeline del job non pubblica su GHCR. Dopo la prima pubblicazione
 // impostare TRANSCRIBER_IMAGE_DEV (es. ghcr.io/<owner>/memoa-transcriber:main) e
-// TRANSCRIBER_PARAKEET_IMAGE_DEV (es. ghcr.io/<owner>/memoa-transcriber-parakeet:main): il deploy
-// dell'infrastruttura sostituisce l'immagine impostata dalla pipeline con quella del motore scelto.
+// TRANSCRIBER_PARAKEET_IMAGE_DEV e TRANSCRIBER_FASTER_WHISPER_IMAGE_DEV (es.
+// ghcr.io/<owner>/memoa-transcriber-parakeet:main, ghcr.io/<owner>/memoa-transcriber-faster-whisper:main):
+// il deploy dell'infrastruttura sostituisce l'immagine impostata dalla pipeline con quella del motore scelto.
 param transcriberImage = readEnvironmentVariable('TRANSCRIBER_IMAGE_DEV', 'mcr.microsoft.com/k8se/quickstart-jobs:latest')
 param transcriberParakeetImage = readEnvironmentVariable('TRANSCRIBER_PARAKEET_IMAGE_DEV', 'mcr.microsoft.com/k8se/quickstart-jobs:latest')
+param transcriberFasterWhisperImage = readEnvironmentVariable('TRANSCRIBER_FASTER_WHISPER_IMAGE_DEV', 'mcr.microsoft.com/k8se/quickstart-jobs:latest')
 param ghcrUsername = 'roberto-desalvo'
 param ghcrToken = readEnvironmentVariable('GHCR_TOKEN', '')
 

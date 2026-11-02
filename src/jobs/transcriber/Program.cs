@@ -40,13 +40,22 @@ builder.Services.AddSingleton<Ffmpeg>();
 
 // Unico punto in cui si sceglie il motore di trascrizione, da Job__Engine (impostato dal target del
 // Dockerfile). Si validano solo le opzioni del motore scelto: l'immagine contiene solo i suoi modelli.
-if (builder.Configuration[$"{JobOptions.SectionName}:{nameof(JobOptions.Engine)}"] == JobOptions.ParakeetEngineName)
+var engine = builder.Configuration[$"{JobOptions.SectionName}:{nameof(JobOptions.Engine)}"];
+if (engine == JobOptions.ParakeetEngineName)
 {
     builder.Services.AddOptions<ParakeetOptions>()
         .Bind(builder.Configuration.GetSection(ParakeetOptions.SectionName))
         .ValidateDataAnnotations()
         .ValidateOnStart();
     builder.Services.AddSingleton<ITranscriptionEngine, ParakeetEngine>();
+}
+else if (engine == JobOptions.FasterWhisperEngineName)
+{
+    builder.Services.AddOptions<FasterWhisperOptions>()
+        .Bind(builder.Configuration.GetSection(FasterWhisperOptions.SectionName))
+        .ValidateDataAnnotations()
+        .ValidateOnStart();
+    builder.Services.AddSingleton<ITranscriptionEngine, FasterWhisperEngine>();
 }
 else
 {

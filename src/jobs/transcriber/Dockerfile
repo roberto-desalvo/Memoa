@@ -4,6 +4,7 @@
 # Contesto di build: src/ (serve anche src/shared):
 #   docker build -f src/jobs/transcriber/Dockerfile --target whisper src
 #   docker build -f src/jobs/transcriber/Dockerfile --target parakeet src
+#   docker build -f src/jobs/transcriber/Dockerfile --target faster-whisper src
 # Senza --target si costruisce l'ultimo stage (whisper).
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
@@ -60,6 +61,39 @@ USER $APP_UID
 RUN test -r "$Parakeet__ModelDirectory/encoder.int8.onnx" \
     && test -r "$Parakeet__VadModelPath" \
     && test -r "$Parakeet__LanguageModelPath"
+ENTRYPOINT ["dotnet", "Memoa.Transcriber.dll"]
+
+FROM runtime AS faster-whisper
+# Python con faster-whisper in un virtualenv, dipendenze tutte fissate in requirements.txt.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends python3 python3-venv \
+    && rm -rf /var/lib/apt/lists/*
+COPY jobs/transcriber/FasterWhisper/requirements.txt /tmp/requirements.txt
+RUN python3 -m venv /opt/faster-whisper \
+    && /opt/faster-whisper/bin/pip install --no-cache-dir -r /tmp/requirements.txt \
+    && rm /tmp/requirements.txt
+# Modello large-v3-turbo in formato CTranslate2 (float16, quantizzato int8 al caricamento), dal repository
+# Hugging Face deepdml/faster-whisper-large-v3-turbo-ct2 (MIT) a una revisione fissata, ogni file
+# verificato con lo SHA-256.
+ARG FW_MODEL=https://huggingface.co/deepdml/faster-whisper-large-v3-turbo-ct2/resolve/4df90f75321148c3a29a9e2351b7ddf8f5b115a8
+ADD --checksum=sha256:e76620f83d5f5b69efd3d87e3dc180c1bd21df9fbebacfd4335e5e1efcc018da ${FW_MODEL}/model.bin /models/faster-whisper-large-v3-turbo/model.bin
+ADD --checksum=sha256:b0253ea6c0d3bea6b1e19e91a02acfd3b53f4467362efcb5a3e6b16c9b3a9b7e ${FW_MODEL}/config.json /models/faster-whisper-large-v3-turbo/config.json
+ADD --checksum=sha256:7ccc62c6f2765af1f3b46c00c9b5894426835a05021c8b9c01eecb6dfb542711 ${FW_MODEL}/preprocessor_config.json /models/faster-whisper-large-v3-turbo/preprocessor_config.json
+ADD --checksum=sha256:297b13372ac43916285644fb9687add3cc62ee2a1adb60da3dc25cc94c1871fd ${FW_MODEL}/tokenizer.json /models/faster-whisper-large-v3-turbo/tokenizer.json
+ADD --checksum=sha256:c69260f2ab26d659b7c398f9a2b2b48ed0df16c3b47d7326782fd9cba71690c1 ${FW_MODEL}/vocabulary.json /models/faster-whisper-large-v3-turbo/vocabulary.json
+ENV Job__Engine=faster-whisper \
+    FasterWhisper__PythonPath=/opt/faster-whisper/bin/python \
+    FasterWhisper__ModelDirectory=/models/faster-whisper-large-v3-turbo
+# ADD da URL crea i file con permessi 600: il job gira come $APP_UID.
+RUN chmod -R a+rX /models
+WORKDIR /app
+COPY --from=build /app .
+# Utente non privilegiato predefinito delle immagini .NET; i file temporanei vanno in /tmp.
+USER $APP_UID
+# La build fallisce se l'utente del job non può leggere il modello o importare faster-whisper.
+RUN test -r "$FasterWhisper__ModelDirectory/model.bin" \
+    && test -r /app/FasterWhisper/transcribe.py \
+    && "$FasterWhisper__PythonPath" -I -c "import faster_whisper"
 ENTRYPOINT ["dotnet", "Memoa.Transcriber.dll"]
 
 FROM runtime AS whisper

@@ -1,7 +1,7 @@
-# Immagini del job di trascrizione, una per motore (Whisper e Parakeet) → GitHub Container Registry
+# Immagini del job di trascrizione, una per motore (Whisper, Parakeet e faster-whisper) → GitHub Container Registry
 # (private) → Container Apps Job. Push su main → dev, push su prod → prod. Tag con lo SHA del commit (usato
-# dal job) e con il nome del branch (da impostare in TRANSCRIBER_IMAGE_<ENV> e
-# TRANSCRIBER_PARAKEET_IMAGE_<ENV> per il deploy dell'infrastruttura, vedi infra/README.md). Il job viene
+# dal job) e con il nome del branch (da impostare in TRANSCRIBER_IMAGE_<ENV>,
+# TRANSCRIBER_PARAKEET_IMAGE_<ENV> e TRANSCRIBER_FASTER_WHISPER_IMAGE_<ENV> per il deploy dell'infrastruttura, vedi infra/README.md). Il job viene
 # aggiornato solo con l'immagine del motore che usa già: il motore lo sceglie il deploy dell'infrastruttura.
 name: Transcriber
 
@@ -36,6 +36,8 @@ jobs:
             repository: memoa-transcriber
           - engine: parakeet
             repository: memoa-transcriber-parakeet
+          - engine: faster-whisper
+            repository: memoa-transcriber-faster-whisper
     steps:
       - uses: actions/checkout@v4
 
@@ -74,7 +76,7 @@ jobs:
         id: list
         run: |
           owner="${GITHUB_REPOSITORY_OWNER,,}"
-          echo "list=ghcr.io/$owner/memoa-transcriber:$GITHUB_SHA ghcr.io/$owner/memoa-transcriber-parakeet:$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+          echo "list=ghcr.io/$owner/memoa-transcriber:$GITHUB_SHA ghcr.io/$owner/memoa-transcriber-parakeet:$GITHUB_SHA ghcr.io/$owner/memoa-transcriber-faster-whisper:$GITHUB_SHA" >> "$GITHUB_OUTPUT"
 
   dev:
     needs: images

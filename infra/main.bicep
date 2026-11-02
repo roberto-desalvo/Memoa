@@ -28,6 +28,7 @@ param logDailyCapGb string
 @allowed([
   'whisper'
   'parakeet'
+  'faster-whisper'
 ])
 param transcriberEngine string = 'whisper'
 
@@ -36,6 +37,9 @@ param transcriberImage string
 
 @description('Immagine del job di trascrizione con Parakeet (es. ghcr.io/<owner>/memoa-transcriber-parakeet:<tag>).')
 param transcriberParakeetImage string
+
+@description('Immagine del job di trascrizione con faster-whisper (es. ghcr.io/<owner>/memoa-transcriber-faster-whisper:<tag>).')
+param transcriberFasterWhisperImage string
 
 @description('Feature flag: con false le Functions non chiamano Azure AI Speech e ogni trascrizione va al job.')
 param useAzureSpeech bool = true
@@ -84,6 +88,13 @@ param developerPrincipalIds array = []
 var tags = {
   project: projectName
   environment: environmentName
+}
+
+// Immagine del job di trascrizione per ogni motore.
+var transcriberImages = {
+  whisper: transcriberImage
+  parakeet: transcriberParakeetImage
+  'faster-whisper': transcriberFasterWhisperImage
 }
 
 // Suffisso stabile per i nomi globalmente univoci.
@@ -303,7 +314,7 @@ module containerAppsEnv 'modules/container-apps-env.bicep' = {
 }
 
 // Ripiego della trascrizione: coda di ripiego (scritta dalla Function se Azure AI Speech non risponde o è
-// disattivato) → Whisper o Parakeet sulla copia normalizzata → file di testo nel contenitore delle
+// disattivato) → Whisper, Parakeet o faster-whisper sulla copia normalizzata → file di testo nel contenitore delle
 // trascrizioni. Il motore è nell'immagine: transcriberEngine sceglie quale usare.
 module transcriber 'modules/queue-job.bicep' = {
   scope: rg
@@ -316,7 +327,7 @@ module transcriber 'modules/queue-job.bicep' = {
     environmentId: containerAppsEnv.outputs.id
     identityId: identities.outputs.transcriberIdentityId
     identityClientId: identities.outputs.transcriberClientId
-    image: transcriberEngine == 'parakeet' ? transcriberParakeetImage : transcriberImage
+    image: transcriberImages[transcriberEngine]
     cpu: transcriberCpu
     memory: transcriberMemory
     ghcrUsername: ghcrUsername
@@ -328,15 +339,15 @@ module transcriber 'modules/queue-job.bicep' = {
     queueName: dataStorage.outputs.transcriptionFallbackQueueName
     inputContainerName: dataStorage.outputs.audioContainerName
     outputContainerName: dataStorage.outputs.transcriptsContainerName
-    // Whisper impiega circa 3 volte il tempo reale: solo registrazioni fino a 10 minuti. Parakeet, molto più
-    // veloce, accetta la durata massima dell'app.
+    // Whisper e faster-whisper impiegano più del tempo reale: solo registrazioni fino a 10 minuti.
+    // Parakeet, molto più veloce, accetta la durata massima dell'app.
     env: [
       {
         name: 'Job__MaxDurationSeconds'
         value: string(transcriberEngine == 'parakeet' ? maxAudioDurationMinutes * 60 : 600)
       }
     ]
-    // 10 minuti di audio con Whisper, con margine. Deve restare sotto Job__VisibilityTimeout del worker
+    // 10 minuti di audio con Whisper o faster-whisper, con margine. Deve restare sotto Job__VisibilityTimeout del worker
     // (65 minuti).
     replicaTimeout: 3600
   }

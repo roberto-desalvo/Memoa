@@ -36,11 +36,12 @@ public sealed class JobOptions
     /// Motore di trascrizione, impostato dal target del Dockerfile: ogni immagine contiene solo i modelli
     /// del proprio motore.
     /// </summary>
-    [AllowedValues(WhisperEngineName, ParakeetEngineName)]
+    [AllowedValues(WhisperEngineName, ParakeetEngineName, FasterWhisperEngineName)]
     public string Engine { get; set; } = WhisperEngineName;
 
     public const string WhisperEngineName = "whisper";
     public const string ParakeetEngineName = "parakeet";
+    public const string FasterWhisperEngineName = "faster-whisper";
 
     /// <summary>
     /// Durata massima accettata, in secondi: le registrazioni più lunghe vengono rifiutate con l'esito
@@ -103,11 +104,53 @@ public sealed class WhisperOptions
     /// rumoroso Whisper può ripeterne dei frammenti. Una lingua senza prompt (o con prompt vuoto) si
     /// trascrive senza.
     /// </summary>
-    public Dictionary<string, string> Prompts { get; set; } = new(StringComparer.OrdinalIgnoreCase)
+    public Dictionary<string, string> Prompts { get; set; } = DefaultPrompts();
+
+    /// <summary>Prompt predefiniti, condivisi con faster-whisper.</summary>
+    public static Dictionary<string, string> DefaultPrompts() => new(StringComparer.OrdinalIgnoreCase)
     {
         ["it"] = "Allora... oggi è stata una giornata lunga, ma alla fine è andata bene! E domani, invece, cosa farò? Vedremo.",
         ["en"] = "So... today was a long day, but in the end it went well! And tomorrow, though, what will I do? We'll see.",
     };
+}
+
+/// <summary>
+/// Configurazione del motore faster-whisper (sezione "FasterWhisper"): script Python con CTranslate2,
+/// percorsi impostati dal Dockerfile.
+/// </summary>
+public sealed class FasterWhisperOptions
+{
+    public const string SectionName = "FasterWhisper";
+
+    /// <summary>Interprete Python con faster-whisper installato (nell'immagine, il virtualenv).</summary>
+    [Required]
+    public string PythonPath { get; set; } = "python3";
+
+    /// <summary>Script di trascrizione, pubblicato con il worker.</summary>
+    [Required]
+    public string ScriptPath { get; set; } = Path.Combine(AppContext.BaseDirectory, "FasterWhisper", "transcribe.py");
+
+    /// <summary>Cartella del modello in formato CTranslate2 (large-v3-turbo).</summary>
+    [Required]
+    public string ModelDirectory { get; set; } = string.Empty;
+
+    /// <summary>Probabilità minima della lingua rilevata; sotto questa soglia si usa la lingua dell'account.</summary>
+    [Range(0.0, 1.0)]
+    public double LanguageProbabilityThreshold { get; set; } = 0.5;
+
+    /// <summary>
+    /// Ampiezza della beam search: 1 è la ricerca greedy, come Whisper.net, la più veloce; il predefinito
+    /// di faster-whisper è 5, più preciso ma più lento.
+    /// </summary>
+    [Range(1, 10)]
+    public int BeamSize { get; set; } = 1;
+
+    /// <summary>Thread di CTranslate2; se assente, Environment.ProcessorCount.</summary>
+    [Range(1, 64)]
+    public int? Threads { get; set; }
+
+    /// <summary>Prompt iniziale per lingua, come <see cref="WhisperOptions.Prompts"/>.</summary>
+    public Dictionary<string, string> Prompts { get; set; } = WhisperOptions.DefaultPrompts();
 }
 
 /// <summary>Configurazione del motore Parakeet (sezione "Parakeet", percorsi impostati dal Dockerfile).</summary>
