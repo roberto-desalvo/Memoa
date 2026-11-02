@@ -36,7 +36,7 @@ Contenuti: [App](#app) · [Installazione e service worker](#installazione-e-serv
 
 **Decisione**: APK Trusted Web Activity distribuito a mano, accanto alla PWA. Nessuno store.
 
-- **Cosa contiene**: solo il guscio Android (`src/android`, progetto Gradle con `androidbrowserhelper`; unico codice proprio una `LauncherActivity` che, quando Chrome segnala criteri di qualità non rispettati, mostra il motivo invece di chiudere l'app) che apre la Static Web App a schermo intero in Chrome. Frontend, service worker e backend sono gli stessi della PWA: gli aggiornamenti del frontend arrivano all'app senza un nuovo APK.
+- **Cosa contiene**: solo il guscio Android (`src/android`, progetto Gradle con `androidbrowserhelper`, nessun codice proprio) che apre la Static Web App a schermo intero in Chrome. Frontend, service worker e backend sono gli stessi della PWA: gli aggiornamenti del frontend arrivano all'app senza un nuovo APK.
 - **Ambienti**: un APK per ambiente, `app.memoa` (prod, "Memoa") e `app.memoa.dev` (dev, "Memoa Dev"), installabili insieme. L'host della Static Web App è scritto nell'APK: se cambia (es. dominio personalizzato) va ridistribuito.
 - **Firma**: una chiave per i due ambienti, nei segreti del repository GitHub (con una copia fuori da GitHub). L'impronta è pubblicata in `/.well-known/assetlinks.json`, generato da `web-deploy.yml` per ogni ambiente: senza, l'app mostra la barra dell'URL.
 - **Distribuzione**: dev come artefatto della run di `android.yml`, prod come GitHub Release (pubblica, il repository è pubblico). Installazione manuale con le app da origini sconosciute consentite, nessun aggiornamento automatico dell'APK.

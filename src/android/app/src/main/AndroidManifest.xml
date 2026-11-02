@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Servizio e provider sono quelli di androidbrowserhelper; LauncherActivity la estende per non chiudere l'app sui criteri di qualità. -->
+<!-- Attività e servizio sono quelli di androidbrowserhelper: nessun codice proprio. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <application
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/appName"
+        android:manageSpaceActivity="com.google.androidbrowserhelper.trusted.ManageDataLauncherActivity"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Translucent.NoTitleBar">
 
@@ -14,7 +15,7 @@
             android:resource="@string/assetStatements" />
 
         <activity
-            android:name=".LauncherActivity"
+            android:name="com.google.androidbrowserhelper.trusted.LauncherActivity"
             android:alwaysRetainTaskState="true"
             android:exported="true"
             android:label="@string/appName">
@@ -63,6 +64,15 @@
                     android:scheme="https"
                     android:host="${webHost}" />
             </intent-filter>
+        </activity>
+
+        <!-- Obbligatoria: LauncherActivity la attiva per la scorciatoia "Impostazioni sito" e senza dichiarazione l'app si chiude all'avvio. -->
+        <activity
+            android:name="com.google.androidbrowserhelper.trusted.ManageDataLauncherActivity"
+            android:exported="false">
+            <meta-data
+                android:name="android.support.customtabs.trusted.MANAGE_SPACE_URL"
+                android:value="@string/launchUrl" />
         </activity>
 
         <provider
