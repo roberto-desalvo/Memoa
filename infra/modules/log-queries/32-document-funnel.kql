@@ -1,0 +1,19 @@
+// Funnel delle note da file di testo (PDF, Markdown, testo): record distinti arrivati a ogni passaggio, tra quelli
+// con l'upload autorizzato nel periodo. Basata sui messaggi di log: se cambiano i testi in codice, va aggiornata.
+let steps = AppTraces
+    | extend Categoria = tostring(Properties.CategoryName), RecordUid = tostring(Properties.RecordUid)
+    | where isnotempty(RecordUid)
+    | extend Passaggio = case(
+        Categoria endswith ".CreateDocumentUploadFunction" and Message startswith "Upload documento autorizzato", "1. Upload autorizzato",
+        Categoria endswith ".ValidateDocumentUploadFunction" and Message endswith "accodato per l'estrazione del testo", "2. Upload validato",
+        Categoria endswith ".ExtractTextFunction" and Message startswith "Testo estratto", "3. Testo estratto",
+        Categoria endswith ".IndexRecordFunction" and isnotempty(Properties.ChunkCount), "4. Indicizzato",
+        Categoria endswith ".TagRecordsFunction" and isnotempty(Properties.TagCount), "5. Tag assegnati",
+        "")
+    | where isnotempty(Passaggio);
+let documentRecords = steps | where Passaggio startswith "1." | distinct RecordUid;
+steps
+| where RecordUid in (documentRecords)
+| summarize Record = dcount(RecordUid) by Passaggio
+| order by Passaggio asc
+| render columnchart

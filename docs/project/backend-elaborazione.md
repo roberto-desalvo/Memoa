@@ -4,7 +4,7 @@
 
 Backend su Azure Functions ed elaborazione asincrona dei record con eventi, code, Functions e un Container Apps Job (ripiego della trascrizione).
 
-Contenuti: [Backend](#backend) · [Normalizzazione](#normalizzazione) · [Componenti](#componenti) · [Flusso audio](#flusso-audio) · [Flusso testo](#flusso-testo) · [Tag](#tag) · [Riprova e rigenerazione](#riprova-e-rigenerazione) · [Eliminazione](#eliminazione) · [Regole](#regole) · [Event Grid](#event-grid) · [Retry ed errori](#retry-ed-errori) · [Registry delle immagini](#registry-delle-immagini) · [Appendice: alternative scartate](#appendice-alternative-scartate)
+Contenuti: [Backend](#backend) · [Normalizzazione](#normalizzazione) · [Componenti](#componenti) · [Flusso audio](#flusso-audio) · [Flusso testo](#flusso-testo) · [Flusso file di testo](#flusso-file-di-testo) · [Tag](#tag) · [Riprova e rigenerazione](#riprova-e-rigenerazione) · [Eliminazione](#eliminazione) · [Regole](#regole) · [Event Grid](#event-grid) · [Retry ed errori](#retry-ed-errori) · [Registry delle immagini](#registry-delle-immagini) · [Appendice: alternative scartate](#appendice-alternative-scartate)
 
 ---
 
@@ -42,6 +42,7 @@ Tutto sta nello storage account dedicato ai dati utente (blob e code), con un sy
 | `uploads` | client (SAS) | originale `<oid>/<RecordUid>` | `ValidateUpload` |
 | `audio` | `NormalizeRecord` | `<oid>/<RecordUid>.opus` (durata nei metadati) oppure `<oid>/<RecordUid>.error.json` | `EnqueueTranscription` |
 | `transcripts` | job di trascrizione (solo ripiego) | `<oid>/<RecordUid>.txt` (lingua nei metadati) oppure `<oid>/<RecordUid>.error.json` | `EnqueueIndexing` |
+| `documents` | client (SAS) | file di testo originale `<oid>/<RecordUid>` (PDF, MD o TXT) | `ValidateDocumentUpload` |
 
 Negli esiti `.error.json` il codice d'errore sta nei metadati del blob.
 
@@ -50,9 +51,10 @@ Negli esiti `.error.json` il codice d'errore sta nei metadati del blob.
 | `normalization` | URL dell'originale | `NormalizeRecord` |
 | `transcription` | `TranscriptionRequest`: URL della copia `.opus` e lingua dell'account | `TranscribeRecord` |
 | `transcription-fallback` | stesso `TranscriptionRequest` | job di trascrizione (Whisper, Parakeet o faster-whisper) |
+| `text-extraction` | URL del file di testo originale | `ExtractText` |
 | `indexing` | RecordUid | `IndexRecord` |
 | `tagging` | `TaggingRequest`: RecordUid oppure TagUid | `TagRecords` |
-| `upload-expiry` | RecordUid, invisibile fino alla scadenza del SAS + 15 minuti | `ExpireAudioUpload` |
+| `upload-expiry` | RecordUid, invisibile fino alla scadenza del SAS + 15 minuti | `ExpireAudioUpload` (audio e file di testo) |
 
 ---
 
@@ -77,6 +79,19 @@ Dettagli di trascrizione ed embedding in [trascrizione-ai.md](trascrizione-ai.md
 ## Flusso testo
 
 **`CreateTextRecord`** (HTTP) salva testo, titolo e data nel database e scrive il RecordUid su `indexing`. Da lì prosegue come i punti 8 e 9 del flusso audio. Il testo resta nel database, mai su Blob Storage né nelle code.
+
+---
+
+## Flusso file di testo
+
+PDF, Markdown e testo semplice caricati come file. L'originale resta su Blob Storage e si può scaricare; il testo estratto va nel database.
+
+1. **`CreateDocumentUpload`** (HTTP, `POST /uploads/document`): riceve titolo, data, tipo (`application/pdf`, `text/markdown`, `text/plain`) e dimensione del file. Rifiuta subito i tipi non ammessi e i file oltre il limite del tipo (16 KB per TXT e MD, 1 MB per i PDF). Crea il record di testo "in elaborazione" senza testo e restituisce un SAS valido solo per creare il file in `documents`. Scrive anche il messaggio ritardato su `upload-expiry`.
+2. Il client carica il file in `documents` (una sola richiesta). Se l'upload fallisce chiama `CancelAudioUpload` (`DELETE /uploads/document/{uid}`); se non lo fa, alla scadenza `ExpireAudioUpload` elimina il record senza file.
+3. **`ValidateDocumentUpload`** (Event Grid): controlla la dimensione senza leggere il file (vuoto o oltre il limite del tipo dichiarato), collega il file come allegato `Document` e scrive l'URL su `text-extraction`. Se il file non è valido porta il record a "in errore"; il file resta.
+4. **`ExtractText`** (coda): legge il file (al massimo 1 MB) e ne riconosce il formato reale dal contenuto: PDF se contiene `%PDF-` nel primo kilobyte, altrimenti testo in UTF-8 valido senza byte nulli (TXT e MD si trattano allo stesso modo; il Markdown resta com'è). I PDF passano da PdfPig, pagina per pagina, nell'ordine di lettura (`ContentOrderTextExtractor`). Il testo viene normalizzato (fine riga, spazi in coda, righe vuote ripetute) e salvato in `Text` e `OriginalTranscript`; poi il RecordUid va su `indexing` e il flusso prosegue come i punti 8 e 9 del flusso audio. La lingua resta vuota, come per i testi scritti.
+5. Esiti di errore (record "in errore", nessun "riprova" perché dipendono dal file): `file_empty`, `file_too_large` (limite del formato reale), `format_not_supported` (né PDF né UTF-8, oppure PDF danneggiato), `pdf_encrypted`, `no_text` (ad esempio un PDF scansionato: nessun OCR), `text_too_long` (oltre 8.000 caratteri, circa due pagine). Tentativi esauriti per altre cause: `processing_failed`, con "riprova".
+6. **`GetRecordOriginal`** (HTTP, `GET /records/{uid}/original`): SAS di sola lettura dell'originale, valido 15 minuti, con `Content-Disposition: attachment` e il titolo della nota come nome del file (estensione dal tipo salvato). Gli originali audio non si scaricano.
 
 ---
 
@@ -106,7 +121,8 @@ Tag per utente, con nome (massimo 50 caratteri, univoco per utente) e descrizion
 - **`RetryRecord`** (HTTP, record "in errore") riparte dal passo fallito:
   - record con testo: solo indicizzazione, senza perdere le correzioni dell'utente;
   - audio con testo ma senza `OriginalTranscript` (rigenerazione fallita): di nuovo la trascrizione;
-  - audio senza testo: di nuovo la normalizzazione, dopo aver eliminato copia normalizzata, trascrizione ed esiti di errore.
+  - audio senza testo: di nuovo la normalizzazione, dopo aver eliminato copia normalizzata, trascrizione ed esiti di errore;
+  - file di testo senza testo (`processing_failed`): di nuovo l'estrazione, accodando l'originale su `text-extraction`.
 - **`RegenerateTranscript`** (HTTP, audio "pronto"): elimina trascrizione ed esito del ripiego, azzera `OriginalTranscript` e accoda di nuovo su `transcription`. Il testo corrente resta finché non arriva quello nuovo. L'indicizzazione si rifà solo se il testo cambia.
 
 Entrambe passano dalla coda di trascrizione, quindi prima Azure AI Speech e poi, se serve, il ripiego.
@@ -117,7 +133,7 @@ Entrambe passano dalla coda di trascrizione, quindi prima Azure AI Speech e poi,
 
 - **`DeleteRecord`** (HTTP): elimina tutti i blob del record, originale compreso, poi le righe (allegati, frammenti e assegnazioni dei tag a cascata).
 - **`DeleteTag`** (HTTP): elimina in una transazione le assegnazioni del tag e il tag; le note restano.
-- **`DeleteAccount`** (HTTP, `DELETE /me`): elimina tutti i blob dell'utente (prefisso `<oid>/` in `uploads`, `audio` e `transcripts`, compresi i file rimasti di record già eliminati), poi le assegnazioni dei tag e l'utente applicativo con record, allegati, frammenti e tag a cascata. L'utente in Entra External ID per ora resta: al login successivo trova un account vuoto (vedi [sicurezza-identita.md](sicurezza-identita.md#da-definire)).
+- **`DeleteAccount`** (HTTP, `DELETE /me`): elimina tutti i blob dell'utente (prefisso `<oid>/` in `uploads`, `audio`, `transcripts` e `documents`, compresi i file rimasti di record già eliminati), poi le assegnazioni dei tag e l'utente applicativo con record, allegati, frammenti e tag a cascata. L'utente in Entra External ID per ora resta: al login successivo trova un account vuoto (vedi [sicurezza-identita.md](sicurezza-identita.md#da-definire)).
 - Prima i blob, poi il database: se il database fallisce l'utente può riprovare, mentre l'ordine inverso lascerebbe file senza record. Ogni passo è idempotente.
 - **Messaggi in coda**: non vengono rimossi (quelli invisibili, come `upload-expiry`, non si possono leggere). Contengono solo identificativi e URL di blob, e gli handler ignorano i record che non esistono più.
 - I file eliminati restano recuperabili per 14 giorni (soft delete dello storage).
@@ -130,6 +146,7 @@ Entrambe passano dalla coda di trascrizione, quindi prima Azure AI Speech e poi,
 - Solo le Functions scrivono nel database e sulle code.
 - Il job di trascrizione legge solo la propria coda e scrive solo nel proprio contenitore di destinazione: niente code, niente Azure SQL. È una trasformazione audio → testo indipendente dal motore.
 - `NormalizeRecord` scrive solo nel contenitore `audio`: niente database né code, il flusso prosegue dall'evento "blob creato".
+- `ExtractText` legge solo `documents` e scrive solo nel database e su `indexing`: il testo estratto non passa da Blob Storage.
 - Ogni passaggio scrive in un contenitore diverso da quello che legge, quindi non ci sono cicli.
 - L'originale non viene mai cancellato né sovrascritto, salvo eliminazione del record o dell'account. Anche i file scartati dalla validazione restano, per poterli analizzare. "Riprova" e rigenerazione eliminano solo i file derivati (copia normalizzata, trascrizione, esiti).
 - Il file di trascrizione su Blob Storage esiste solo quando trascrive il job.
@@ -154,7 +171,7 @@ Entrambe passano dalla coda di trascrizione, quindi prima Azure AI Speech e poi,
 
 ## Retry ed errori
 
-- **Functions su coda**: massimo 5 consegne (`host.json`), poi la coda dei messaggi non elaborabili. All'ultimo tentativo `TranscribeRecord` passa al ripiego, `NormalizeRecord` scrive l'esito `processing_failed` e `IndexRecord` porta il record a "in errore" (`indexing_failed`).
+- **Functions su coda**: massimo 5 consegne (`host.json`), poi la coda dei messaggi non elaborabili. All'ultimo tentativo `TranscribeRecord` passa al ripiego, `NormalizeRecord` scrive l'esito `processing_failed`, `ExtractText` porta il record a "in errore" (`processing_failed`) e `IndexRecord` porta il record a "in errore" (`indexing_failed`).
 - **Job di trascrizione**: `replicaRetryLimit: 0`. I retry sono quelli della coda, con massimo 3 consegne e VisibilityTimeout di 65 minuti. Il job non può scrivere sulla coda dei messaggi non elaborabili: all'ultimo tentativo, o per errori deterministici, scrive l'esito `.error.json` (`processing_failed` se la causa non è nota).
 - **Event Grid**: solo i retry automatici (30 tentativi in 24 ore), nessun dead-letter. Gli eventi non consegnati vanno persi (gestione da definire).
 - Stati del record: "in elaborazione", "pronto", "in errore", con codice d'errore.

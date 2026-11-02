@@ -4,7 +4,7 @@
 
 Test manuali delle Functions della pipeline in locale ([backend-elaborazione.md](../project/backend-elaborazione.md)). Configurazione e avvio in [sviluppo-locale.md](sviluppo-locale.md).
 
-Contenuti: [ValidateUpload](#validateupload-file-caricato-nel-contenitore-degli-originali) · [EnqueueTranscription](#enqueuetranscription-esito-della-normalizzazione-nel-contenitore-dellaudio-normalizzato) · [TranscribeRecord](#transcriberecord-coda-di-trascrizione) · [EnqueueIndexing](#enqueueindexing-esito-della-trascrizione-nel-contenitore-delle-trascrizioni) · [IndexRecord](#indexrecord-coda-di-indicizzazione) · [TagRecords](#tagrecords-coda-dei-tag)
+Contenuti: [ValidateUpload](#validateupload-file-caricato-nel-contenitore-degli-originali) · [ValidateDocumentUpload](#validatedocumentupload-file-di-testo-nel-contenitore-documents) · [EnqueueTranscription](#enqueuetranscription-esito-della-normalizzazione-nel-contenitore-dellaudio-normalizzato) · [TranscribeRecord](#transcriberecord-coda-di-trascrizione) · [EnqueueIndexing](#enqueueindexing-esito-della-trascrizione-nel-contenitore-delle-trascrizioni) · [IndexRecord](#indexrecord-coda-di-indicizzazione) · [TagRecords](#tagrecords-coda-dei-tag)
 
 ---
 
@@ -66,6 +66,16 @@ Casi da provare:
 | Percorso non valido | `RECORD_ID=abc` | Evento ignorato (warning nel log), nessuna scrittura |
 | Record inesistente | `RECORD_ID` = GUID casuale | Evento ignorato (warning nel log), nessuna scrittura |
 | Utente diverso | `USER_OID` = GUID casuale | Evento ignorato (warning nel log), nessuna scrittura |
+
+## ValidateDocumentUpload (file di testo nel contenitore `documents`)
+
+Come [ValidateUpload](#validateupload-file-caricato-nel-contenitore-degli-originali), partendo dal caricamento di un PDF, MD o TXT (`recordUid` nella risposta di `POST /api/uploads/document`, blob in `documents`). In `.env` impostare anche `UPLOAD_CONTAINER=documents` e `UPLOAD_FUNCTION=ValidateDocumentUpload`, con `UPLOAD_CONTENT_TYPE` uguale al tipo del blob (`application/pdf`, `text/markdown` o `text/plain`). Il messaggio va sulla coda `text-extraction`, letta da `ExtractText`, che salva il testo nel database e accoda il record su `indexing`.
+
+| Caso | Come | Risultato atteso |
+|---|---|---|
+| Duplicato | Reinviare lo stesso evento | Nessun nuovo allegato; nuovo messaggio solo se il record è ancora `Processing` e senza testo estratto |
+| File troppo grande | `UPLOAD_SIZE=20000` con `UPLOAD_CONTENT_TYPE=text/plain` | Record `Error` con `ErrorCode = file_too_large`, nessun messaggio |
+| Messaggio duplicato | Riaccodare su `text-extraction` lo stesso URL | Nessuna nuova estrazione: il record viene solo riaccodato per l'indicizzazione, o ignorato se non più `Processing` |
 
 ## EnqueueTranscription (esito della normalizzazione nel contenitore dell'audio normalizzato)
 

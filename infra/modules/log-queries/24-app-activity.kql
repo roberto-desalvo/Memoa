@@ -4,10 +4,11 @@ AppTraces
 | extend Attivita = case(
     Categoria endswith ".CreateAudioUploadFunction", "Nota audio",
     Categoria endswith ".CreateTextRecordFunction", "Nota di testo",
+    Categoria endswith ".CreateDocumentUploadFunction", "Nota da file di testo",
     Categoria endswith ".DeleteRecordFunction", "Nota eliminata",
     Categoria endswith ".SearchFunction", "Ricerca",
     Categoria endswith ".TagFunctions" and Message has "creato", "Tag creato",
-    Categoria endswith ".UserProvisioningMiddleware" and Message endswith "creato", "Nuovo utente",
+    Categoria endswith ".MeFunctions" and Message startswith "Utente" and Message endswith "creato", "Nuovo utente",
     Categoria endswith ".DeleteAccountFunction", "Account eliminato",
     "")
 | where isnotempty(Attivita)

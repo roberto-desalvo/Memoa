@@ -70,6 +70,14 @@
       </button>
     }
   }
+  @if (record(); as record) {
+    @if (record.hasOriginal) {
+      <button mat-menu-item (click)="downloadOriginal(record)">
+        <mat-icon svgIcon="download" />
+        <span>Scarica originale</span>
+      </button>
+    }
+  }
   @if (record()?.canRegenerateTranscript) {
     <button mat-menu-item (click)="confirmRegenerate()">
       <mat-icon svgIcon="regenerate" />
@@ -168,7 +176,9 @@
             {{
               record.canRetry
                 ? 'Si è verificato un errore durante l’elaborazione di questa nota.'
-                : 'Il file non è valido e non può essere elaborato.'
+                : record.hasOriginal
+                  ? 'Il file non è valido o non contiene testo utilizzabile (ad esempio un PDF scansionato, o più lungo di circa due pagine).'
+                  : 'Il file non è valido e non può essere elaborato.'
             }}
           </p>
           @if (record.canRetry) {
@@ -208,6 +218,9 @@
                   @case ('Transcribing') {
                     Trascrizione
                   }
+                  @case ('Extracting') {
+                    Estrazione del testo
+                  }
                   @case ('Indexing') {
                     Indicizzazione per la ricerca
                   }
@@ -239,9 +252,25 @@
       </mat-card>
     }
 
-    <!-- Prima trascrizione di un audio: un segnaposto al posto del testo che non c'è ancora. -->
+    <!-- File di testo caricato: formato, dimensione e download dell'originale. -->
+    @if (record.hasOriginal) {
+      <mat-card class="section">
+        <mat-card-content class="original">
+          <mat-icon svgIcon="file" />
+          <span class="original-name text-secondary">{{ originalLabel(record) }}</span>
+          <button mat-button (click)="downloadOriginal(record)">
+            <mat-icon svgIcon="download" />
+            Scarica
+          </button>
+        </mat-card-content>
+      </mat-card>
+    }
+
+    <!-- Prima trascrizione di un audio o estrazione del testo: un segnaposto al posto del testo che non c'è ancora. -->
     @if (
-      (record.processingStep === 'Preparing' || record.processingStep === 'Transcribing') &&
+      (record.processingStep === 'Preparing' ||
+        record.processingStep === 'Transcribing' ||
+        record.processingStep === 'Extracting') &&
       !record.text
     ) {
       <mat-card class="section">
@@ -250,7 +279,9 @@
             {{
               record.processingStep === 'Transcribing'
                 ? 'Trascrizione in corso: il testo apparirà qui.'
-                : 'Il testo apparirà qui al termine della trascrizione.'
+                : record.processingStep === 'Extracting'
+                  ? 'Estrazione del testo in corso: il testo apparirà qui.'
+                  : 'Il testo apparirà qui al termine della trascrizione.'
             }}
           </p>
           <span class="line" aria-hidden="true"></span>

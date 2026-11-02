@@ -6,8 +6,8 @@ using Microsoft.Extensions.Options;
 namespace Memoa.Functions.Storage;
 
 /// <summary>
-/// Firma gli URL di accesso diretto ai blob dal client: upload nel contenitore degli originali e
-/// riproduzione dell'audio normalizzato. Lo storage account accetta solo
+/// Firma gli URL di accesso diretto ai blob dal client: upload nei contenitori degli originali (audio e
+/// file di testo), riproduzione dell'audio normalizzato e download dei file di testo. Lo storage account accetta solo
 /// Entra ID, quindi i SAS sono user delegation SAS firmati con una chiave ottenuta dall'identità delle
 /// Functions (ruolo Storage Blob Delegator), tenuta in cache e rinnovata prima della scadenza.
 /// </summary>
@@ -21,6 +21,9 @@ public sealed class BlobSasService(BlobServiceClient blobServiceClient, IOptions
     /// coprire l'ascolto di una registrazione di 30 minuti con delle pause.
     /// </summary>
     public static readonly TimeSpan ReadSasLifetime = TimeSpan.FromHours(2);
+
+    /// <summary>Il download parte subito dopo la richiesta: basta il tempo di scaricare un file da 1 MB.</summary>
+    public static readonly TimeSpan DownloadSasLifetime = TimeSpan.FromMinutes(15);
 
     // Margine per orologi non allineati tra Functions e storage.
     private static readonly TimeSpan ClockSkew = TimeSpan.FromMinutes(5);
@@ -44,12 +47,31 @@ public sealed class BlobSasService(BlobServiceClient blobServiceClient, IOptions
         string blobName, CancellationToken cancellationToken) =>
         CreateUriAsync(containers.Value.Audio, blobName, BlobSasPermissions.Read, ReadSasLifetime, cancellationToken);
 
+    /// <summary>Come <see cref="CreateUploadUriAsync"/>, nel contenitore dei file di testo.</summary>
+    public Task<(Uri Uri, DateTimeOffset ExpiresOn)> CreateDocumentUploadUriAsync(
+        string blobName, CancellationToken cancellationToken) =>
+        CreateUriAsync(containers.Value.Documents, blobName, BlobSasPermissions.Create, UploadSasLifetime, cancellationToken);
+
+    /// <summary>
+    /// Restituisce un URL valido solo per scaricare il file di testo originale, con il nome indicato: la
+    /// risposta dello storage lo propone come download (Content-Disposition) con il tipo salvato.
+    /// </summary>
+    public Task<(Uri Uri, DateTimeOffset ExpiresOn)> CreateDocumentDownloadUriAsync(
+        string blobName, string fileName, string contentType, CancellationToken cancellationToken) =>
+        CreateUriAsync(containers.Value.Documents, blobName, BlobSasPermissions.Read, DownloadSasLifetime, cancellationToken,
+            sas =>
+            {
+                sas.ContentDisposition = $"attachment; filename*=UTF-8''{Uri.EscapeDataString(fileName)}";
+                sas.ContentType = contentType;
+            });
+
     private async Task<(Uri Uri, DateTimeOffset ExpiresOn)> CreateUriAsync(
         string containerName,
         string blobName,
         BlobSasPermissions permissions,
         TimeSpan lifetime,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Action<BlobSasBuilder>? configure = null)
     {
         var now = DateTimeOffset.UtcNow;
         var expiresOn = now + lifetime;
@@ -65,6 +87,7 @@ public sealed class BlobSasService(BlobServiceClient blobServiceClient, IOptions
             Protocol = SasProtocol.Https,
         };
         sas.SetPermissions(permissions);
+        configure?.Invoke(sas);
 
         var blob = blobServiceClient.GetBlobContainerClient(containerName).GetBlobClient(blobName);
         var uri = new BlobUriBuilder(blob.Uri)

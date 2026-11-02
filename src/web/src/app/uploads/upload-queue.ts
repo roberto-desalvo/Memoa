@@ -9,16 +9,19 @@ import {
   titleFromFileName,
   toOccurredAt,
 } from '../notes/note-date';
-import { NoteDetails, RecordsApi } from '../records/records-api';
+import { NoteDetails } from '../records/records-api';
 import { RecordsStore } from '../records/records-store';
 import { audioContentType, MAX_AUDIO_SIZE_BYTES } from './audio-formats';
 import { exceedsMaxDuration } from './audio-duration';
 import { AudioUploadService } from './audio-upload.service';
-import { isTextFile, readTextFile } from './text-file';
+import { checkTextFile, textContentType } from './text-file';
 
-/** Contenuto di un file già letto e controllato. */
-type FileContent =
-  { kind: 'audio'; audio: Blob; contentType: string } | { kind: 'text'; text: string };
+/** File già controllato, con il tipo MIME da salvare sul blob. */
+interface FileContent {
+  kind: 'audio' | 'text';
+  file: Blob;
+  contentType: string;
+}
 
 export type UploadStatus =
   'checking' | 'preview' | 'invalid' | 'waiting' | 'saving' | 'done' | 'failed';
@@ -33,7 +36,7 @@ export interface UploadItem {
   /** Data e ora della nota (valore dell'input datetime-local). */
   date: string;
   status: UploadStatus;
-  /** Avanzamento dell'upload audio; null per il testo. */
+  /** Avanzamento dell'upload; null finché non parte. */
   fraction: number | null;
   /** Motivo per cui il file non è valido, per l'utente. */
   error: string | null;
@@ -47,7 +50,6 @@ export interface UploadItem {
  */
 @Injectable({ providedIn: 'root' })
 export class UploadQueue {
-  private readonly api = inject(RecordsApi);
   private readonly uploads = inject(AudioUploadService);
   private readonly store = inject(RecordsStore);
   private readonly maxAudioDurationMinutes = inject(APP_CONFIG).maxAudioDurationMinutes;
@@ -123,12 +125,11 @@ export class UploadQueue {
   }
 
   /**
-   * Toglie un file dalla coda. Un audio in corso si interrompe e il suo record viene eliminato
-   * (AudioUploadService); il testo in corso non si annulla.
+   * Toglie un file dalla coda. Un upload in corso si interrompe e il suo record viene eliminato
+   * (AudioUploadService).
    */
   cancel(id: number): void {
-    const item = this.items().find((i) => i.id === id);
-    if (!item || (item.status === 'saving' && item.kind === 'text')) {
+    if (!this.items().some((i) => i.id === id)) {
       return;
     }
     this.running.get(id)?.unsubscribe();
@@ -188,23 +189,17 @@ export class UploadQueue {
     // I secondi dell'ultima modifica del file mantengono l'ordine tra file dello stesso minuto.
     const occurredAt = toOccurredAt(item.date || nowInputValue(), fileDate(item.file));
     const note: NoteDetails = { title: item.title.trim() || proposedTitle(item), occurredAt };
-    const request: Observable<unknown> =
-      content.kind === 'text'
-        ? this.api.createText({ ...note, text: content.text })
-        : this.uploads
-            .upload(content.audio, content.contentType, note)
-            .pipe(
-              tap(
-                (progress) =>
-                  progress.kind === 'progress' &&
-                  this.update(item.id, { fraction: progress.fraction }),
-              ),
-            );
+    const kind = content.kind === 'text' ? 'document' : 'audio';
+    const request: Observable<unknown> = this.uploads
+      .upload(content.file, content.contentType, note, kind)
+      .pipe(
+        tap(
+          (progress) =>
+            progress.kind === 'progress' && this.update(item.id, { fraction: progress.fraction }),
+        ),
+      );
 
-    this.update(item.id, {
-      status: 'saving',
-      fraction: content.kind === 'audio' ? 0 : null,
-    });
+    this.update(item.id, { status: 'saving', fraction: 0 });
     return new Promise((resolve) => {
       const subscription = request.subscribe({
         complete: () => {
@@ -254,9 +249,10 @@ async function readContent(
   file: File,
   maxDurationMinutes: number,
 ): Promise<FileContent | { error: string }> {
-  if (isTextFile(file)) {
-    const result = await readTextFile(file);
-    return 'error' in result ? result : { kind: 'text', text: result.text };
+  const textType = textContentType(file);
+  if (textType) {
+    const error = await checkTextFile(file, textType);
+    return error ? { error } : { kind: 'text', file, contentType: textType };
   }
 
   const contentType = audioContentType(file);
@@ -272,5 +268,5 @@ async function readContent(
   if (await exceedsMaxDuration(file, maxDurationMinutes)) {
     return { error: `L'audio supera la durata massima di ${maxDurationMinutes} minuti.` };
   }
-  return { kind: 'audio', audio: file, contentType };
+  return { kind: 'audio', file, contentType };
 }

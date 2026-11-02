@@ -1,0 +1,19 @@
+// File di testo rispetto ai limiti (16 KB per TXT e MD, 1 MB per i PDF, 8.000 caratteri estratti), per tararli:
+// quanti file si avvicinano al limite (oltre l'80%) e quanti lo superano. Comprende le estrazioni scartate.
+// I limiti sono quelli di DocumentLimits nel codice: se cambiano, va aggiornata.
+let maxTextBytes = 16 * 1024;
+let maxPdfBytes = 1024 * 1024;
+let maxCharacters = 8000;
+AppTraces
+| where tostring(Properties.CategoryName) endswith ".ExtractTextFunction" and isnotempty(Properties.SizeBytes)
+| extend Formato = tostring(Properties.Format), Byte = tolong(Properties.SizeBytes), Caratteri = toint(Properties.Characters)
+| where Formato in ("Pdf", "Text")
+| extend LimiteByte = iff(Formato == "Pdf", maxPdfBytes, maxTextBytes)
+| summarize File = count(),
+    ByteP95Percento = round(100.0 * percentile(Byte, 95) / take_any(LimiteByte)),
+    VicinoAlLimiteByte = countif(Byte > 0.8 * LimiteByte and Byte <= LimiteByte),
+    OltreLimiteByte = countif(Byte > LimiteByte),
+    CaratteriP95Percento = round(100.0 * percentile(Caratteri, 95) / maxCharacters),
+    VicinoAlLimiteCaratteri = countif(Caratteri > 0.8 * maxCharacters and Caratteri <= maxCharacters),
+    OltreLimiteCaratteri = countif(Caratteri > maxCharacters)
+    by Formato

@@ -13,7 +13,7 @@ import { APP_CONFIG } from '../config/app-config';
 import { MAX_TEXT_LENGTH } from '../records/records-api';
 import { openConfirmDialog } from '../shared/confirm-dialog';
 import { AUDIO_FORMATS_LABEL, MAX_AUDIO_SIZE_BYTES } from '../uploads/audio-formats';
-import { MAX_TEXT_FILE_BYTES, TEXT_FORMATS_LABEL } from '../uploads/text-file';
+import { MAX_FILE_TEXT_LENGTH, TEXT_FORMATS_LABEL, TEXT_LIMITS_LABEL } from '../uploads/text-file';
 import { AccountApi } from './account-api';
 
 /** Formati e limiti dei file, informazioni sull'account ed eliminazione dell'account con tutti i dati. */
@@ -47,7 +47,8 @@ export class AboutPage {
   protected readonly audioFormats = AUDIO_FORMATS_LABEL;
   protected readonly textFormats = TEXT_FORMATS_LABEL;
   protected readonly maxAudioSizeMb = MAX_AUDIO_SIZE_BYTES / (1024 * 1024);
-  protected readonly maxTextFileMb = MAX_TEXT_FILE_BYTES / (1024 * 1024);
+  protected readonly textLimits = TEXT_LIMITS_LABEL;
+  protected readonly maxFileTextLength = MAX_FILE_TEXT_LENGTH.toLocaleString('it-IT');
   protected readonly maxTextLength = MAX_TEXT_LENGTH.toLocaleString('it-IT');
   /** Vale sia per i file caricati sia per le registrazioni nel browser. */
   protected readonly maxAudioMinutes = inject(APP_CONFIG).maxAudioDurationMinutes;

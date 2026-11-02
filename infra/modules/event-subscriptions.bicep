@@ -8,12 +8,14 @@ param functionAppName string
 param uploadsContainerName string
 param audioContainerName string
 param transcriptsContainerName string
+param documentsContainerName string
 
 @description('Nomi delle funzioni con trigger Event Grid, come definiti nel codice. Nome vuoto = sottoscrizione non creata (funzione non ancora implementata).')
 param functionNames object = {
   validateUpload: 'ValidateUpload'
   enqueueTranscription: 'EnqueueTranscription'
   enqueueIndexing: 'EnqueueIndexing'
+  validateDocumentUpload: 'ValidateDocumentUpload'
 }
 
 resource eventTopic 'Microsoft.EventGrid/systemTopics@2025-02-15' existing = {
@@ -39,6 +41,11 @@ var subscriptions = filter([
     name: 'transcripts-to-indexing'
     container: transcriptsContainerName
     functionName: functionNames.enqueueIndexing
+  }
+  {
+    name: 'documents-to-extraction'
+    container: documentsContainerName
+    functionName: functionNames.validateDocumentUpload
   }
 ], subscription => !empty(subscription.functionName))
 

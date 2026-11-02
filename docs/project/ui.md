@@ -119,7 +119,7 @@ Valgono per ogni schermata. Una nuova schermata o un nuovo componente le rispett
   - testo con il contatore dei caratteri (massimo 50.000); "Salva" è attivo solo con del testo.
 - **Carica**: più file insieme, ognuno diventa una nota.
   - Prima del salvataggio un'anteprima, una card per file: titolo (prepopolato con il nome del file senza estensione; se lo si svuota si usa la proposta REC/TXT dalla data) e data e ora (prepopolate con l'ultima modifica del file, o attuali se manca), entrambi modificabili. I file non validi mostrano il motivo e non vengono salvati. "Salva" avvia gli upload, "Annulla" scarta l'anteprima.
-  - I file si salvano uno alla volta, con lo stato di ciascuno: in attesa, avanzamento (rotellina e percentuale), salvato, non riuscito. Ogni file in attesa, in caricamento (solo audio) o non riuscito ha la X per toglierlo; un audio annullato in corso non lascia la nota.
+  - I file si salvano uno alla volta, con lo stato di ciascuno: in attesa, avanzamento (rotellina e percentuale), salvato, non riuscito. Ogni file in attesa, in caricamento o non riuscito ha la X per toglierlo; un file annullato in corso non lascia la nota.
   - Un file non riuscito non ferma gli altri, e quelli non riusciti si possono riprovare.
   - Gli upload continuano cambiando pagina (l'anteprima non confermata no); chiudendo l'app si perdono. In homepage, sotto le chip dei filtri attivi, una chip ("Caricamento di N file", o "N caricamenti non riusciti") riporta alla pagina di upload.
   - Se tutti vanno a buon fine, con la pagina aperta, si torna alla homepage.
@@ -129,12 +129,14 @@ Valgono per ogni schermata. Una nuova schermata o un nuovo componente le rispett
 
 ## Pagina del record
 
-- **Intestazione**: titolo, freccia per tornare alle note e menu ⋮ con Cerca nel testo, Modifica, Tag, Rigenera trascrizione ed Elimina. Sotto, data e ora della nota ed eventuale stato ("in elaborazione", "errore"), poi i tag come chip (con un'icona per quelli assegnati in automatico).
+- **Intestazione**: titolo, freccia per tornare alle note e menu ⋮ con Cerca nel testo, Modifica, Tag, Scarica originale, Rigenera trascrizione ed Elimina. Sotto, data e ora della nota ed eventuale stato ("in elaborazione", "errore"), poi i tag come chip (con un'icona per quelli assegnati in automatico).
 - **Tag automatici**: dopo il passaggio a "pronto" la pagina si ricarica una volta dopo qualche secondo, per mostrare i tag assegnati in automatico.
 - **Audio**: lettore della copia normalizzata, disponibile appena esiste.
+- **File di testo originale**: per le note caricate da un file, una card con icona, formato e dimensione (es. "File originale PDF · 120 KB") e il pulsante "Scarica", su una riga anche su telefono. Il download usa il titolo della nota come nome del file.
 - **Testo**: per una trascrizione, un'etichetta dice "Trascrizione automatica: potrebbe contenere errori" oppure "…, modificata da te".
-- **Elaborazione**: elenco dei passi (Preparazione dell'audio, Trascrizione, Indicizzazione per la ricerca) con quello in corso. La pagina si aggiorna con il polling finché è aperta e visibile.
-  - Durante la prima trascrizione un segnaposto prende il posto del testo.
+- **Elaborazione**: elenco dei passi (audio: Preparazione dell'audio, Trascrizione, Indicizzazione per la ricerca; file di testo: Estrazione del testo, Indicizzazione per la ricerca) con quello in corso. La pagina si aggiorna con il polling finché è aperta e visibile.
+  - Durante la prima trascrizione o l'estrazione del testo un segnaposto prende il posto del testo.
+  - Un file di testo scartato spiega il motivo possibile (file non valido, PDF scansionato o testo oltre circa due pagine), senza "Riprova".
   - Durante una rigenerazione un avviso dice che la nuova trascrizione sostituirà il testo.
 - **Azioni**:
   - **Elimina** (nel menu ⋮): sempre disponibile, con conferma che cita i 14 giorni di recupero dei file.

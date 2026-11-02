@@ -74,6 +74,10 @@ public sealed class RetryOutput
     [QueueOutput("%Queues:Normalization%", Connection = "DataStorage")]
     public string? NormalizationMessage { get; init; }
 
+    /// <summary>URL del file di testo originale, senza SAS (come in <see cref="ValidateDocumentUploadFunction"/>).</summary>
+    [QueueOutput("%Queues:TextExtraction%", Connection = "DataStorage")]
+    public string? TextExtractionMessage { get; init; }
+
     [QueueOutput("%Queues:Transcription%", Connection = "DataStorage")]
     public string? TranscriptionMessage { get; init; }
 

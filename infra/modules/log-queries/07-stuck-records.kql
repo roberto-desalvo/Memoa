@@ -1,4 +1,4 @@
-// Record avviati (upload, testo, riprova, rigenerazione, modifica del testo) senza un esito dopo oltre stuckAfter:
+// Record avviati (upload audio o di un file di testo, testo, riprova, rigenerazione, modifica del testo) senza un esito dopo oltre stuckAfter:
 // né indicizzati, né in errore, né eliminati. Basata sui messaggi di log: se cambiano i testi in codice, va aggiornata.
 let stuckAfter = 30m;
 let events = union AppTraces, AppExceptions
@@ -7,6 +7,7 @@ let events = union AppTraces, AppExceptions
     | where isnotempty(RecordUid);
 let starts = events
     | where Testo startswith "Upload audio autorizzato"
+        or Testo startswith "Upload documento autorizzato"
         or Testo has "creato e accodato per l'indicizzazione"
         or Testo has "riprovato dopo l'errore"
         or Testo has "accodato per rigenerare"
@@ -17,6 +18,8 @@ let ends = events
         or Testo has "indicizzazione non necessaria"
         or Testo has "eliminato"
         or Categoria endswith ".ValidateUploadFunction" and Testo has "non valido"
+        or Categoria endswith ".ValidateDocumentUploadFunction" and Testo has "non valido"
+        or Categoria endswith ".ExtractTextFunction" and (Testo has "non riuscita" or Testo has "senza file di testo")
         or Categoria endswith ".EnqueueTranscriptionFunction" and Testo has "non riuscita"
         or Categoria == "Memoa.Transcriber.TranscriptionJob" and Testo has "non trascritto"
         or Testo has "Trascrizione del record" and Testo has "non riuscita"

@@ -24,7 +24,7 @@ export function guideSteps(maxAudioDurationMinutes: number): GuideStep[] {
       title: 'Aggiungi una nota',
       text:
         'Tocca + per scrivere una nota, registrare un audio o caricare file: audio fino a ' +
-        `${maxAudioDurationMinutes} minuti e testi, anche DOCX e PDF. Gli audio vengono trascritti ` +
+        `${maxAudioDurationMinutes} minuti e testi TXT, MD e PDF di circa due pagine. Gli audio vengono trascritti ` +
         'in automatico.',
     },
     {

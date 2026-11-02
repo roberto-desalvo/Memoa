@@ -20,7 +20,9 @@ namespace Memoa.Functions.Functions;
 /// <see cref="RegenerateTranscriptFunction"/>): si rifà la trascrizione della copia normalizzata, prima con
 /// Azure AI Speech (<see cref="TranscribeRecordFunction"/>);</item>
 /// <item>audio senza testo: si riparte dalla normalizzazione dell'originale, dopo aver eliminato copia
-/// normalizzata, trascrizione ed esiti di errore, che altrimenti farebbero saltare il record ai job.</item>
+/// normalizzata, trascrizione ed esiti di errore, che altrimenti farebbero saltare il record ai job;</item>
+/// <item>file di testo senza testo: si riparte dall'estrazione del testo dell'originale
+/// (<see cref="ExtractTextFunction"/>).</item>
 /// </list>
 /// </summary>
 public sealed class RetryRecordFunction(
@@ -47,14 +49,15 @@ public sealed class RetryRecordFunction(
             return new RetryOutput { Result = new NotFoundResult() };
         }
 
-        var attachment = record.Attachments.FirstOrDefault(a => a.Kind == AttachmentKind.Audio);
+        var attachment = record.Attachments.FirstOrDefault(a => a.Kind is AttachmentKind.Audio or AttachmentKind.Document);
         if (!RecordResponses.CanRetry(record.Status, record.SourceType, record.ErrorCode, record.Text is not null, attachment is not null))
         {
             return new RetryOutput { Result = new ConflictObjectResult(new { error = "not_retryable" }) };
         }
 
         var previousError = record.ErrorCode;
-        var step = record.Text is null ? RetryStep.Normalization
+        var step = record.Text is null
+            ? (attachment!.Kind == AttachmentKind.Document ? RetryStep.TextExtraction : RetryStep.Normalization)
             : record.SourceType == SourceType.Audio && record.OriginalTranscript is null && attachment?.NormalizedBlobPath is not null
                 ? RetryStep.Transcription
                 : RetryStep.Indexing;
@@ -92,6 +95,7 @@ public sealed class RetryRecordFunction(
             Result = new OkObjectResult(RecordResponses.ToDetail(record)),
             IndexingMessage = step == RetryStep.Indexing ? record.RecordUid.ToString("D") : null,
             NormalizationMessage = step == RetryStep.Normalization ? blobs.UploadBlobUrl(attachment!.OriginalBlobPath) : null,
+            TextExtractionMessage = step == RetryStep.TextExtraction ? blobs.DocumentBlobUrl(attachment!.OriginalBlobPath) : null,
             TranscriptionMessage = step == RetryStep.Transcription
                 ? new TranscriptionRequest(
                     blobs.NormalizedBlobUrl(attachment!.NormalizedBlobPath!),
@@ -104,6 +108,7 @@ public sealed class RetryRecordFunction(
     private enum RetryStep
     {
         Normalization,
+        TextExtraction,
         Transcription,
         Indexing,
     }

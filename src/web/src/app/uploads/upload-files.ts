@@ -9,7 +9,7 @@ import { MatListModule } from '@angular/material/list';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { Router } from '@angular/router';
 import { AUDIO_ACCEPT, AUDIO_FORMATS_LABEL } from './audio-formats';
-import { TEXT_ACCEPT, TEXT_FORMATS_LABEL } from './text-file';
+import { TEXT_ACCEPT, TEXT_FORMATS_LABEL, TEXT_LIMITS_LABEL } from './text-file';
 import { proposedTitle, UploadQueue } from './upload-queue';
 
 /**
@@ -38,6 +38,7 @@ export class UploadFiles implements OnDestroy {
 
   protected readonly uploadAccept = `${AUDIO_ACCEPT},${TEXT_ACCEPT}`;
   protected readonly formats = `${AUDIO_FORMATS_LABEL}, ${TEXT_FORMATS_LABEL}`;
+  protected readonly textLimits = TEXT_LIMITS_LABEL;
   protected readonly proposedTitle = proposedTitle;
 
   protected readonly canSave = computed(

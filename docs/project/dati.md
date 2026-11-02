@@ -36,14 +36,15 @@ Contenuti: [Database](#database) · [Accesso ai dati e migration](#accesso-ai-da
 
 **Decisione**: Azure Blob Storage, storage account dedicato ai dati utente (blob e code), separato da quello di sistema delle Functions. Isola accessi, regole di ciclo di vita e cancellazioni GDPR, senza costi in più.
 
-- **Contenitori**: `uploads` (originali), `audio` (copie normalizzate ed esiti), `transcripts` (solo ripiego). Dettagli in [backend-elaborazione.md](backend-elaborazione.md#componenti).
+- **Contenitori**: `uploads` (originali audio), `audio` (copie normalizzate ed esiti), `transcripts` (solo ripiego), `documents` (file di testo originali: PDF, MD, TXT; allegato di tipo `Document` del record di testo). Dettagli in [backend-elaborazione.md](backend-elaborazione.md#componenti).
 - **Accesso**: solo Entra ID (`allowSharedKeyAccess: false`), nessun accesso pubblico. Ogni identità ha i ruoli minimi sui contenitori e sulle code che usa.
 - **SAS**: user delegation SAS firmati dalle Functions (ruolo Storage Blob Delegator):
   - upload: permesso solo `Create` su un blob, valido 30 minuti; non permette di sovrascrivere, leggere o cancellare;
-  - riproduzione: solo lettura della copia normalizzata, valido 2 ore, firmato da `GetRecordAudio` dopo aver verificato che il record appartenga all'utente.
+  - riproduzione: solo lettura della copia normalizzata, valido 2 ore, firmato da `GetRecordAudio` dopo aver verificato che il record appartenga all'utente;
+  - download del file di testo originale: solo lettura, valido 15 minuti, con `Content-Disposition: attachment`, firmato da `GetRecordOriginal`.
 - **CORS**: PUT, GET, HEAD e OPTIONS solo dalle origini del frontend.
 - **Costo**: nessun piano gratuito permanente, ma trascurabile. Hot circa 0,02 $/GB al mese, circa il doppio con GRS. La copia Opus occupa circa 0,25 MB al minuto, mentre gli originali possono arrivare a 350 MB.
-- **Ciclo di vita**: gli originali passano al tier Cold dopo 1 giorno (si rileggono solo per rinormalizzare); le copie normalizzate al tier Cool dopo 30 giorni.
+- **Ciclo di vita**: gli originali audio passano al tier Cold dopo 1 giorno (si rileggono solo per rinormalizzare); le copie normalizzate e i file di testo originali (al più 1 MB, scaricabili dall'utente) al tier Cool dopo 30 giorni (`audioCoolAfterDays`).
 - **Trascrizioni del ripiego**: conservazione dopo il salvataggio nel database da definire (per ora nessuna regola).
 
 ---

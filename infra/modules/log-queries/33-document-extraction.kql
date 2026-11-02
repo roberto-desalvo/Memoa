@@ -1,0 +1,9 @@
+// Estrazioni del testo riuscite per formato: tempo, dimensione del file, pagine (solo PDF) e caratteri estratti.
+AppTraces
+| where tostring(Properties.CategoryName) endswith ".ExtractTextFunction" and Message startswith "Testo estratto"
+| extend Formato = tostring(Properties.Format), TempoS = todouble(Properties.ElapsedSeconds), Byte = tolong(Properties.SizeBytes),
+    Pagine = toint(Properties.Pages), Caratteri = toint(Properties.Characters)
+| summarize Estrazioni = count(), TempoP50s = round(percentile(TempoS, 50), 3), TempoP95s = round(percentile(TempoS, 95), 3),
+    KbP50 = round(percentile(Byte, 50) / 1024.0, 1), KbMax = round(max(Byte) / 1024.0, 1), PagineMax = max(Pagine),
+    CaratteriP50 = percentile(Caratteri, 50), CaratteriP95 = percentile(Caratteri, 95), CaratteriMax = max(Caratteri)
+    by Formato

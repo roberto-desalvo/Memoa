@@ -1,11 +1,15 @@
-// Tempo dalla creazione della nota alla prima indicizzazione, per tipo (audio o testo).
+// Tempo dalla creazione della nota alla prima indicizzazione, per tipo (audio, testo scritto o file di testo).
 let events = AppTraces
     | extend Categoria = tostring(Properties.CategoryName), RecordUid = tostring(Properties.RecordUid)
     | where isnotempty(RecordUid);
 let starts = events
     | where Categoria endswith ".CreateAudioUploadFunction" and Message startswith "Upload audio autorizzato"
+        or Categoria endswith ".CreateDocumentUploadFunction" and Message startswith "Upload documento autorizzato"
         or Categoria endswith ".CreateTextRecordFunction"
-    | summarize Avvio = min(TimeGenerated), Tipo = take_any(iff(Categoria endswith ".CreateTextRecordFunction", "Testo", "Audio"))
+    | summarize Avvio = min(TimeGenerated), Tipo = take_any(case(
+            Categoria endswith ".CreateTextRecordFunction", "Testo",
+            Categoria endswith ".CreateDocumentUploadFunction", "File di testo",
+            "Audio"))
         by RecordUid;
 let ends = events
     | where Categoria endswith ".IndexRecordFunction" and isnotempty(Properties.ChunkCount)

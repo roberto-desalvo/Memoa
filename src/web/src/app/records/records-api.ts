@@ -6,7 +6,7 @@ import { APP_CONFIG } from '../config/app-config';
 export type RecordStatus = 'Processing' | 'Ready' | 'Error';
 export type SourceType = 'Audio' | 'Text' | 'Image';
 /** Passo in corso di un record in elaborazione. */
-export type ProcessingStep = 'Preparing' | 'Transcribing' | 'Indexing';
+export type ProcessingStep = 'Preparing' | 'Transcribing' | 'Extracting' | 'Indexing';
 
 /** Record nella lista della homepage. */
 export interface RecordSummary {
@@ -53,6 +53,14 @@ export interface RecordDetail extends Omit<RecordSummary, 'excerpt'> {
   canRegenerateTranscript: boolean;
   /** Null se il record non è in elaborazione. */
   processingStep: ProcessingStep | null;
+  /**
+   * Il record viene da un file di testo caricato, che si può scaricare. Facoltativi, con formato e
+   * dimensione, finché le Functions distribuite non li restituiscono.
+   */
+  hasOriginal?: boolean;
+  /** "pdf", "md" o "txt"; null se il record non viene da un file di testo. */
+  originalFormat?: string | null;
+  originalSizeBytes?: number | null;
 }
 
 /** Titolo e data della nota, chiesti per tutte le modalità di aggiunta. */
@@ -88,6 +96,13 @@ export class RecordsApi {
   /** URL con SAS di sola lettura della copia normalizzata. */
   audio(recordUid: string): Observable<{ url: string; expiresOn: string }> {
     return this.http.get<{ url: string; expiresOn: string }>(`${this.baseUrl}/${recordUid}/audio`);
+  }
+
+  /** URL con SAS di sola lettura del file di testo originale, che lo storage propone come download. */
+  original(recordUid: string): Observable<{ url: string; expiresOn: string }> {
+    return this.http.get<{ url: string; expiresOn: string }>(
+      `${this.baseUrl}/${recordUid}/original`,
+    );
   }
 
   createText(note: NoteDetails & { text: string }): Observable<RecordDetail> {

@@ -13,7 +13,7 @@
         [accept]="uploadAccept"
         (change)="onFileInput(fileInput)"
       />
-      <p class="text-secondary muted">{{ formats }} · audio fino a 350 MB, testo fino a 10 MB</p>
+      <p class="text-secondary muted">{{ formats }} · audio fino a 350 MB, {{ textLimits }}</p>
       <p class="text-secondary muted">
         Ogni file diventa una nota, con il nome del file come titolo.
       </p>
@@ -110,8 +110,7 @@
             }
           }
         </span>
-        <!-- Il testo in salvataggio non si annulla: la richiesta è breve e non si può ritirare. -->
-        @if (item.status !== 'done' && !(item.status === 'saving' && item.kind === 'text')) {
+        @if (item.status !== 'done') {
           <button
             mat-icon-button
             matListItemMeta

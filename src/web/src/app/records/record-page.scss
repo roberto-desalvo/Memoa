@@ -87,6 +87,18 @@ audio {
   display: block;
 }
 
+// File originale: icona, formato e dimensione su una riga, il pulsante a destra anche su telefono.
+.original {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.original-name {
+  flex: 1;
+  min-width: 0;
+}
+
 // Il testo mantiene a capo e paragrafi così come sono stati scritti o trascritti.
 .text {
   white-space: pre-wrap;

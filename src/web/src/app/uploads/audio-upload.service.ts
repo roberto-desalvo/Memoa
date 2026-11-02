@@ -24,12 +24,15 @@ import {
 import { APP_CONFIG } from '../config/app-config';
 import { NoteDetails } from '../records/records-api';
 
-/** Record creato dalle Functions e URL con SAS per caricarne l'audio. */
+/** Record creato dalle Functions e URL con SAS per caricarne il file. */
 interface UploadTarget {
   recordUid: string;
   uploadUrl: string;
   expiresOn: string;
 }
+
+/** Audio (normalizzato e trascritto) o file di testo (PDF, MD, TXT, da cui si estrae il testo). */
+export type UploadKind = 'audio' | 'document';
 
 export type UploadProgress =
   { kind: 'progress'; fraction: number } | { kind: 'done'; recordUid: string };
@@ -39,9 +42,9 @@ const BLOCK_SIZE = 8 * 1024 * 1024;
 const BLOCK_RETRIES = 3;
 
 /**
- * Upload diretto su Blob Storage: le Functions creano il record "in elaborazione" con titolo e data
- * della nota e restituiscono un URL con SAS valido solo per creare quel blob, poi il file va allo
- * storage senza passare dalle Functions.
+ * Upload diretto su Blob Storage, per l'audio e per i file di testo: le Functions creano il record "in
+ * elaborazione" con titolo e data della nota e restituiscono un URL con SAS valido solo per creare quel
+ * blob, poi il file va allo storage senza passare dalle Functions.
  */
 @Injectable({ providedIn: 'root' })
 export class AudioUploadService {
@@ -49,17 +52,24 @@ export class AudioUploadService {
   private readonly config = inject(APP_CONFIG);
 
   /**
-   * `contentType` è il tipo MIME salvato sul blob. Se l'upload fallisce il record appena creato viene
-   * eliminato, così non resta "in elaborazione" senza file: un nuovo tentativo crea un altro record.
+   * `contentType` è il tipo MIME salvato sul blob (per i file di testo sceglie anche il limite di
+   * dimensione). Se l'upload fallisce il record appena creato viene eliminato, così non resta "in
+   * elaborazione" senza file: un nuovo tentativo crea un altro record.
    */
-  upload(audio: Blob, contentType: string, note: NoteDetails): Observable<UploadProgress> {
+  upload(
+    audio: Blob,
+    contentType: string,
+    note: NoteDetails,
+    kind: UploadKind = 'audio',
+  ): Observable<UploadProgress> {
     const type = contentType || 'application/octet-stream';
 
     // Il token di accesso lo aggiunge MsalInterceptor; l'URL dello storage non è tra le sue
     // risorse protette, quindi le richieste allo storage partono solo con il SAS.
     return this.http
-      .post<UploadTarget>(`${this.config.apiBaseUrl}/uploads/audio`, {
+      .post<UploadTarget>(`${this.config.apiBaseUrl}/uploads/${kind}`, {
         sizeBytes: audio.size,
+        contentType: type,
         title: note.title,
         occurredAt: note.occurredAt,
       })
@@ -74,8 +84,8 @@ export class AudioUploadService {
             [{ kind: 'done', recordUid } as const],
           ).pipe(
             tap({ complete: () => (settled = true), error: () => (settled = true) }),
-            catchError((error: unknown) => this.cancel(recordUid, error)),
-            finalize(() => settled || this.abandon(recordUid)),
+            catchError((error: unknown) => this.cancel(kind, recordUid, error)),
+            finalize(() => settled || this.abandon(kind, recordUid)),
           );
         }),
       );
@@ -86,8 +96,8 @@ export class AudioUploadService {
    * arrivato comunque) lascia la nota com'è. Se l'utente annulla prima della risposta con il SAS il
    * record lo elimina la coda `upload-expiry`.
    */
-  private abandon(recordUid: string): void {
-    this.http.delete(`${this.config.apiBaseUrl}/uploads/audio/${recordUid}`).subscribe({
+  private abandon(kind: UploadKind, recordUid: string): void {
+    this.http.delete(`${this.config.apiBaseUrl}/uploads/${kind}/${recordUid}`).subscribe({
       error: (error: unknown) => {
         if (!(error instanceof HttpErrorResponse && error.status === 409)) {
           console.error("Eliminazione del record dopo l'upload annullato non riuscita", error);
@@ -101,8 +111,12 @@ export class AudioUploadService {
    * se il file risulta arrivato comunque (es. risposta persa dopo il commit): in quel caso l'upload è
    * riuscito. Se anche l'eliminazione fallisce il record resta in elaborazione.
    */
-  private cancel(recordUid: string, uploadError: unknown): Observable<UploadProgress> {
-    return this.http.delete(`${this.config.apiBaseUrl}/uploads/audio/${recordUid}`).pipe(
+  private cancel(
+    kind: UploadKind,
+    recordUid: string,
+    uploadError: unknown,
+  ): Observable<UploadProgress> {
+    return this.http.delete(`${this.config.apiBaseUrl}/uploads/${kind}/${recordUid}`).pipe(
       map(() => false),
       catchError((error: unknown) => {
         const completed = error instanceof HttpErrorResponse && error.status === 409;

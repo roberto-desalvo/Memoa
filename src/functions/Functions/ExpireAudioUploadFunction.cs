@@ -11,7 +11,8 @@ namespace Memoa.Functions.Functions;
 /// <summary>
 /// Attivata dal messaggio ritardato scritto alla richiesta del SAS (<see cref="UploadExpiryScheduler"/>),
 /// quando il SAS è già scaduto: se il file non è mai arrivato elimina il record, che altrimenti resterebbe
-/// "in elaborazione" per sempre (e il frontend continuerebbe il polling).
+/// "in elaborazione" per sempre (e il frontend continuerebbe il polling). Vale per gli upload audio e per
+/// quelli dei file di testo.
 /// Idempotente: un record già eliminato o con il file arrivato viene ignorato.
 /// </summary>
 public sealed class ExpireAudioUploadFunction(
@@ -24,7 +25,8 @@ public sealed class ExpireAudioUploadFunction(
         [QueueTrigger("%Queues:UploadExpiry%", Connection = "DataStorage")] QueueMessage message,
         CancellationToken cancellationToken)
     {
-        // Solo CreateAudioUpload scrive su questa coda: un messaggio non valido non diventa valido riprovando.
+        // Solo CreateAudioUpload e CreateDocumentUpload scrivono su questa coda: un messaggio non valido non
+        // diventa valido riprovando.
         if (!Guid.TryParseExact(message.MessageText, "D", out var recordUid))
         {
             logger.LogError("Messaggio {MessageId} non valido sulla coda di scadenza degli upload: scartato", message.MessageId);
@@ -43,15 +45,15 @@ public sealed class ExpireAudioUploadFunction(
             return;
         }
 
-        // La validazione ha collegato il file: l'upload è arrivato.
-        if (record.SourceType != SourceType.Audio || record.Attachments.Count > 0)
+        // La validazione ha collegato il file: l'upload è arrivato. Una nota scritta non ha upload.
+        if (record.Attachments.Count > 0 || record.Text is not null)
         {
             return;
         }
 
         // Il file c'è ma la validazione non l'ha ancora collegato: l'evento "blob creato" è in ritardo o è
         // andato perso (gestione degli eventi non consegnati da definire). Il record non va eliminato.
-        if (await blobs.UploadExistsAsync(record.User.EntraObjectId, recordUid, cancellationToken))
+        if (await blobs.UploadExistsAsync(record.User.EntraObjectId, recordUid, record.SourceType, cancellationToken))
         {
             logger.LogWarning("Record {RecordUid}: originale presente ma non ancora validato", recordUid);
             return;
@@ -63,6 +65,6 @@ public sealed class ExpireAudioUploadFunction(
         // che al tentativo successivo trova l'allegato.
         await db.SaveChangesAsync(cancellationToken);
 
-        logger.LogInformation("Upload del record {RecordUid} mai completato: record eliminato", recordUid);
+        logger.LogInformation("Upload del record {RecordUid} ({SourceType}) mai completato: record eliminato", recordUid, record.SourceType);
     }
 }

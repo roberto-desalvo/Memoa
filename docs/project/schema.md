@@ -46,8 +46,8 @@ Record del diario, comune a tutte le origini.
 | SourceType | varchar(20) | `Audio` / `Text` / `Image` (`Image` non ancora usato). |
 | Status | varchar(20) | `Processing` / `Ready` / `Error`. |
 | ErrorCode | varchar(50), null | Solo un codice, mai contenuti. |
-| Text | nvarchar(max), null | Testo scritto o trascrizione corrente, modificabile. Se cambia, i chunk vanno ricalcolati. Candidata a un futuro indice full-text. |
-| OriginalTranscript | nvarchar(max), null | Trascrizione automatica, mai modificata dall'utente. Null per i record di testo e durante una rigenerazione. |
+| Text | nvarchar(max), null | Testo scritto, trascrizione o testo estratto da un file corrente, modificabile. Se cambia, i chunk vanno ricalcolati. Candidata a un futuro indice full-text. |
+| OriginalTranscript | nvarchar(max), null | Trascrizione automatica o testo estratto da un file caricato, mai modificati dall'utente. Null per i testi scritti, finché l'estrazione non è conclusa e durante una rigenerazione. |
 | Language | varchar(5), null | Lingua rilevata. |
 | OccurredAt | datetime2 | Data e ora della nota ([funzionalita.md](funzionalita.md#titolo-data-e-ora)). Ordine della lista: `OccurredAt`, poi `Title`. |
 | CreatedAt, UpdatedAt | datetime2 | |
@@ -60,15 +60,15 @@ Record del diario, comune a tutte le origini.
 
 ## Attachments
 
-File collegati a un record (audio, in futuro immagini). Le colonne specifiche di un tipo sono nullable.
+File collegati a un record (audio, file di testo caricati, in futuro immagini). Le colonne specifiche di un tipo sono nullable.
 
 | Colonna | Tipo | Note |
 |---|---|---|
 | Id | int identity, PK | |
 | RecordId | int, FK → Records | |
-| Kind | varchar(20) | `Audio` / `Image`. |
-| OriginalBlobPath | nvarchar(1024) | `<oid>/<RecordUid>` nel contenitore `uploads`, senza estensione. Mai cancellato né sovrascritto. |
-| OriginalContentType | varchar(100) | |
+| Kind | varchar(20) | `Audio` / `Image` / `Document` (file di testo di un record `Text`; nuovo valore dell'enum, nessuna migration). |
+| OriginalBlobPath | nvarchar(1024) | `<oid>/<RecordUid>` nel contenitore `uploads` (audio) o `documents` (file di testo), senza estensione. Mai cancellato né sovrascritto. |
+| OriginalContentType | varchar(100) | Tipo dichiarato dal client. Per i file di testo sceglie l'estensione del file scaricato. |
 | OriginalSizeBytes | bigint | |
 | NormalizedBlobPath | nvarchar(1024), null | Copia Opus in `audio`, riprodotta nella pagina del record. |
 | DurationSeconds | int, null | Dai metadati della copia normalizzata, salvata da `EnqueueTranscription` (`NormalizeRecord` non scrive nel database). |

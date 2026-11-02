@@ -28,7 +28,7 @@ Contenuti: [Account](#account) · [Contenuti in ingresso](#contenuti-in-ingresso
 | Registrazione audio | Registrazione dal browser, fino a 30 minuti. | core | ✅ |
 | Upload audio | Caricamento di file audio, anche più insieme: ognuno diventa una nota. | core | ✅ |
 | Scrittura testo | Inserimento diretto di testo. | core | ✅ |
-| Upload testo | Caricamento di file di testo, anche più insieme. | core | 🟡 solo TXT e MD; DOCX e PDF da fare |
+| Upload testo | Caricamento di file di testo (PDF, MD, TXT), anche più insieme. L'originale resta salvato e si scarica dalla pagina del record. DOCX non supportato. | core | ✅ |
 | Titolo, data e ora | Vedi [sotto](#titolo-data-e-ora). | core | ✅ |
 | Conservazione dell'originale | L'audio caricato o registrato resta collegato al testo, accanto alla copia normalizzata in Opus. | core | ✅ |
 | Testo da immagine | Immagine scritta a mano, con estrazione del testo (OCR/HTR). | avanzata | ⬜ |
@@ -84,7 +84,8 @@ Contenuti: [Account](#account) · [Contenuti in ingresso](#contenuti-in-ingresso
 | Vincolo | Valore |
 |---|---|
 | Audio | MP3, M4A/AAC, WAV, FLAC, Ogg/Opus, WebM, AMR/3GP, verificati sul formato reale con `ffmpeg`; nessun video. Massimo 350 MB per file e 30 minuti. |
-| Testo | Tutti i formati di testo, inclusi DOCX e PDF. Massimo 10 MB per file e 50.000 caratteri di testo. |
+| File di testo | PDF (con livello di testo, nessun OCR), Markdown e testo semplice, verificati sul formato reale. Circa due pagine: massimo 16 KB per TXT e MD, 1 MB per i PDF e 8.000 caratteri di testo estratto. |
+| Nota scritta | Massimo 50.000 caratteri. |
 | Immagini | Da definire. |
 | Lingue | Italiano e inglese. |
 | Piattaforme | Web e mobile (PWA). |

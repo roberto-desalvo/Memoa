@@ -1,4 +1,5 @@
 using Memoa.Functions.Data.Entities;
+using Memoa.Functions.Documents;
 using Microsoft.EntityFrameworkCore;
 
 namespace Memoa.Functions.Functions;
@@ -26,7 +27,11 @@ public sealed record RecordSummary(
 /// </summary>
 public sealed record RecordTagItem(Guid TagUid, string Name, bool IsAutomatic, bool IsActive);
 
-/// <summary>Record nella propria pagina. L'audio si chiede a parte (SAS di lettura).</summary>
+/// <summary>
+/// Record nella propria pagina. L'audio e il file di testo originale si chiedono a parte (SAS di lettura).
+/// <paramref name="OriginalFormat"/> ("pdf", "md" o "txt") e <paramref name="OriginalSizeBytes"/> valgono
+/// solo per un record creato da un file di testo; <paramref name="HasOriginal"/> indica se si può scaricare.
+/// </summary>
 public sealed record RecordDetail(
     Guid RecordUid,
     string Title,
@@ -42,6 +47,9 @@ public sealed record RecordDetail(
     bool IsTranscriptEdited,
     bool CanRegenerateTranscript,
     string? ProcessingStep,
+    bool HasOriginal,
+    string? OriginalFormat,
+    long? OriginalSizeBytes,
     IReadOnlyList<RecordTagItem> Tags);
 
 internal static class RecordResponses
@@ -51,16 +59,18 @@ internal static class RecordResponses
         new(DateTime.SpecifyKind(value, DateTimeKind.Utc));
 
     /// <summary>
-    /// Un record in errore si può riprovare se ha un testo (si rifà l'indicizzazione) oppure se è un audio
-    /// caricato che ha superato la validazione (si riparte dalla normalizzazione). Un file vuoto o troppo
-    /// grande resta tale: riprovare non serve.
+    /// Un record in errore si può riprovare se ha un testo (si rifà l'indicizzazione), se è un audio
+    /// caricato che ha superato la validazione (si riparte dalla normalizzazione) oppure se è un file di
+    /// testo la cui estrazione non è riuscita per un motivo che non dipende dal file (si riparte
+    /// dall'estrazione). Un file vuoto, troppo grande o senza testo utilizzabile resta tale: riprovare non serve.
     /// </summary>
     public static bool CanRetry(RecordStatus status, SourceType sourceType, string? errorCode, bool hasText, bool hasAttachment) =>
         status == RecordStatus.Error
         && (hasText
-            || (sourceType == SourceType.Audio
-                && hasAttachment
-                && errorCode is not (ValidateUploadFunction.FileEmpty or ValidateUploadFunction.FileTooLarge)));
+            || (hasAttachment
+                && (sourceType == SourceType.Audio
+                    ? errorCode is not (ValidateUploadFunction.FileEmpty or ValidateUploadFunction.FileTooLarge)
+                    : !TextExtractor.IsContentError(errorCode))));
 
     /// <summary>
     /// La trascrizione di un audio pronto si può rigenerare dalla copia normalizzata (vedi
@@ -73,11 +83,12 @@ internal static class RecordResponses
     /// Passo in corso di un record in elaborazione, per mostrarne l'avanzamento; null se non è in elaborazione.
     /// Un audio senza copia normalizzata è da caricare o da normalizzare (anche dopo "riprova", che la
     /// azzera); senza OriginalTranscript è da trascrivere, anche durante una rigenerazione, in cui il testo
-    /// resta quello precedente. Negli altri casi manca solo l'indicizzazione.
+    /// resta quello precedente. Un record di testo senza testo è un file da caricare o da cui estrarre il
+    /// testo. Negli altri casi manca solo l'indicizzazione.
     /// </summary>
     public static string? ProcessingStep(Record record, Attachment? audio) =>
         record.Status != RecordStatus.Processing ? null
-        : record.SourceType != SourceType.Audio ? "Indexing"
+        : record.SourceType != SourceType.Audio ? (record.Text is null ? "Extracting" : "Indexing")
         : audio?.NormalizedBlobPath is null ? "Preparing"
         : record.OriginalTranscript is null ? "Transcribing"
         : "Indexing";
@@ -147,6 +158,7 @@ internal static class RecordResponses
     public static RecordDetail ToDetail(Record record)
     {
         var audio = record.Attachments.FirstOrDefault(a => a.Kind == AttachmentKind.Audio);
+        var document = record.Attachments.FirstOrDefault(a => a.Kind == AttachmentKind.Document);
         var isTranscript = record.SourceType == SourceType.Audio && record.Text is not null;
 
         return new RecordDetail(
@@ -159,12 +171,15 @@ internal static class RecordResponses
             record.Language,
             audio?.NormalizedBlobPath is not null,
             audio?.DurationSeconds,
-            CanRetry(record.Status, record.SourceType, record.ErrorCode, record.Text is not null, audio is not null),
+            CanRetry(record.Status, record.SourceType, record.ErrorCode, record.Text is not null, (audio ?? document) is not null),
             isTranscript,
             // OriginalTranscript è null solo durante una rigenerazione (o se è fallita): il testo resta quello di prima.
             isTranscript && record.OriginalTranscript is not null && record.Text != record.OriginalTranscript,
             CanRegenerateTranscript(record.Status, record.SourceType, audio?.NormalizedBlobPath),
             ProcessingStep(record, audio),
+            document is not null,
+            document is null ? null : DocumentLimits.Extension(document.OriginalContentType).TrimStart('.'),
+            document?.OriginalSizeBytes,
             TagsOf(record));
     }
 }

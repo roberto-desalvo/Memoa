@@ -1,0 +1,16 @@
+// Riepilogo delle note da file di testo nel periodo: upload autorizzati, testi estratti, file scartati (errori che
+// dipendono dal file) e tentativi esauriti. Basata sui messaggi di log: se cambiano i testi in codice, va aggiornata.
+let events = union AppTraces, AppExceptions
+    | extend Categoria = tostring(Properties.CategoryName), RecordUid = tostring(Properties.RecordUid),
+        ErrorCode = tostring(Properties.ErrorCode), Testo = iff(Type == "AppExceptions", tostring(Properties.OriginalFormat), Message)
+    | where isnotempty(RecordUid);
+events
+| summarize
+    Caricati = dcountif(RecordUid, Categoria endswith ".CreateDocumentUploadFunction" and Testo startswith "Upload documento autorizzato"),
+    Estratti = dcountif(RecordUid, Categoria endswith ".ExtractTextFunction" and Testo startswith "Testo estratto"),
+    Scartati = dcountif(RecordUid, (Categoria endswith ".ValidateDocumentUploadFunction" or Categoria endswith ".ExtractTextFunction")
+        and isnotempty(ErrorCode) and ErrorCode != "processing_failed"),
+    NonRiusciti = dcountif(RecordUid, Categoria endswith ".ExtractTextFunction" and (Testo has "tentativi" or ErrorCode == "processing_failed"))
+| project Metrica = pack_array("Caricati", "Testo estratto", "Scartati", "Non riusciti"),
+    Valore = pack_array(Caricati, Estratti, Scartati, NonRiusciti)
+| mv-expand Metrica to typeof(string), Valore to typeof(long)

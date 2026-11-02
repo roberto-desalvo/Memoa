@@ -48,6 +48,7 @@ const TAGS_RELOAD_DELAY_MS = 5_000;
 
 /** Passi dell'elaborazione mostrati nella pagina, nell'ordine in cui avvengono. */
 const AUDIO_STEPS: readonly ProcessingStep[] = ['Preparing', 'Transcribing', 'Indexing'];
+const DOCUMENT_STEPS: readonly ProcessingStep[] = ['Extracting', 'Indexing'];
 const TEXT_STEPS: readonly ProcessingStep[] = ['Indexing'];
 
 /** Porzione del testo della nota: semplice, occorrenza trovata o occorrenza corrente. */
@@ -298,7 +299,12 @@ export class RecordPage implements OnInit, OnDestroy {
   protected stepsOf(
     record: RecordDetail,
   ): { step: ProcessingStep; state: 'done' | 'current' | 'pending' }[] {
-    const steps = record.sourceType === 'Audio' ? AUDIO_STEPS : TEXT_STEPS;
+    const steps =
+      record.sourceType === 'Audio'
+        ? AUDIO_STEPS
+        : record.hasOriginal || record.processingStep === 'Extracting'
+          ? DOCUMENT_STEPS
+          : TEXT_STEPS;
     const current = steps.indexOf(record.processingStep ?? 'Indexing');
     return steps.map((step, i) => ({
       step,
@@ -491,6 +497,32 @@ export class RecordPage implements OnInit, OnDestroy {
     const [updated] = (await openRecordTagsDialog(this.dialog, [record])) ?? [];
     if (updated && !this.destroyed) {
       this.record.set(updated);
+    }
+  }
+
+  /** Formato e dimensione del file di testo originale, ad es. "File originale PDF · 120 KB". */
+  protected originalLabel(record: RecordDetail): string {
+    const format = record.originalFormat?.toUpperCase() ?? '';
+    const size = record.originalSizeBytes
+      ? ` · ${Math.max(1, Math.round(record.originalSizeBytes / 1024)).toLocaleString('it-IT')} KB`
+      : '';
+    return `File originale ${format}${size}`;
+  }
+
+  /**
+   * Scarica il file di testo originale: lo storage risponde con Content-Disposition "attachment" e il
+   * titolo della nota come nome, quindi il browser lo salva senza lasciare l'app.
+   */
+  protected async downloadOriginal(record: RecordDetail): Promise<void> {
+    try {
+      const { url } = await firstValueFrom(this.api.original(record.recordUid));
+      const link = document.createElement('a');
+      link.href = url;
+      link.rel = 'noopener';
+      link.click();
+    } catch (err) {
+      console.error('Download dell’originale non riuscito', err);
+      this.snackBar.open('Download non riuscito.');
     }
   }
 

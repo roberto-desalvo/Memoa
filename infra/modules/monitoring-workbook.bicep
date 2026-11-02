@@ -60,6 +60,7 @@ var tabs = [
   { id: 'health', label: 'Salute' }
   { id: 'pipeline', label: 'Pipeline' }
   { id: 'transcription', label: 'Trascrizione' }
+  { id: 'documents', label: 'File di testo' }
   { id: 'dependencies', label: 'Dipendenze' }
   { id: 'usage', label: 'API e utilizzo' }
   { id: 'costs', label: 'Costi e log' }
@@ -157,6 +158,25 @@ var definition = {
       queryItem('job-executions', logQueries['job-executions'], 'table', '50', {})
       queryItem('container-apps-warnings', logQueries['container-apps-warnings'], 'table', '50', {})
       queryItem('job-attempts', logQueries['job-attempts'], 'table', '100', exportRecordUid)
+    ])
+    tabGroup('documents', [
+      queryItem('document-summary', logQueries['document-summary'], 'tiles', '100', {
+        tileSettings: {
+          titleContent: { columnMatch: 'Metrica' }
+          leftContent: {
+            columnMatch: 'Valore'
+            formatter: 12
+            formatOptions: { palette: 'auto' }
+          }
+          showBorder: false
+        }
+      })
+      queryItem('document-funnel', logQueries['document-funnel'], 'barchart', '50', {})
+      queryItem('document-extraction', logQueries['document-extraction'], 'table', '50', {})
+      queryItem('document-errors', logQueries['document-errors'], 'table', '50', {
+        noDataMessage: 'Nessun file di testo scartato.'
+      })
+      queryItem('document-limits', logQueries['document-limits'], 'table', '50', {})
     ])
     tabGroup('dependencies', [
       queryItem('dependencies', logQueries.dependencies, 'table', '100', {})

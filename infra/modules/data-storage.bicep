@@ -1,4 +1,4 @@
-// Storage account dedicato ai dati utente: blob (audio, immagini, trascrizioni) e code di elaborazione.
+// Storage account dedicato ai dati utente: blob (audio, file di testo, trascrizioni) e code di elaborazione.
 // Separato da quello di sistema delle Functions per isolare accessi, lifecycle e cancellazioni GDPR.
 // Emette gli eventi "blob creato" tramite un system topic Event Grid (sottoscrizioni in event-subscriptions.bicep).
 param location string
@@ -11,7 +11,7 @@ param allowedOrigins array
 @description('Giorni dopo i quali gli audio originali passano al tier Cold.')
 param uploadsColdAfterDays int
 
-@description('Giorni dopo i quali le copie normalizzate passano al tier Cool.')
+@description('Giorni dopo i quali le copie normalizzate e i file di testo originali passano al tier Cool.')
 param audioCoolAfterDays int
 
 @description('Nome dell\'identità user-assigned delle Functions (stesso resource group).')
@@ -26,9 +26,11 @@ param developerPrincipalIds array = []
 var uploadsContainerName = 'uploads'
 var audioContainerName = 'audio'
 var transcriptsContainerName = 'transcripts'
+var documentsContainerName = 'documents'
 var normalizationQueueName = 'normalization'
 var transcriptionQueueName = 'transcription'
 var transcriptionFallbackQueueName = 'transcription-fallback'
+var textExtractionQueueName = 'text-extraction'
 var indexingQueueName = 'indexing'
 var taggingQueueName = 'tagging'
 var uploadExpiryQueueName = 'upload-expiry'
@@ -144,6 +146,18 @@ resource transcriptsContainer 'Microsoft.Storage/storageAccounts/blobServices/co
   }
 }
 
+// File di testo caricati dal client (PDF, Markdown, testo semplice): mai cancellati né sovrascritti, salvo
+// eliminazione del record o dell'account; l'utente li scarica dalla pagina del record. Separati dagli
+// originali audio per il tier (Cool come l'audio normalizzato, non Cold).
+// Evento "blob creato" → Function di validazione dei file di testo.
+resource documentsContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
+  parent: blobService
+  name: documentsContainerName
+  properties: {
+    publicAccess: 'None'
+  }
+}
+
 resource lifecycle 'Microsoft.Storage/storageAccounts/managementPolicies@2023-05-01' = {
   parent: storage
   name: 'default'
@@ -214,6 +228,29 @@ resource lifecycle 'Microsoft.Storage/storageAccounts/managementPolicies@2023-05
             }
           }
         }
+        {
+          // Piccoli (al più 1 MB) e scaricabili dall'utente: come l'audio normalizzato, non Cold.
+          name: 'documents-to-cool'
+          enabled: true
+          type: 'Lifecycle'
+          definition: {
+            filters: {
+              blobTypes: [
+                'blockBlob'
+              ]
+              prefixMatch: [
+                '${documentsContainerName}/'
+              ]
+            }
+            actions: {
+              baseBlob: {
+                tierToCool: {
+                  daysAfterModificationGreaterThan: audioCoolAfterDays
+                }
+              }
+            }
+          }
+        }
       ]
     }
   }
@@ -240,6 +277,12 @@ resource transcriptionQueue 'Microsoft.Storage/storageAccounts/queueServices/que
 resource transcriptionFallbackQueue 'Microsoft.Storage/storageAccounts/queueServices/queues@2023-05-01' = {
   parent: queueService
   name: transcriptionFallbackQueueName
+}
+
+// Scritta dalla validazione dei file di testo (e da "riprova"): estrazione del testo nella Function.
+resource textExtractionQueue 'Microsoft.Storage/storageAccounts/queueServices/queues@2023-05-01' = {
+  parent: queueService
+  name: textExtractionQueueName
 }
 
 resource indexingQueue 'Microsoft.Storage/storageAccounts/queueServices/queues@2023-05-01' = {
@@ -370,9 +413,11 @@ output eventTopicName string = eventTopic.name
 output uploadsContainerName string = uploadsContainer.name
 output audioContainerName string = audioContainer.name
 output transcriptsContainerName string = transcriptsContainer.name
+output documentsContainerName string = documentsContainer.name
 output normalizationQueueName string = normalizationQueue.name
 output transcriptionQueueName string = transcriptionQueue.name
 output transcriptionFallbackQueueName string = transcriptionFallbackQueue.name
+output textExtractionQueueName string = textExtractionQueue.name
 output indexingQueueName string = indexingQueue.name
 output taggingQueueName string = taggingQueue.name
 output uploadExpiryQueueName string = uploadExpiryQueue.name

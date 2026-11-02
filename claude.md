@@ -34,6 +34,7 @@ Il documento delle decisioni (`docs/project.md`, indice dei file in `docs/projec
 | File | Azure Blob Storage, storage account dedicato ai dati utente |
 | Code | Azure Storage Queue (nello stesso storage account dei dati) |
 | Eventi | Event Grid (piano Basic) |
+| Estrazione testo | Function attivata dalla coda `text-extraction`: PDF con PdfPig (solo il livello di testo, nessun OCR), TXT e MD come UTF-8 |
 | Normalizzazione audio | Function attivata dalla coda di normalizzazione, con la build statica di ffmpeg (eugeneware/ffmpeg-static, Linux x64, senza ffprobe) scaricata dalla pipeline e inclusa nel pacchetto di deploy; copia Ogg Opus mono 32 kbps |
 | Trascrizione | Azure AI Speech (fast transcription, risorsa S0 in West Europe, autenticazione Entra ID) chiamato da una Function, disattivabile con la feature flag `useAzureSpeech`; ripiego su un Container Apps Job self-hosted su CPU, worker in C# .NET, con il motore scelto da `transcriberEngine`: Whisper (Whisper.net, large-v3-turbo), Parakeet (sherpa-onnx, Parakeet TDT 0.6B v3 int8, lingua rilevata con Whisper tiny) o faster-whisper (large-v3-turbo CTranslate2, script Python avviato dal worker .NET), un'immagine per motore |
 | Registry | GitHub Container Registry (immagini private) |
@@ -62,6 +63,13 @@ La rigenerazione della trascrizione e il "riprova" seguono lo stesso percorso: c
 
 La Function HTTP salva il testo, con titolo e data della nota, nel database e, parallelamente, scrive sulla coda di indicizzazione. Il testo dei record resta nel database (non su Blob Storage).
 
+### Flusso file di testo (PDF, MD, TXT)
+
+1. La Function HTTP (`CreateDocumentUpload`) riceve titolo, data, tipo e dimensione del file, crea il record di testo "in elaborazione" senza testo e restituisce un URL SAS **valido solo per scrivere quel file** nel contenitore dei **file di testo** (`documents`). Upload fallito o mai arrivato: come per l'audio (eliminazione dal client, coda `upload-expiry`).
+2. Evento "blob creato" → **Function di validazione dei file di testo**: controlla la dimensione e collega il file come allegato (`Document`); se valido scrive l'URL del blob sulla **coda di estrazione del testo** (`text-extraction`), altrimenti porta il record a "in errore". Il file non viene eliminato.
+3. **Function di estrazione** (attivata da `text-extraction`): riconosce il formato reale dal contenuto (`%PDF-` oppure UTF-8 valido), estrae il testo, lo salva in `Text` e `OriginalTranscript` **direttamente nel database** e scrive l'identificativo sulla coda di indicizzazione. File non valido, PDF cifrato o senza testo, testo troppo lungo: record "in errore". Da qui il flusso è quello del testo (indicizzazione e tag).
+4. L'utente scarica l'originale dalla pagina del record con un SAS di sola lettura (`GET /records/{uid}/original`).
+
 ### Tag
 
 - Tag per utente nel database, con nome e descrizione (massimo 2.000 caratteri) e un interruttore attivo/disattivo. Gli embedding (nome e descrizione insieme, e il solo nome) li calcola subito la Function HTTP, alla creazione e a ogni modifica di nome o descrizione. Anche il titolo delle note ha un embedding (calcolato dall'indicizzazione, o subito dalla Function HTTP quando cambia il titolo di una nota pronta).
@@ -73,6 +81,7 @@ La Function HTTP salva il testo, con titolo e data della nota, nel database e, p
 
 - **Solo le Functions scrivono nel database e sulle code di indicizzazione e dei tag.**
 - Il job di trascrizione legge **solo la propria coda** (ripiego della trascrizione), non scrive su nessuna coda né nel database, e scrive **solo su Blob Storage**.
+- La Function di estrazione del testo legge solo il contenitore dei file di testo e scrive solo nel database e sulla coda di indicizzazione.
 - La Function di normalizzazione scrive solo nel contenitore dell'audio normalizzato (copia o esito di errore), non nel database né sulle code: il flusso prosegue dall'evento "blob creato". Una sola normalizzazione alla volta per istanza (spazio temporaneo di Flex Consumption: 0,8 GB).
 - La coda di trascrizione la legge solo la Function; il job di trascrizione ascolta solo la coda di ripiego.
 - Il file di testo della trascrizione su Blob Storage esiste **solo quando trascrive il job**; le trascrizioni di Azure AI Speech la Function le salva direttamente nel database.
@@ -111,7 +120,8 @@ La Function HTTP salva il testo, con titolo e data della nota, nel database e, p
 
 - Lingue: italiano e inglese. Lingua dell'account scelta alla registrazione e modificabile; la lingua di ogni registrazione è rilevata in automatico, con ripiego sulla lingua dell'account se il rilevamento è incerto.
 - **Audio**: MP3, M4A/AAC, WAV, FLAC, Ogg/Opus, WebM, AMR/3GP, verificati sul formato reale con `ffmpeg` (non sull'estensione); nessun file video; massimo 350 MB per file; durata massima 30 minuti.
-- **Testo**: tutti i formati di testo, inclusi DOCX e PDF; massimo 10 MB per file e 50.000 caratteri di testo estratto.
+- **File di testo**: PDF, Markdown e testo semplice (TXT), verificati sul formato reale (non sull'estensione); DOCX non supportato. Circa due pagine: massimo 16 KB per TXT e MD, 1 MB per i PDF e 8.000 caratteri di testo estratto. I PDF devono avere un livello di testo (nessun OCR).
+- **Nota scritta**: massimo 50.000 caratteri (anche dopo la modifica del testo di un record).
 - **Registrazione nel browser**: scegliere il formato con `MediaRecorder.isTypeSupported()` (preferenza Opus/WebM, fallback MP4/AAC), creare il Blob con il tipo effettivamente scelto, nessun bitrate personalizzato.
 
 ## Infrastruttura
@@ -123,6 +133,7 @@ La Function HTTP salva il testo, con titolo e data della nota, nel database e, p
 - Authority e audience di Entra External ID sono **per ambiente** (un tenant per ambiente).
 - Pipeline GitHub Actions separate: frontend, Functions (che include ffmpeg nel pacchetto), schema del database, immagini di trascrizione (una per motore; la pipeline aggiorna il job solo con l'immagine del motore già in uso, che sceglie il deploy dell'infrastruttura).
 - Storage account dei dati: soft delete e versioning (14 giorni), ridondanza GRS, blocco CanNotDelete.
+- Tier dei blob: originali audio in Cold dopo 1 giorno; audio normalizzato e file di testo originali in Cool dopo 30 giorni.
 - In locale Azurite non emette eventi Event Grid: vanno simulati.
 
 ## Ancora da definire (non decidere al posto dell'utente)

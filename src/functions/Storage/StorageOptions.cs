@@ -39,6 +39,13 @@ public sealed class ContainerOptions
     /// </summary>
     [Required]
     public string Transcripts { get; set; } = string.Empty;
+
+    /// <summary>
+    /// File di testo caricati dal client (PDF, Markdown, testo semplice), mai cancellati né sovrascritti.
+    /// Separati dagli originali audio per il tier: passano a Cool come l'audio normalizzato, non a Cold.
+    /// </summary>
+    [Required]
+    public string Documents { get; set; } = string.Empty;
 }
 
 /// <summary>

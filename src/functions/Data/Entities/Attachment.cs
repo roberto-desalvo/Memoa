@@ -33,4 +33,7 @@ public enum AttachmentKind
 {
     Audio,
     Image,
+
+    /// <summary>File di testo caricato (PDF, Markdown, testo semplice) di un record di testo.</summary>
+    Document,
 }

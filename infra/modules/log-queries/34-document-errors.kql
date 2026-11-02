@@ -1,0 +1,13 @@
+// Note da file di testo scartate o non riuscite, per passaggio, codice d'errore e formato reale. I tentativi esauriti
+// (processing_failed) compaiono come eccezioni dell'estrazione, senza codice nel log.
+union AppTraces, AppExceptions
+| extend Categoria = tostring(Properties.CategoryName), ErrorCode = tostring(Properties.ErrorCode),
+    Testo = iff(Type == "AppExceptions", tostring(Properties.OriginalFormat), Message)
+| where Categoria endswith ".ValidateDocumentUploadFunction" and isnotempty(ErrorCode)
+    or Categoria endswith ".ExtractTextFunction" and (isnotempty(ErrorCode) or Testo has "tentativi")
+| extend Passaggio = iff(Categoria endswith ".ValidateDocumentUploadFunction", "Validazione", "Estrazione"),
+    ErrorCode = iff(isempty(ErrorCode), "processing_failed", ErrorCode),
+    Formato = tostring(Properties.Format)
+| summarize Occorrenze = count(), Record = dcount(tostring(Properties.RecordUid)), Ultima = max(TimeGenerated)
+    by Passaggio, ErrorCode, Formato
+| order by Occorrenze desc

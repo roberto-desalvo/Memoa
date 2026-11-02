@@ -66,10 +66,10 @@ Contenuti: [App](#app) · [Installazione e service worker](#installazione-e-serv
   - Upload diretto su Blob Storage con il SAS restituito da `CreateAudioUpload`. Sopra 8 MB il file va a blocchi (Put Block + Put Block List), con 3 tentativi per blocco sugli errori di rete e del server.
   - Il blob esiste, e quindi parte l'evento, solo alla conferma della lista dei blocchi.
   - Se l'upload fallisce il client chiama `CancelAudioUpload`. Il 409 significa che il file è arrivato comunque.
-- **Testo**: oggi solo TXT e MD (massimo 10 MB), letti nel browser in UTF-8 e salvati come testo scritto.
+- **File di testo**: PDF, MD e TXT, caricati su Blob Storage come l'audio, con lo stesso servizio (`AudioUploadService`, tipo `document`, SAS da `CreateDocumentUpload`); il testo lo estrae il backend. Nel browser si controllano estensione, dimensione (16 KB per TXT e MD, 1 MB per i PDF) e, per TXT e MD, testo vuoto o oltre 8.000 caratteri. Il tipo MIME salvato sul blob si ricava dall'estensione.
 - Ogni file diventa una nota separata.
 - **Coda degli upload** (`UploadQueue`): i file scelti passano prima da un'anteprima con titolo e data modificabili, senza chiamare le Functions; i controlli nel browser (formato, dimensione, durata, lettura del testo) avvengono già lì. La coda è un servizio dell'app, in memoria: gli upload continuano cambiando pagina e si perdono chiudendo l'app; nulla viene salvato oltre al flusso normale.
-  - Annullare un audio in corso interrompe le richieste allo storage e chiama `CancelAudioUpload` (il 409 lascia la nota). Se il SAS non era ancora arrivato il record lo elimina la coda `upload-expiry`. Lo stesso vale lasciando la pagina di registrazione durante il salvataggio.
+  - Annullare un upload in corso (audio o file di testo) interrompe le richieste allo storage e chiama `CancelAudioUpload` (il 409 lascia la nota). Se il SAS non era ancora arrivato il record lo elimina la coda `upload-expiry`. Lo stesso vale lasciando la pagina di registrazione durante il salvataggio.
 
 ---
 
@@ -100,7 +100,6 @@ Contenuti: [App](#app) · [Installazione e service worker](#installazione-e-serv
 ## Da definire
 
 - Best practice e architettura interna della PWA, oltre a installazione e service worker.
-- Estrazione del testo da DOCX e PDF: [funzionalita.md](funzionalita.md) li prevede, ma oggi non sono accettati.
 
 ---
 

@@ -4,7 +4,7 @@ using Microsoft.Extensions.Options;
 namespace Memoa.Functions.Storage;
 
 /// <summary>
-/// Pulizia dei record audio il cui upload non arriva mai (app chiusa durante l'upload, eliminazione dal
+/// Pulizia dei record (audio o file di testo) il cui upload non arriva mai (app chiusa durante l'upload, eliminazione dal
 /// client non riuscita). Alla richiesta del SAS si scrive sulla coda un messaggio con il solo RecordUid,
 /// invisibile fino alla scadenza del SAS più un margine: allora l'upload non può più avvenire e
 /// <see cref="Functions.ExpireAudioUploadFunction"/> elimina il record se il file non c'è. Un messaggio per

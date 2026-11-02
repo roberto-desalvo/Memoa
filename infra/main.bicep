@@ -65,7 +65,7 @@ param transcriberMemory string = '8Gi'
 @description('Giorni dopo i quali gli audio originali passano al tier Cold.')
 param uploadsColdAfterDays int = 1
 
-@description('Giorni dopo i quali le copie normalizzate passano al tier Cool.')
+@description('Giorni dopo i quali le copie normalizzate e i file di testo originali passano al tier Cool.')
 param audioCoolAfterDays int = 30
 
 @description('Durata massima di un audio in minuti, per la registrazione e per i file caricati: unico punto in cui si imposta (Functions e, tramite la pipeline, config.json del frontend).')
@@ -294,9 +294,11 @@ module functionApp 'modules/function-app.bicep' = {
     uploadsContainerName: dataStorage.outputs.uploadsContainerName
     audioContainerName: dataStorage.outputs.audioContainerName
     transcriptsContainerName: dataStorage.outputs.transcriptsContainerName
+    documentsContainerName: dataStorage.outputs.documentsContainerName
     normalizationQueueName: dataStorage.outputs.normalizationQueueName
     transcriptionQueueName: dataStorage.outputs.transcriptionQueueName
     transcriptionFallbackQueueName: dataStorage.outputs.transcriptionFallbackQueueName
+    textExtractionQueueName: dataStorage.outputs.textExtractionQueueName
     indexingQueueName: dataStorage.outputs.indexingQueueName
     taggingQueueName: dataStorage.outputs.taggingQueueName
     uploadExpiryQueueName: dataStorage.outputs.uploadExpiryQueueName
@@ -321,6 +323,7 @@ module eventSubscriptions 'modules/event-subscriptions.bicep' = if (deployEventS
     uploadsContainerName: dataStorage.outputs.uploadsContainerName
     audioContainerName: dataStorage.outputs.audioContainerName
     transcriptsContainerName: dataStorage.outputs.transcriptsContainerName
+    documentsContainerName: dataStorage.outputs.documentsContainerName
   }
 }
 

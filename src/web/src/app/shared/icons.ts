@@ -26,6 +26,8 @@ const ICONS: Record<string, string> = {
   resume: '<path d="M7 5v14l12-7-12-7Z" fill="currentColor" />',
   write: '<path d="M4 20h4L19 9l-4-4L4 16v4ZM13 7l4 4" />',
   upload: '<path d="M12 15V4M7 9l5-5 5 5M5 20h14" />',
+  download: '<path d="M12 4v11M7 10l5 5 5-5M5 20h14" />',
+  file: '<path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8l-5-5Z" /><path d="M14 3v5h5M9 13h6M9 17h4" />',
   back: '<path d="M15 5l-7 7 7 7" />',
   up: '<path d="m6 15 6-6 6 6" />',
   down: '<path d="m6 9 6 6 6-6" />',

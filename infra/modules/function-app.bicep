@@ -15,9 +15,11 @@ param dataQueueEndpoint string
 param uploadsContainerName string
 param audioContainerName string
 param transcriptsContainerName string
+param documentsContainerName string
 param normalizationQueueName string
 param transcriptionQueueName string
 param transcriptionFallbackQueueName string
+param textExtractionQueueName string
 param indexingQueueName string
 param taggingQueueName string
 param uploadExpiryQueueName string
@@ -176,9 +178,11 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
         { name: 'Containers__Uploads', value: uploadsContainerName }
         { name: 'Containers__Audio', value: audioContainerName }
         { name: 'Containers__Transcripts', value: transcriptsContainerName }
+        { name: 'Containers__Documents', value: documentsContainerName }
         { name: 'Queues__Normalization', value: normalizationQueueName }
         { name: 'Queues__Transcription', value: transcriptionQueueName }
         { name: 'Queues__TranscriptionFallback', value: transcriptionFallbackQueueName }
+        { name: 'Queues__TextExtraction', value: textExtractionQueueName }
         { name: 'Queues__Indexing', value: indexingQueueName }
         { name: 'Queues__Tagging', value: taggingQueueName }
         { name: 'Queues__UploadExpiry', value: uploadExpiryQueueName }

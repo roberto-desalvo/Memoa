@@ -6,6 +6,7 @@ var categories = {
   health: 'Memoa · Salute'
   pipeline: 'Memoa · Pipeline'
   transcription: 'Memoa · Trascrizione'
+  documents: 'Memoa · File di testo'
   dependencies: 'Memoa · Dipendenze'
   usage: 'Memoa · API e utilizzo'
   costs: 'Memoa · Costi e log'
@@ -58,6 +59,31 @@ var logQueries = {
     displayName: '10 Upload abbandonati'
     category: categories.pipeline
     query: loadTextContent('10-abandoned-uploads.kql')
+  }
+  'document-funnel': {
+    displayName: '32 Funnel delle note da file di testo'
+    category: categories.documents
+    query: loadTextContent('32-document-funnel.kql')
+  }
+  'document-extraction': {
+    displayName: '33 Estrazione del testo per formato'
+    category: categories.documents
+    query: loadTextContent('33-document-extraction.kql')
+  }
+  'document-errors': {
+    displayName: '34 Errori dei file di testo'
+    category: categories.documents
+    query: loadTextContent('34-document-errors.kql')
+  }
+  'document-limits': {
+    displayName: '35 File di testo rispetto ai limiti'
+    category: categories.documents
+    query: loadTextContent('35-document-limits.kql')
+  }
+  'document-summary': {
+    displayName: '36 Riepilogo dei file di testo'
+    category: categories.documents
+    query: loadTextContent('36-document-summary.kql')
   }
   'speech-vs-fallback': {
     displayName: '11 Azure AI Speech o ripiego'

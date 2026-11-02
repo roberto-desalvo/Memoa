@@ -57,7 +57,7 @@ public sealed class ValidateUploadFunction(
         // Il SAS permette di creare solo i percorsi scelti da CreateAudioUpload: qualsiasi altro file è
         // anomalo e non ha un record a cui collegarsi. Il nome del blob non va nei log perché in questo
         // caso non è sotto il nostro controllo.
-        if (!TryParseBlobName(blobUri.BlobName, out var entraObjectId, out var recordUid))
+        if (!RecordBlobService.TryParseUploadBlobName(blobUri.BlobName, out var entraObjectId, out var recordUid))
         {
             logger.LogWarning("Blob con percorso non valido nell'evento {EventId}: ignorato", eventGridEvent.Id);
             return null;
@@ -115,17 +115,6 @@ public sealed class ValidateUploadFunction(
         > CreateAudioUploadFunction.MaxSizeBytes => FileTooLarge,
         _ => null,
     };
-
-    /// <summary>Il percorso ha la forma "&lt;oid utente&gt;/&lt;RecordUid&gt;" (vedi CreateAudioUpload).</summary>
-    private static bool TryParseBlobName(string blobName, out Guid entraObjectId, out Guid recordUid)
-    {
-        entraObjectId = recordUid = Guid.Empty;
-        var parts = blobName.Split('/');
-
-        return parts.Length == 2
-            && Guid.TryParseExact(parts[0], "D", out entraObjectId)
-            && Guid.TryParseExact(parts[1], "D", out recordUid);
-    }
 
     /// <summary>
     /// Collega il file al record e, se non è valido, porta il record a "in errore". Restituisce false se

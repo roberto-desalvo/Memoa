@@ -7,6 +7,8 @@ union AppTraces, AppExceptions
 | where not(Categoria endswith ".NormalizeRecordFunction")
 | extend Passaggio = case(
     Categoria endswith ".ValidateUploadFunction", "Validazione",
+    Categoria endswith ".ValidateDocumentUploadFunction", "Validazione del file di testo",
+    Categoria endswith ".ExtractTextFunction", "Estrazione del testo",
     Categoria endswith ".EnqueueTranscriptionFunction", "Normalizzazione",
     Categoria endswith ".TranscriptStore", "Trascrizione",
     Categoria == "Memoa.Transcriber.TranscriptionJob" and isnotempty(Properties.Attempt), "Job (tentativo)",

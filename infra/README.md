@@ -16,7 +16,7 @@ Bicep per tutto ciò che lo supporta; qui sotto i passi manuali per il resto.
 | `modules/monitoring.bicep` | RG | Log Analytics (limite giornaliero, 30 giorni) + Application Insights |
 | `modules/static-web-app.bicep` | RG | Static Web Apps Free |
 | `modules/data-storage.bicep` | RG | Storage dati GRS: container `uploads` (originali) / `audio` (normalizzato) / `transcripts`, code `normalization` / `transcription` / `transcription-fallback` / `indexing` / `tagging` / `upload-expiry`, system topic Event Grid, soft delete 14 gg, versioning, lifecycle, blocco CanNotDelete; ruoli del job limitati ai propri contenitori e alla propria coda |
-| `modules/event-subscriptions.bicep` | RG | Sottoscrizioni Event Grid "blob creato", una per contenitore, verso le Functions `ValidateUpload`, `EnqueueTranscription`, `EnqueueIndexing` (solo con `deployEventSubscriptions = true`) |
+| `modules/event-subscriptions.bicep` | RG | Sottoscrizioni Event Grid "blob creato", una per contenitore, verso le Functions `ValidateUpload`, `EnqueueTranscription`, `EnqueueIndexing`, `ValidateDocumentUpload` (solo con `deployEventSubscriptions = true`) |
 | `modules/key-vault.bicep` | RG | Key Vault (RBAC) con il token GHCR, leggibile solo dall'identità del job di trascrizione |
 | `modules/sql.bicep` | RG del server SQL | Database con offerta gratuita su un server esistente condiviso (il server non è gestito da qui) |
 | `modules/openai.bicep` | RG | Azure OpenAI con `text-embedding-3-small` Data Zone Standard |
@@ -134,6 +134,12 @@ Le sottoscrizioni "blob creato" puntano direttamente alle funzioni (endpoint `Az
 1. deploy dell'infrastruttura con `deployEventSubscriptions = false`;
 2. deploy del codice delle Functions (con le funzioni Event Grid `ValidateUpload`, `EnqueueTranscription`, `EnqueueIndexing`; se i nomi cambiano, aggiornare `functionNames` in `modules/event-subscriptions.bicep`; per una funzione non ancora implementata lasciare il nome vuoto: la sua sottoscrizione non viene creata). Alla prima distribuzione di `EnqueueIndexing` il codice va distribuito prima di rilanciare il deploy con `deployEventSubscriptions = true`;
 3. impostare `deployEventSubscriptions = true` nel `.bicepparam` e ripetere il deploy dell'infrastruttura.
+
+**Prima distribuzione dei file di testo** (contenitore `documents`, coda `text-extraction`, funzione `ValidateDocumentUpload`) in un ambiente esistente. Il codice delle Functions richiede le nuove impostazioni (`Containers__Documents`, `Queues__TextExtraction`) già all'avvio, mentre la sottoscrizione richiede la funzione:
+
+1. deploy dell'infrastruttura con `deployEventSubscriptions = false` (il deploy è incrementale: le sottoscrizioni esistenti restano);
+2. deploy del codice delle Functions;
+3. deploy dell'infrastruttura con `deployEventSubscriptions = true`, che crea `documents-to-extraction`.
 
 Nessun dead-letter: gli eventi non consegnati dopo i retry automatici di Event Grid vanno persi. In locale Azurite non emette eventi: vanno simulati, vedi [docs/debug/simulazione-eventi.md](../docs/debug/simulazione-eventi.md).
 
