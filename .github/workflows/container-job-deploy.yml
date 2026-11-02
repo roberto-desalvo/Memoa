@@ -38,9 +38,9 @@ jobs:
       # Container Apps Jobs Contributor sul job, ma nessun permesso di assegnare le identità gestite,
       # che "az containerapp job update" rimanderebbe nel corpo della richiesta.
       # Senza un'immagine dello stesso repository di quella attuale (es. l'immagine segnaposto del primo
-      # deploy) il job non cambia: l'immagine si imposta con il deploy dell'infrastruttura.
+      # deploy) il job non cambia e la pipeline fallisce: l'immagine del motore scelto si imposta con il
+      # deploy dell'infrastruttura.
       - name: Aggiornamento dell'immagine
-        id: update
         run: |
           job_url="https://management.azure.com/subscriptions/$(az account show --query id -o tsv)/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.App/jobs/$JOB_NAME?api-version=2025-01-01"
           template=$(az rest --method get --url "$job_url" --query properties.template -o json)
@@ -52,16 +52,13 @@ jobs:
             fi
           done
           if [ -z "$image" ]; then
-            echo "::warning::Nessuna delle immagini pubblicate corrisponde a $current: job non aggiornato"
-            echo "updated=false" >> "$GITHUB_OUTPUT"
-            exit 0
+            echo "::error::Il job ha l'immagine $current, che non corrisponde a nessuna di quelle pubblicate ($IMAGES): job non aggiornato. Impostare transcriberEngine e TRANSCRIBER_*_IMAGE_<ENV> e ripetere il deploy dell'infrastruttura (vedi infra/README.md)."
+            exit 1
           fi
           body=$(jq -c --arg image "$image" '{properties: {template: (.containers[0].image = $image)}}' <<< "$template")
           az rest --method patch --url "$job_url" --body "$body" --output none
-          echo "updated=true" >> "$GITHUB_OUTPUT"
 
       - name: Attesa del completamento
-        if: steps.update.outputs.updated == 'true'
         run: |
           job_id="/subscriptions/$(az account show --query id -o tsv)/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.App/jobs/$JOB_NAME"
           az resource wait --ids "$job_id" --api-version 2025-01-01 --timeout 600 \

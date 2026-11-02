@@ -48,7 +48,7 @@ Contenuti: [Infrastruttura come codice](#infrastruttura-come-codice) · [Ambient
 
 - Autenticazione su Azure con OIDC e l'identità `id-memoa-<env>-deploy`, nessun segreto ([sicurezza-identita.md](sicurezza-identita.md#identità-gestite)).
 - Schema e Functions si distribuiscono separatamente, in ordine non garantito: le modifiche allo schema vanno fatte in due tempi.
-- Le immagini hanno due tag: lo SHA del commit, usato dal job, e il nome del branch, usato dal deploy dell'infrastruttura per non rimettere l'immagine segnaposto.
+- Le immagini hanno due tag: lo SHA del commit, usato dal job, e il nome del branch, usato dal deploy dell'infrastruttura. Nessun ripiego silenzioso su un'immagine segnaposto: se manca l'immagine del motore scelto si ferma il deploy dell'infrastruttura, se l'immagine del job non corrisponde a nessuna di quelle pubblicate si ferma la pipeline del job.
 
 ---
 

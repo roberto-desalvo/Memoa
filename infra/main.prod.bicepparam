@@ -20,14 +20,14 @@ param useAzureSpeech = true
 // il 28% in meno con 4, ma senza il contesto del testo precedente tra i segmenti.
 param fasterWhisperBatchSize = 1
 
-// Immagini segnaposto finché la pipeline del job non pubblica su GHCR. Dopo la prima pubblicazione
-// impostare TRANSCRIBER_IMAGE_PROD (es. ghcr.io/<owner>/memoa-transcriber:prod) e
-// TRANSCRIBER_PARAKEET_IMAGE_PROD e TRANSCRIBER_FASTER_WHISPER_IMAGE_PROD (es.
-// ghcr.io/<owner>/memoa-transcriber-parakeet:prod, ghcr.io/<owner>/memoa-transcriber-faster-whisper:prod):
-// il deploy dell'infrastruttura sostituisce l'immagine impostata dalla pipeline con quella del motore scelto.
-param transcriberImage = readEnvironmentVariable('TRANSCRIBER_IMAGE_PROD', 'mcr.microsoft.com/k8se/quickstart-jobs:latest')
-param transcriberParakeetImage = readEnvironmentVariable('TRANSCRIBER_PARAKEET_IMAGE_PROD', 'mcr.microsoft.com/k8se/quickstart-jobs:latest')
-param transcriberFasterWhisperImage = readEnvironmentVariable('TRANSCRIBER_FASTER_WHISPER_IMAGE_PROD', 'mcr.microsoft.com/k8se/quickstart-jobs:latest')
+// Immagini del job per motore, dopo la pubblicazione su GHCR: TRANSCRIBER_IMAGE_PROD
+// (ghcr.io/<owner>/memoa-transcriber:prod), TRANSCRIBER_PARAKEET_IMAGE_PROD (-parakeet:prod) e
+// TRANSCRIBER_FASTER_WHISPER_IMAGE_PROD (-faster-whisper:prod). Quella del motore scelto è obbligatoria: se è
+// vuota il deploy si ferma. Le altre possono restare vuote. Solo per il primo deploy, prima che la pipeline
+// pubblichi le immagini, si può impostare esplicitamente mcr.microsoft.com/k8se/quickstart-jobs:latest.
+param transcriberImage = readEnvironmentVariable('TRANSCRIBER_IMAGE_PROD', '')
+param transcriberParakeetImage = readEnvironmentVariable('TRANSCRIBER_PARAKEET_IMAGE_PROD', '')
+param transcriberFasterWhisperImage = readEnvironmentVariable('TRANSCRIBER_FASTER_WHISPER_IMAGE_PROD', '')
 param ghcrUsername = 'roberto-desalvo'
 param ghcrToken = readEnvironmentVariable('GHCR_TOKEN', '')
 

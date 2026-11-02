@@ -102,6 +102,19 @@ var transcriberImages = {
   'faster-whisper': transcriberFasterWhisperImage
 }
 
+// Variabile d'ambiente letta dai .bicepparam per ogni motore, per il messaggio d'errore.
+var transcriberImageVariables = {
+  whisper: 'TRANSCRIBER_IMAGE_${toUpper(environmentName)}'
+  parakeet: 'TRANSCRIBER_PARAKEET_IMAGE_${toUpper(environmentName)}'
+  'faster-whisper': 'TRANSCRIBER_FASTER_WHISPER_IMAGE_${toUpper(environmentName)}'
+}
+
+// Senza l'immagine del motore scelto il deploy si ferma in validazione, prima di modificare le risorse:
+// nessun ripiego silenzioso su un'immagine che non trascrive.
+var transcriberSelectedImage = empty(transcriberImages[transcriberEngine])
+  ? fail('Nessuna immagine per il motore di trascrizione \'${transcriberEngine}\': impostare ${transcriberImageVariables[transcriberEngine]} (vedi infra/README.md)')
+  : transcriberImages[transcriberEngine]
+
 // Suffisso stabile per i nomi globalmente univoci.
 var suffix = take(uniqueString(subscription().id, projectName, environmentName), 5)
 var baseName = '${projectName}-${environmentName}'
@@ -332,7 +345,7 @@ module transcriber 'modules/queue-job.bicep' = {
     environmentId: containerAppsEnv.outputs.id
     identityId: identities.outputs.transcriberIdentityId
     identityClientId: identities.outputs.transcriberClientId
-    image: transcriberImages[transcriberEngine]
+    image: transcriberSelectedImage
     cpu: transcriberCpu
     memory: transcriberMemory
     ghcrUsername: ghcrUsername
