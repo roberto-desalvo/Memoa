@@ -16,6 +16,22 @@
     overflow-wrap: anywhere;
   }
 
+  // Tipo di contenuto e, sotto, formati e limiti.
+  .limits {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+
+    dd {
+      margin: 0 0 var(--space-2);
+      overflow-wrap: anywhere;
+    }
+
+    dd:last-child {
+      margin-bottom: 0;
+    }
+  }
+
   .actions {
     margin-top: var(--space-1);
   }

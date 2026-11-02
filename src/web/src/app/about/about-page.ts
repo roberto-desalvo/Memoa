@@ -9,10 +9,14 @@ import { MatToolbarModule } from '@angular/material/toolbar';
 import { RouterLink } from '@angular/router';
 import { MsalService } from '@azure/msal-angular';
 import { firstValueFrom } from 'rxjs';
+import { APP_CONFIG } from '../config/app-config';
+import { MAX_TEXT_LENGTH } from '../records/records-api';
 import { openConfirmDialog } from '../shared/confirm-dialog';
+import { AUDIO_FORMATS_LABEL, MAX_AUDIO_SIZE_BYTES } from '../uploads/audio-formats';
+import { MAX_TEXT_FILE_BYTES, TEXT_FORMATS_LABEL } from '../uploads/text-file';
 import { AccountApi } from './account-api';
 
-/** Informazioni sull'account ed eliminazione dell'account con tutti i dati. */
+/** Formati e limiti dei file, informazioni sull'account ed eliminazione dell'account con tutti i dati. */
 @Component({
   selector: 'app-about-page',
   imports: [
@@ -39,6 +43,14 @@ export class AboutPage {
   protected readonly accountName = this.account?.name;
   /** Nei tenant esterni è l'email usata per accedere. */
   protected readonly username = this.account?.username;
+
+  protected readonly audioFormats = AUDIO_FORMATS_LABEL;
+  protected readonly textFormats = TEXT_FORMATS_LABEL;
+  protected readonly maxAudioSizeMb = MAX_AUDIO_SIZE_BYTES / (1024 * 1024);
+  protected readonly maxTextFileMb = MAX_TEXT_FILE_BYTES / (1024 * 1024);
+  protected readonly maxTextLength = MAX_TEXT_LENGTH.toLocaleString('it-IT');
+  /** Vale sia per i file caricati sia per le registrazioni nel browser. */
+  protected readonly maxAudioMinutes = inject(APP_CONFIG).maxAudioDurationMinutes;
 
   protected readonly deleting = signal(false);
 

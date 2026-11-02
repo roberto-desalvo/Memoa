@@ -8,6 +8,26 @@
 <mat-card>
   <mat-card-content class="sections">
     <section class="section">
+      <h2 class="text-body strong">File e limiti</h2>
+      <dl class="limits">
+        <dt class="text-body">Audio</dt>
+        <dd class="text-secondary muted">
+          {{ audioFormats }} · fino a {{ maxAudioSizeMb }} MB e {{ maxAudioMinutes }} minuti
+        </dd>
+        <dt class="text-body">Testo</dt>
+        <dd class="text-secondary muted">
+          {{ textFormats }} · fino a {{ maxTextFileMb }} MB e {{ maxTextLength }} caratteri
+        </dd>
+        <dt class="text-body">Registrazione</dt>
+        <dd class="text-secondary muted">Fino a {{ maxAudioMinutes }} minuti</dd>
+        <dt class="text-body">Nota scritta</dt>
+        <dd class="text-secondary muted">Fino a {{ maxTextLength }} caratteri</dd>
+      </dl>
+    </section>
+
+    <mat-divider />
+
+    <section class="section">
       <h2 class="text-body strong">Account</h2>
       @if (accountName) {
         <p class="text-body">{{ accountName }}</p>
