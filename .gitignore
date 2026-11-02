@@ -6,6 +6,9 @@
 *.pem
 *.key
 *.publishsettings
+# Keystore di firma dell'app Android
+*.jks
+*.keystore
 # Impostazioni locali delle Azure Functions (connection string, chiavi)
 local.settings.json
 # User secrets e profili di pubblicazione .NET

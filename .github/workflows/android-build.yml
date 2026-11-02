@@ -69,10 +69,16 @@ jobs:
       - name: Verifica della firma
         env:
           ANDROID_CERT_SHA256: ${{ vars.ANDROID_CERT_SHA256 }}
+        shell: bash
         run: |
-          apksigner="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)/apksigner"
+          set -o pipefail
+          apksigner=$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)
+          if [ -z "$apksigner" ]; then echo "::error::apksigner non trovato in $ANDROID_HOME/build-tools"; exit 1; fi
           apk=$(ls "$RUNNER_TEMP"/apk/*.apk)
-          actual=$("$apksigner" verify --print-certs "$apk" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')
+          echo "$apksigner su $apk"
+          certs=$("$apksigner" verify --print-certs "$apk")
+          echo "$certs"
+          actual=$(echo "$certs" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')
           expected=$(echo "$ANDROID_CERT_SHA256" | tr -d ':' | tr 'A-F' 'a-f')
           if [ -z "$actual" ]; then echo "::error::APK non firmato"; exit 1; fi
           if [ "$actual" != "$expected" ]; then echo "::error::L'impronta del certificato non corrisponde alla variabile ANDROID_CERT_SHA256"; exit 1; fi
