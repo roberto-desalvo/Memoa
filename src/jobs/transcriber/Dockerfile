@@ -1,6 +1,7 @@
 # syntax=docker/dockerfile:1
 # Immagini del job di trascrizione, una per motore: runtime .NET, ffmpeg (decodifica della copia Opus),
-# librerie native e i soli modelli del motore. Il motore lo sceglie Job__Engine, impostato dal target.
+# worker con le sole librerie native del motore e i soli modelli del motore. Il motore lo sceglie
+# Job__Engine, impostato dal target; quale immagine usare lo sceglie transcriberEngine nel deploy.
 # Contesto di build: src/ (serve anche src/shared):
 #   docker build -f src/jobs/transcriber/Dockerfile --target whisper src
 #   docker build -f src/jobs/transcriber/Dockerfile --target parakeet src
@@ -16,6 +17,17 @@ COPY jobs/transcriber/ jobs/transcriber/
 RUN dotnet publish jobs/transcriber/Memoa.Transcriber.csproj -c Release -o /app --no-restore
 # Whisper.net.Runtime e sherpa-onnx copiano le librerie native di tutte le piattaforme: serve solo linux-x64.
 RUN find /app/runtimes -mindepth 1 -maxdepth 1 ! -name linux-x64 -exec rm -rf {} +
+
+# Worker per motore, con le sole librerie native che usa: vanno tolte prima della copia nell'immagine
+# finale, perché un file cancellato in un livello successivo resta nei precedenti. Parakeet usa sia
+# sherpa-onnx sia Whisper.net (Whisper tiny per la lingua) e copia direttamente da build.
+# Whisper: senza sherpa-onnx e ONNX Runtime (circa 30 MB).
+FROM build AS app-whisper
+RUN find /app \( -name 'libsherpa-onnx*' -o -name 'libonnxruntime*' \) -delete
+
+# faster-whisper: senza sherpa-onnx né whisper.cpp; CTranslate2 e ONNX Runtime arrivano con le wheel Python.
+FROM build AS app-faster-whisper
+RUN find /app \( -name 'libsherpa-onnx*' -o -name 'libonnxruntime*' -o -name 'libwhisper*' -o -name 'libggml*' \) -delete
 
 # Parakeet TDT 0.6B v3 int8 per sherpa-onnx, dalla release "asr-models" del repository sherpa-onnx,
 # verificato con lo SHA-256. ADD non estrae gli archivi remoti: si estraggono qui solo i file del modello.
@@ -87,7 +99,7 @@ ENV Job__Engine=faster-whisper \
 # ADD da URL crea i file con permessi 600: il job gira come $APP_UID.
 RUN chmod -R a+rX /models
 WORKDIR /app
-COPY --from=build /app .
+COPY --from=app-faster-whisper /app .
 # Utente non privilegiato predefinito delle immagini .NET; i file temporanei vanno in /tmp.
 USER $APP_UID
 # La build fallisce se l'utente del job non può leggere il modello o importare faster-whisper.
@@ -108,7 +120,7 @@ ENV Job__Engine=whisper \
 # come $APP_UID, quindi cartella attraversabile e file leggibile da tutti.
 RUN chmod 755 /models && chmod 644 "$Whisper__ModelPath"
 WORKDIR /app
-COPY --from=build /app .
+COPY --from=app-whisper /app .
 # Utente non privilegiato predefinito delle immagini .NET; i file temporanei vanno in /tmp.
 USER $APP_UID
 # La build fallisce se l'utente del job non può leggere il modello.

@@ -46,7 +46,7 @@ Casi senza esito, con il solo log:
 
 ## Motore di trascrizione
 
-Il job dipende solo da `ITranscriptionEngine` (`Engine/`): riceve il file Opus e la lingua di ripiego e restituisce testo e lingua. Le implementazioni sono due, ciascuna nella propria immagine con i soli modelli che le servono; il motore lo sceglie `Job__Engine`, impostato dal target del `Dockerfile` (`Program.cs` registra il motore e ne valida solo le opzioni).
+Il job dipende solo da `ITranscriptionEngine` (`Engine/`): riceve il file Opus e la lingua di ripiego e restituisce testo e lingua. Le implementazioni sono tre, ciascuna nella propria immagine con i soli modelli e le sole librerie native che le servono (il worker è lo stesso, ma il `Dockerfile` toglie le librerie native degli altri motori: sherpa-onnx e ONNX Runtime dall'immagine Whisper, anche whisper.cpp da quella faster-whisper). Il motore lo sceglie `Job__Engine`, impostato dal target del `Dockerfile` (`Program.cs` registra il motore e ne valida solo le opzioni); quale immagine usare lo sceglie `transcriberEngine` nel deploy.
 
 | | `WhisperEngine` (target `whisper`) | `ParakeetEngine` (target `parakeet`) | `FasterWhisperEngine` (target `faster-whisper`) |
 |---|---|---|---|
