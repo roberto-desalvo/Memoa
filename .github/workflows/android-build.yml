@@ -78,8 +78,8 @@ jobs:
           echo "$apksigner su $apk"
           certs=$("$apksigner" verify --print-certs "$apk")
           echo "$certs"
-          # Il prefisso cambia con le versioni di apksigner ("Signer #1", "Signer (minSdkVersion=...)"): conta solo il primo digest.
-          actual=$(echo "$certs" | sed -n 's/^Signer.* certificate SHA-256 digest: *//p' | head -1 | tr -d '[:space:]' | tr 'A-F' 'a-f')
+          # Il prefisso cambia con le versioni di apksigner ("Signer #1 certificate", "V2 Signer: certificate"): conta solo il primo digest.
+          actual=$(echo "$certs" | sed -n 's/^.*Signer.* certificate SHA-256 digest: *//p' | head -1 | tr -d '[:space:]' | tr 'A-F' 'a-f')
           expected=$(echo "$ANDROID_CERT_SHA256" | tr -d ':' | tr 'A-F' 'a-f')
           if [ -z "$actual" ]; then echo "::error::APK non firmato"; exit 1; fi
           if [ "$actual" != "$expected" ]; then echo "::error::L'impronta del certificato non corrisponde alla variabile ANDROID_CERT_SHA256"; exit 1; fi
