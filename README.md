@@ -1,14 +1,12 @@
 # Memoa
 
-Una semplice app-diario, con qualche funzionalità potenziata.
+Un diario intelligente: scrivi o registra i tuoi pensieri, Memoa li organizza e te li fa ritrovare.
 
-Permette di gestire note sotto forma di testo libero o tramite registrazione vocale, nel secondo caso fornendo trascrizione automatica.
+- **Note scritte o vocali**: testo libero, file caricati o registrazioni dal browser, con trascrizione automatica dell'audio.
+- **Ricerca semantica**: trova le note per significato, non solo per parole esatte, anche tra italiano e inglese; disponibili anche i filtri classici.
+- **Tag automatici**: definisci i tuoi tag e Memoa li assegna da sola alle note pertinenti, in base al loro contenuto.
 
-Supporta ricerca semantica e ricerca classica tramite filtri.
-
-Permette all'utente di definire dei tag che vengono assegnati in automatico alle note, tramite similarità semantica.
-
-Puoi dare un'occhiata qui:
+Provala qui:
 [Memoa](https://kind-bush-0a9957b03.4.azurestaticapps.net)
 
 ## Per la documentazione funzionale e tecnica completa
