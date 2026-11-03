@@ -36,9 +36,8 @@ public sealed class Tag
     public SqlVector<float> Embedding { get; set; }
 
     /// <summary>
-    /// Embedding del solo nome, confrontato con il titolo dei record (in OR con <see cref="Embedding"/> e i
-    /// frammenti). Calcolato con <see cref="Embedding"/>; null per i tag creati prima della sua introduzione,
-    /// finché non vengono modificati.
+    /// Embedding del solo nome, calcolato con <see cref="Embedding"/>; oggi non è confrontato con nulla. Null
+    /// per i tag creati prima della sua introduzione, finché non vengono modificati.
     /// </summary>
     public SqlVector<float>? NameEmbedding { get; set; }
 

@@ -130,14 +130,6 @@ namespace Memoa.Functions.Data.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
-                    b.Property<SqlVector<float>?>("TitleEmbedding")
-                        .HasColumnType("vector(1536)");
-
-                    b.Property<string>("TitleEmbeddingModel")
-                        .HasMaxLength(100)
-                        .IsUnicode(false)
-                        .HasColumnType("varchar(100)");
-
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime2");
 

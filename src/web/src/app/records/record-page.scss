@@ -40,6 +40,16 @@ form .full + .full {
   margin: calc(-1 * var(--space-2)) 0 var(--space-4);
 }
 
+// Ogni tag porta alla sua pagina: la chip è un link, con il cursore anche sull'area interna.
+.tag-link {
+  text-decoration: none;
+
+  &,
+  * {
+    cursor: pointer;
+  }
+}
+
 // Passi dell'elaborazione: icona (fatto, in corso, da fare) più testo; il passo in corso in grassetto.
 .steps {
   display: flex;

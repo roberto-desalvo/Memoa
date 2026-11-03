@@ -13,8 +13,8 @@ namespace Memoa.Functions.Functions;
 
 /// <summary>
 /// Ricerca semantica tra le note dell'utente: calcola l'embedding della richiesta e restituisce i
-/// frammenti più simili, per contenuto o per titolo della nota (ricerca esatta con VECTOR_DISTANCE, senza
-/// indici vettoriali), ciascuno con il riferimento alla nota. La richiesta arriva nel corpo, mai nell'URL, e non finisce nei log.
+/// frammenti più simili (ricerca esatta con VECTOR_DISTANCE, senza indici vettoriali), ciascuno con il
+/// riferimento alla nota. La richiesta arriva nel corpo, mai nell'URL, e non finisce nei log.
 /// </summary>
 public sealed class SearchFunction(
     MemoaDbContext db,
@@ -26,8 +26,7 @@ public sealed class SearchFunction(
     private const int MaxResults = 10;
 
     /// <summary>
-    /// Similarità coseno minima (1 - distanza) del frammento o del titolo perché un frammento sia un
-    /// risultato. Valore iniziale per
+    /// Similarità coseno minima (1 - distanza) perché un frammento sia un risultato. Valore iniziale per
     /// text-embedding-3-small, da tarare sulle note reali: tra lingue diverse le similarità sono più basse.
     /// </summary>
     private const double MinSimilarity = 0.3;
@@ -53,8 +52,6 @@ public sealed class SearchFunction(
 
         // Il filtro globale limita i frammenti a quelli dell'utente autenticato. Si confrontano solo i
         // vettori dello stesso modello: quelli di un modello diverso non sono confrontabili.
-        // Due confronti in OR: la richiesta con il frammento e con il titolo della nota. Il titolo conta una
-        // volta sola per nota, sul primo frammento, che vale la distanza minore tra le due.
         var rows = await db.RecordChunks
             .AsNoTracking()
             .Where(c => c.EmbeddingModel == model)
@@ -65,20 +62,7 @@ public sealed class SearchFunction(
                 c.Record.Title,
                 c.Record.OccurredAt,
                 c.Record.SourceType,
-                ContentDistance = EF.Functions.VectorDistance("cosine", c.Embedding, vector),
-                // Null senza embedding del titolo o se è di un altro modello.
-                TitleDistance = c.ChunkIndex == 0 && c.Record.TitleEmbeddingModel == model
-                    ? (double?)EF.Functions.VectorDistance("cosine", c.Record.TitleEmbedding!.Value, vector)
-                    : null,
-            })
-            .Select(r => new
-            {
-                r.Content,
-                r.RecordUid,
-                r.Title,
-                r.OccurredAt,
-                r.SourceType,
-                Distance = r.TitleDistance < r.ContentDistance ? r.TitleDistance!.Value : r.ContentDistance,
+                Distance = EF.Functions.VectorDistance("cosine", c.Embedding, vector),
             })
             .Where(r => r.Distance <= maxDistance)
             .OrderBy(r => r.Distance)

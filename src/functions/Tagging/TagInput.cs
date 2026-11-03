@@ -39,8 +39,7 @@ internal static class TagInput
 
     /// <summary>
     /// Calcola in una sola richiesta l'embedding di nome e descrizione, il testo che i frammenti dei record
-    /// devono ricordare, e quello del solo nome, da confrontare con il titolo dei record. Senza descrizione i
-    /// due testi coincidono e basta un vettore.
+    /// devono ricordare, e quello del solo nome. Senza descrizione i due testi coincidono e basta un vettore.
     /// </summary>
     public static async Task SetEmbeddingAsync(this Tag tag, EmbeddingClient client, CancellationToken cancellationToken)
     {

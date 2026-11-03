@@ -14,7 +14,7 @@ namespace Memoa.Functions.Functions;
 /// <summary>
 /// Ultimo passo di entrambi i flussi, attivato dalla coda di indicizzazione (messaggio: RecordUid in
 /// formato "D", scritto da <see cref="EnqueueIndexingFunction"/> per gli audio e dalla Function HTTP per
-/// i testi): divide il testo del record in frammenti, ne calcola gli embedding (insieme a quello del titolo)
+/// i testi): divide il testo del record in frammenti, ne calcola gli embedding
 /// e li salva con lo stato "pronto". Poi accoda il record per l'assegnazione automatica dei tag (<see cref="TagRecordsFunction"/>).
 /// Idempotente: la coda consegna almeno una volta, e i chunk del record vengono sostituiti in una
 /// transazione, mai aggiunti. Il testo è già nel database: se l'indicizzazione fallisce non va perso.
@@ -106,13 +106,11 @@ public sealed class IndexRecordFunction(
 
         var contents = TextChunker.Split(record.Text);
 
-        // Una sola richiesta per tutti i frammenti (al massimo circa 30 per 50.000 caratteri) e, in fondo, per
-        // il titolo. Il client riprova da sé sugli errori temporanei e sui 429; gli altri errori fanno
-        // riprovare la coda.
-        var embeddings = await embeddingClient.GenerateCheckedEmbeddingsAsync([.. contents, record.Title], cancellationToken);
+        // Una sola richiesta per tutti i frammenti (al massimo circa 30 per 50.000 caratteri). Il client riprova
+        // da sé sugli errori temporanei e sui 429; gli altri errori fanno riprovare la coda.
+        var embeddings = await embeddingClient.GenerateCheckedEmbeddingsAsync(contents, cancellationToken);
 
         var chunks = embeddings
-            .Where(e => e.Index < contents.Count)
             .Select(e => new RecordChunk
             {
                 RecordId = record.Id,
@@ -137,12 +135,10 @@ public sealed class IndexRecordFunction(
                 .ExecuteDeleteAsync(ct);
 
             db.RecordChunks.AddRange(chunks);
-            record.TitleEmbedding = new SqlVector<float>(embeddings.Single(e => e.Index == contents.Count).ToFloats());
-            record.TitleEmbeddingModel = embeddings.Model;
             record.Status = RecordStatus.Ready;
             record.ErrorCode = null;
 
-            // Se testo o titolo sono cambiati nel frattempo (RowVersion) o un'esecuzione concorrente ha già
+            // Se il testo è cambiato nel frattempo (RowVersion) o un'esecuzione concorrente ha già
             // inserito i chunk (indice univoco) si solleva un'eccezione: la coda riprova sul testo nuovo.
             await db.SaveChangesAsync(ct);
             await transaction.CommitAsync(ct);

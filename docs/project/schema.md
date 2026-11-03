@@ -51,8 +51,6 @@ Record del diario, comune a tutte le origini.
 | Language | varchar(5), null | Lingua rilevata. |
 | OccurredAt | datetime2 | Data e ora della nota ([funzionalita.md](funzionalita.md#titolo-data-e-ora)). Ordine della lista: `OccurredAt`, poi `Title`. |
 | CreatedAt, UpdatedAt | datetime2 | |
-| TitleEmbedding | vector(1536), null | Embedding del titolo, confrontato in OR con i frammenti nella ricerca e con `Tags.NameEmbedding` nell'assegnazione dei tag. Calcolato da `IndexRecord` insieme ai frammenti, oppure da `UpdateRecord` quando cambia il titolo di una nota pronta; null finché non è calcolato. |
-| TitleEmbeddingModel | varchar(100), null | Modello di `TitleEmbedding`. |
 | TagsPendingSince | datetime2, null | Da quando la nota attende il confronto con i tag ([backend-elaborazione.md](backend-elaborazione.md#tag)); azzerato da `TagRecords`. |
 | RowVersion | rowversion | Concorrenza ottimistica tra modifiche dell'utente e pipeline. |
 
@@ -107,7 +105,7 @@ Tag dell'utente ([backend-elaborazione.md](backend-elaborazione.md#tag)).
 | Description | nvarchar(2000), null | Usata con il nome per l'embedding. |
 | IsActive | bit | Se falso il tag non viene più assegnato in automatico. |
 | Embedding | vector(1536) | Embedding di nome e descrizione, ricalcolato quando cambiano. Confrontato con i frammenti delle note. |
-| NameEmbedding | vector(1536), null | Embedding del solo nome, calcolato insieme a `Embedding` e confrontato con `Records.TitleEmbedding`. Null per i tag creati prima della sua introduzione, finché non vengono modificati. |
+| NameEmbedding | vector(1536), null | Embedding del solo nome, calcolato insieme a `Embedding`. Oggi non è confrontato con nulla (lo era con l'embedding del titolo delle note, rimosso). Null per i tag creati prima della sua introduzione, finché non vengono modificati. |
 | EmbeddingModel | varchar(100) | Modello di `Embedding` e `NameEmbedding`: si confronta solo con vettori dello stesso modello. |
 | AssignmentPendingSince | datetime2, null | Da quando il tag attende di essere applicato a tutte le note; azzerato da `TagRecords`. Con `Records.TagsPendingSince` determina lo stato `Assigning` / `Ready`, calcolato e non salvato. |
 | CreatedAt, UpdatedAt | datetime2 | |
