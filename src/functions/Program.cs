@@ -7,6 +7,7 @@ using Memoa.Functions.Data;
 using Memoa.Functions.Embeddings;
 using Memoa.Functions.Normalization;
 using Memoa.Functions.Observability;
+using Memoa.Functions.Settings;
 using Memoa.Functions.Storage;
 using Memoa.Functions.Transcription;
 using Microsoft.Azure.Functions.Worker.Builder;
@@ -79,6 +80,11 @@ builder.Services.AddOptions<TaggingOptions>()
     .ValidateDataAnnotations()
     .ValidateOnStart();
 
+builder.Services.AddOptions<SearchOptions>()
+    .Bind(builder.Configuration.GetSection(SearchOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
 builder.Services.AddOptions<SpeechOptions>()
     .Bind(builder.Configuration.GetSection(SpeechOptions.SectionName))
     .ValidateDataAnnotations()
@@ -89,5 +95,9 @@ builder.Services.AddHttpClient<ITranscriber, AzureSpeechTranscriber>(client => c
 builder.Services.AddScoped<TranscriptStore>();
 
 builder.AddDatabase();
+
+// Parametri di sistema: database con ripiego sulle sezioni Speech, Search e Tagging.
+builder.Services.AddSingleton<SystemSettingsCache>();
+builder.Services.AddScoped<SystemSettingsProvider>();
 
 builder.Build().Run();

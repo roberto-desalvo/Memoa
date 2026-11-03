@@ -2,13 +2,13 @@ using Memoa.Functions.Authentication;
 using Memoa.Functions.Data;
 using Memoa.Functions.Data.Entities;
 using Memoa.Functions.Embeddings;
+using Memoa.Functions.Settings;
 using Memoa.Functions.Tagging;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using OpenAI.Embeddings;
 
 namespace Memoa.Functions.Functions;
@@ -23,7 +23,7 @@ public sealed class TagFunctions(
     MemoaDbContext db,
     CurrentUser currentUser,
     EmbeddingClient embeddingClient,
-    IOptions<TaggingOptions> options,
+    SystemSettingsProvider systemSettings,
     ILogger<TagFunctions> logger)
 {
     [Function("ListTags")]
@@ -31,7 +31,7 @@ public sealed class TagFunctions(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "tags")] HttpRequest req,
         CancellationToken cancellationToken)
     {
-        var pendingAfter = TagStatus.PendingAfter(options.Value.PendingTimeout);
+        var pendingAfter = TagStatus.PendingAfter((await systemSettings.GetAsync(cancellationToken)).TaggingPendingTimeout);
         var recordsPending = await TagStatus.AnyRecordPendingAsync(db, pendingAfter, cancellationToken);
 
         // Il filtro globale limita la query ai tag dell'utente autenticato.
@@ -311,7 +311,7 @@ public sealed class TagFunctions(
 
     private async Task<string> StatusOfAsync(Tag tag, CancellationToken cancellationToken)
     {
-        var pendingAfter = TagStatus.PendingAfter(options.Value.PendingTimeout);
+        var pendingAfter = TagStatus.PendingAfter((await systemSettings.GetAsync(cancellationToken)).TaggingPendingTimeout);
         var recordsPending = tag.IsActive && await TagStatus.AnyRecordPendingAsync(db, pendingAfter, cancellationToken);
         return TagStatus.Of(tag.IsActive, tag.AssignmentPendingSince, recordsPending, pendingAfter);
     }

@@ -211,6 +211,43 @@ namespace Memoa.Functions.Data.Migrations
                     b.ToTable("RecordTags");
                 });
 
+            modelBuilder.Entity("Memoa.Functions.Data.Entities.SystemSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("SearchMaxResults")
+                        .HasColumnType("int");
+
+                    b.Property<double?>("SearchMinSimilarity")
+                        .HasColumnType("float");
+
+                    b.Property<int?>("SpeechBaseTimeoutSeconds")
+                        .HasColumnType("int");
+
+                    b.Property<bool?>("SpeechEnabled")
+                        .HasColumnType("bit");
+
+                    b.Property<int?>("SpeechTimeoutPerAudioMinuteSeconds")
+                        .HasColumnType("int");
+
+                    b.Property<double?>("TaggingMinSimilarity")
+                        .HasColumnType("float");
+
+                    b.Property<int?>("TaggingPendingTimeoutMinutes")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("SystemSettings", t =>
+                        {
+                            t.HasCheckConstraint("CK_SystemSettings_Singleton", "[Id] = 1");
+                        });
+                });
+
             modelBuilder.Entity("Memoa.Functions.Data.Entities.Tag", b =>
                 {
                     b.Property<int>("Id")
@@ -296,6 +333,9 @@ namespace Memoa.Functions.Data.Migrations
 
                     b.Property<DateTime?>("GuideDismissedAt")
                         .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsAdmin")
+                        .HasColumnType("bit");
 
                     b.Property<string>("PreferredLanguage")
                         .IsRequired()

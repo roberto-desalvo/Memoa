@@ -1,6 +1,8 @@
 import { Routes } from '@angular/router';
 import { MsalGuard } from '@azure/msal-angular';
 import { AboutPage } from './about/about-page';
+import { AdminPage } from './admin/admin-page';
+import { adminGuard } from './admin/admin-guard';
 import { Home } from './home/home';
 import { NewNote } from './notes/new-note';
 import { deletedRecordGuard } from './records/deleted-record-guard';
@@ -21,6 +23,7 @@ export const routes: Routes = [
   { path: 'tags/new', component: TagPage, canActivate: [MsalGuard] },
   { path: 'tags/:tagUid', component: TagPage, canActivate: [MsalGuard] },
   { path: 'settings', component: SettingsPage, canActivate: [MsalGuard] },
+  { path: 'admin', component: AdminPage, canActivate: [MsalGuard, adminGuard] },
   { path: 'about', component: AboutPage, canActivate: [MsalGuard] },
   { path: '**', redirectTo: '' },
 ];

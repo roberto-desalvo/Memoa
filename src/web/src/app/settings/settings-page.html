@@ -57,5 +57,22 @@
         </mat-select>
       </mat-form-field>
     </section>
+
+    @if (account.me()?.isAdmin) {
+      <mat-divider />
+
+      <section class="setting">
+        <h2 class="text-body strong">Amministrazione</h2>
+        <p class="text-secondary muted">
+          Parametri di sistema: trascrizione, soglie di ricerca e tag.
+        </p>
+        <div>
+          <a mat-button routerLink="/admin">
+            <mat-icon svgIcon="settings" />
+            Parametri di sistema
+          </a>
+        </div>
+      </section>
+    }
   </mat-card-content>
 </mat-card>

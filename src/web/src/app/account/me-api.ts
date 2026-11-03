@@ -7,6 +7,8 @@ import { APP_CONFIG } from '../config/app-config';
 export interface Me {
   /** La guida va proposta: l'utente non l'ha ancora completata né rifiutata. */
   showGuide: boolean;
+  /** L'utente può modificare i parametri di sistema (pagina di amministrazione). */
+  isAdmin: boolean;
 }
 
 /**

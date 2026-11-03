@@ -13,7 +13,7 @@ namespace Memoa.Functions.Functions;
 /// <summary>
 /// Utente applicativo: <c>GET /me</c> lo registra (il frontend la chiama all'apertura della homepage, le
 /// altre funzioni rispondono 403 finché l'utente non esiste, vedi <see cref="UserRegistrationMiddleware"/>)
-/// e dice se proporre la guida; <c>PUT /me/guide</c> registra che la guida è stata completata o rifiutata.
+/// e dice se proporre la guida e se l'utente è amministratore; <c>PUT /me/guide</c> registra che la guida è stata completata o rifiutata.
 /// </summary>
 public sealed class MeFunctions(
     MemoaDbContext db,
@@ -33,7 +33,7 @@ public sealed class MeFunctions(
         CancellationToken cancellationToken)
     {
         var user = await EnsureUserAsync(req, cancellationToken);
-        return new OkObjectResult(new Me(ShowGuide: user.GuideDismissedAt is null));
+        return new OkObjectResult(new Me(ShowGuide: user.GuideDismissedAt is null, IsAdmin: user.IsAdmin));
     }
 
     [Function("DismissGuide")]
@@ -113,6 +113,7 @@ public sealed class MeFunctions(
 }
 
 /// <param name="ShowGuide">La guida va proposta: l'utente non l'ha ancora completata né rifiutata.</param>
-public sealed record Me(bool ShowGuide);
+/// <param name="IsAdmin">L'utente può modificare i parametri di sistema (<see cref="AdminFunctions"/>).</param>
+public sealed record Me(bool ShowGuide, bool IsAdmin);
 
 public sealed record GuideState(bool Dismissed);

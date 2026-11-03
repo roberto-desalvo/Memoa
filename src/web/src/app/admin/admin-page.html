@@ -1,0 +1,123 @@
+<mat-toolbar class="page-header">
+  <a mat-icon-button routerLink="/settings" aria-label="Torna alle impostazioni">
+    <mat-icon svgIcon="back" />
+  </a>
+  <h1>Amministrazione</h1>
+</mat-toolbar>
+
+<ng-template #numberField let-field>
+  <mat-form-field subscriptSizing="dynamic">
+    <mat-label>{{ field.label }}</mat-label>
+    <input
+      matInput
+      type="text"
+      inputmode="decimal"
+      autocomplete="off"
+      placeholder="{{ defaultOf(field.key) }}"
+      [value]="numberOf(field.key)"
+      [disabled]="status() === 'saving'"
+      (input)="setNumber(field.key, $any($event.target).value)"
+    />
+    @if (numberOf(field.key) !== '') {
+      <button
+        matSuffix
+        mat-icon-button
+        type="button"
+        [attr.aria-label]="'Usa il valore predefinito per ' + field.label"
+        (click)="clear(field.key)"
+      >
+        <mat-icon svgIcon="close" />
+      </button>
+    }
+    <mat-hint
+      >Predefinito: {{ defaultOf(field.key) }} · da {{ field.min }} a {{ field.max }}</mat-hint
+    >
+  </mat-form-field>
+</ng-template>
+
+@if (defaults(); as defaults) {
+  <form (submit)="$event.preventDefault(); save()">
+    <mat-card>
+      <mat-card-content class="settings">
+        <p class="intro text-secondary muted">
+          Un campo vuoto usa il valore della configurazione. Le modifiche valgono entro un minuto.
+        </p>
+
+        <section class="setting">
+          <h2 id="speech-label" class="text-body strong">Trascrizione</h2>
+          <p class="text-secondary muted">
+            Con Azure AI Speech disattivato ogni audio va al job di trascrizione self-hosted.
+          </p>
+          <mat-form-field subscriptSizing="dynamic">
+            <mat-label>Azure AI Speech</mat-label>
+            <mat-select
+              aria-labelledby="speech-label"
+              [value]="speech()"
+              [disabled]="status() === 'saving'"
+              (selectionChange)="setSpeech($event.value)"
+            >
+              <mat-option value="default"
+                >Predefinito ({{ defaults.speechEnabled ? 'attivo' : 'disattivato' }})</mat-option
+              >
+              <mat-option value="on">Attivo</mat-option>
+              <mat-option value="off">Disattivato</mat-option>
+            </mat-select>
+          </mat-form-field>
+          @for (field of speechFields; track field.key) {
+            <ng-container *ngTemplateOutlet="numberField; context: { $implicit: field }" />
+          }
+        </section>
+
+        <mat-divider />
+
+        <section class="setting">
+          <h2 class="text-body strong">Ricerca</h2>
+          <p class="text-secondary muted">
+            Similarità coseno minima tra la richiesta e un frammento di nota.
+          </p>
+          @for (field of searchFields; track field.key) {
+            <ng-container *ngTemplateOutlet="numberField; context: { $implicit: field }" />
+          }
+        </section>
+
+        <mat-divider />
+
+        <section class="setting">
+          <h2 class="text-body strong">Tag</h2>
+          <p class="text-secondary muted">
+            Similarità coseno minima tra un tag e un frammento di nota perché il tag venga
+            assegnato. Una nuova soglia vale per le note elaborate o i tag modificati da quel
+            momento.
+          </p>
+          @for (field of taggingFields; track field.key) {
+            <ng-container *ngTemplateOutlet="numberField; context: { $implicit: field }" />
+          }
+        </section>
+
+        <div class="actions" aria-live="polite">
+          @switch (status()) {
+            @case ('saved') {
+              <p class="text-secondary muted">Salvati.</p>
+            }
+            @case ('failed') {
+              <p class="error text-secondary" role="alert">
+                <mat-icon svgIcon="error" />{{ saveError() }}
+              </p>
+            }
+          }
+          <button mat-flat-button type="submit" [disabled]="status() === 'saving'">
+            {{ status() === 'saving' ? 'Salvataggio…' : 'Salva' }}
+          </button>
+        </div>
+      </mat-card-content>
+    </mat-card>
+  </form>
+} @else if (loadFailed()) {
+  <div class="page-state" role="alert">
+    <p class="error"><mat-icon svgIcon="error" />Impossibile caricare i parametri di sistema.</p>
+  </div>
+} @else {
+  <div class="page-state" aria-live="polite">
+    <mat-spinner diameter="32" aria-label="Caricamento dei parametri" />
+  </div>
+}

@@ -14,7 +14,7 @@ Contenuti: [Trascrizione](#trascrizione) · [Job di trascrizione](#job-di-trascr
 
 **Decisione**: Azure AI Speech, fast transcription, risorsa S0 in West Europe, chiamata da `TranscribeRecord` dietro l'interfaccia `ITranscriber`.
 
-- **Feature flag**: `useAzureSpeech` nei `.bicepparam` (`Speech__Enabled` nelle Functions, predefinito `true`). Con `false`, `TranscribeRecord` non chiama il servizio e inoltra ogni messaggio al [job di trascrizione](#job-di-trascrizione), dopo aver controllato record e copia normalizzata. La risorsa Speech resta distribuita: senza chiamate non costa nulla.
+- **Feature flag**: `useAzureSpeech` nei `.bicepparam` (`Speech__Enabled` nelle Functions, predefinito `true`). Con `false`, `TranscribeRecord` non chiama il servizio e inoltra ogni messaggio al [job di trascrizione](#job-di-trascrizione), dopo aver controllato record e copia normalizzata. La risorsa Speech resta distribuita: senza chiamate non costa nulla. Un amministratore può sostituire il valore dalla pagina dei [parametri di sistema](backend-elaborazione.md#backend), senza un nuovo deploy.
 
 - **Chiamata**: REST diretta (API `2024-11-15`), senza SDK e senza retry interni: i retry li fa la coda. Invia la copia Ogg Opus normalizzata (circa 7,5 MB per 30 minuti), ben sotto i limiti del servizio.
 - **Lingua**: locale candidati `it-IT` ed `en-US`. Vale la lingua con più parlato tra le frasi riconosciute; se nessuna frase ha un locale candidato, vale la lingua dell'account.
@@ -80,8 +80,8 @@ Su un audio di 157 s Parakeet è sceso a 0,41x (caricamento escluso): il costo f
 - **Chi li calcola**: le Functions, non i job, perché anche la query di ricerca va trasformata in vettore in tempo reale.
 - **Frammenti**: `IndexRecord` divide il testo in frammenti di massimo 2.000 caratteri (circa 500-700 token), tagliati preferibilmente a fine paragrafo, riga o frase, con circa 200 caratteri di sovrapposizione. Ogni frammento ha il proprio embedding in `RecordChunks`. Il titolo della nota non ha un embedding.
 - **Vettori**: 1.536 dimensioni, colonna `vector(1536)`. Accanto a ogni vettore si salva il modello restituito dal servizio: cambiarlo richiede di ricalcolare tutti i vettori. Versione del modello fissata (`NoAutoUpgrade`).
-- **Ricerca**: esatta con `VECTOR_DISTANCE`, senza indici vettoriali, con similarità minima 0,3, tra la query e ogni frammento (il titolo della nota non viene confrontato).
-- **Tag**: lo stesso modello calcola, in una richiesta, l'embedding di nome e descrizione di ogni tag e quello del solo nome. Un tag si assegna a un record se almeno un frammento ha con nome e descrizione similarità coseno pari almeno a `Tagging__MinSimilarity` (0,35, da tarare sulle note reali: tra lingue diverse le similarità sono più basse). Dettagli in [backend-elaborazione.md](backend-elaborazione.md#tag).
+- **Ricerca**: esatta con `VECTOR_DISTANCE`, senza indici vettoriali, con similarità minima 0,3 e al massimo 10 frammenti (`Search__MinSimilarity` e `Search__MaxResults`, sostituibili dai parametri di sistema), tra la query e ogni frammento (il titolo della nota non viene confrontato).
+- **Tag**: lo stesso modello calcola, in una richiesta, l'embedding di nome e descrizione di ogni tag e quello del solo nome. Un tag si assegna a un record se almeno un frammento ha con nome e descrizione similarità coseno pari almeno a `Tagging__MinSimilarity` (0,35, sostituibile dai parametri di sistema, da tarare sulle note reali: tra lingue diverse le similarità sono più basse). Dettagli in [backend-elaborazione.md](backend-elaborazione.md#tag).
 - **Autenticazione**: solo Entra ID, ruolo Cognitive Services OpenAI User.
 - **Costo**: 0,02 $ per milione di token, pochi centesimi al mese.
 

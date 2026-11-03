@@ -4,7 +4,7 @@
 
 Tabelle di Azure SQL Database (EF Core 10). Scelte su database e migration in [dati.md](dati.md). Il codice di riferimento è in `src/functions/Data` (entità in `Entities`, configurazioni in `Configurations`).
 
-Contenuti: [Convenzioni](#convenzioni) · [Users](#users) · [Records](#records) · [Attachments](#attachments) · [RecordChunks](#recordchunks) · [Tags](#tags) · [RecordTags](#recordtags) · [Relazioni e indici](#relazioni-e-indici)
+Contenuti: [Convenzioni](#convenzioni) · [Users](#users) · [Records](#records) · [Attachments](#attachments) · [RecordChunks](#recordchunks) · [Tags](#tags) · [RecordTags](#recordtags) · [SystemSettings](#systemsettings) · [Relazioni e indici](#relazioni-e-indici)
 
 ---
 
@@ -29,6 +29,7 @@ Utente applicativo, creato da `GET /me` (chiamata dal frontend all'apertura dell
 | Email | nvarchar(320) | Dal claim opzionale `email`. Aggiornata se cambia, mai svuotata se il claim manca. |
 | PreferredLanguage | varchar(5) | `it` / `en`, `it` alla creazione. |
 | GuideDismissedAt | datetime2, null | Quando l'utente ha completato o rifiutato la guida (prima volta). Null finché la guida va proposta. |
+| IsAdmin | bit | Può modificare i [parametri di sistema](#systemsettings). Falso alla creazione; si imposta solo a mano con T-SQL, nessuna funzione lo modifica. |
 | CreatedAt | datetime2 | |
 
 ---
@@ -124,6 +125,24 @@ Assegnazione di un tag a un record, oppure la sua esclusione.
 | Source | varchar(20) | `Auto` (per similarità, ricalcolata) / `Manual` (scelta dall'utente) / `Excluded` (tolta dall'utente, non riassegnata). |
 | Similarity | float, null | Solo per `Auto`. |
 | CreatedAt | datetime2 | |
+
+---
+
+## SystemSettings
+
+Parametri di sistema modificabili dagli amministratori ([backend-elaborazione.md](backend-elaborazione.md#backend)). Una sola riga (`Id = 1`, vincolo `CK_SystemSettings_Singleton`), creata al primo salvataggio. Nessun filtro globale: non sono dati dell'utente. Ogni colonna null usa il valore della configurazione delle Functions.
+
+| Colonna | Tipo | Configurazione sostituita |
+|---|---|---|
+| Id | int, PK | |
+| SpeechEnabled | bit, null | `Speech__Enabled` |
+| SpeechBaseTimeoutSeconds | int, null | `Speech__BaseTimeoutSeconds` (1-600) |
+| SpeechTimeoutPerAudioMinuteSeconds | int, null | `Speech__TimeoutPerAudioMinuteSeconds` (0-120) |
+| SearchMinSimilarity | float, null | `Search__MinSimilarity` (0-1) |
+| SearchMaxResults | int, null | `Search__MaxResults` (1-50) |
+| TaggingMinSimilarity | float, null | `Tagging__MinSimilarity` (0-1) |
+| TaggingPendingTimeoutMinutes | int, null | `Tagging__PendingTimeoutMinutes` (1-1.440) |
+| UpdatedAt | datetime2 | |
 
 ---
 

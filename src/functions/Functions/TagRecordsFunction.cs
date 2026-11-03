@@ -3,19 +3,20 @@ using Azure.Storage.Queues.Models;
 using Memoa.Functions.Data;
 using Memoa.Functions.Data.Entities;
 using Memoa.Functions.Embeddings;
+using Memoa.Functions.Settings;
 using Memoa.Functions.Tagging;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace Memoa.Functions.Functions;
 
 /// <summary>
 /// Assegnazione automatica dei tag, attivata dalla coda dei tag (<see cref="TaggingRequest"/>): un record
 /// riceve un tag attivo se almeno uno dei suoi frammenti ha con il tag (nome e descrizione) una similarità
-/// coseno non inferiore a <see cref="TaggingOptions.MinSimilarity"/>. Si confrontano solo vettori dello stesso
-/// modello, già salvati nel database: nessuna chiamata ad Azure OpenAI.
+/// coseno non inferiore a <see cref="TaggingOptions.MinSimilarity"/> (o al valore della pagina di
+/// amministrazione). Si confrontano solo vettori dello stesso modello, già salvati nel database: nessuna
+/// chiamata ad Azure OpenAI.
 /// Si ricalcolano solo le assegnazioni automatiche: quelle manuali e le esclusioni scelte dall'utente non
 /// cambiano, e un tag escluso non viene riassegnato. Idempotente: le assegnazioni automatiche coinvolte
 /// vengono sostituite in una transazione, insieme alla fine dell'attesa del record o del tag
@@ -23,7 +24,7 @@ namespace Memoa.Functions.Functions;
 /// </summary>
 public sealed class TagRecordsFunction(
     MemoaDbContext db,
-    IOptions<TaggingOptions> options,
+    SystemSettingsProvider systemSettings,
     ILogger<TagRecordsFunction> logger)
 {
     private const string CosineMetric = "cosine";
@@ -108,7 +109,7 @@ public sealed class TagRecordsFunction(
             })
             .ToListAsync(cancellationToken);
 
-        var maxDistance = 1 - options.Value.MinSimilarity;
+        var maxDistance = 1 - (await systemSettings.GetAsync(cancellationToken)).TaggingMinSimilarity;
         var activeTagIds = scores.Select(s => s.Id).ToList();
         var matches = scores
             .Where(s => s.ContentDistance <= maxDistance)
@@ -154,7 +155,7 @@ public sealed class TagRecordsFunction(
             return;
         }
 
-        var maxDistance = 1 - options.Value.MinSimilarity;
+        var maxDistance = 1 - (await systemSettings.GetAsync(cancellationToken)).TaggingMinSimilarity;
         var embedding = tag.Embedding;
         var rows = await db.RecordChunks
             .IgnoreQueryFilters([MemoaDbContext.CurrentUserFilter])

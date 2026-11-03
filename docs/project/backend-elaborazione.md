@@ -15,7 +15,17 @@ Contenuti: [Backend](#backend) · [Normalizzazione](#normalizzazione) · [Compon
 - Grant gratuito mensile: 250.000 esecuzioni e 100.000 GB-s per sottoscrizione. Lo storage account di sistema delle Functions costa pochi centesimi.
 - Senza istanze "always ready" ci sono cold start.
 - Niente modelli pesanti (Whisper) nelle Functions: il ripiego della trascrizione gira in un Container Apps Job. ffmpeg invece sì, come binario statico nel pacchetto (vedi [Normalizzazione](#normalizzazione)).
-- **Utente applicativo**: `GetMe` (HTTP, `GET /me`) lo crea se non esiste (idempotente, gestisce le richieste parallele), allinea l'email al claim del token e restituisce `{ showGuide }`; `DismissGuide` (HTTP, `PUT /me/guide`, corpo `{ "dismissed": true }`) salva la prima chiusura della guida. Finché l'utente non esiste le altre funzioni HTTP rispondono `403 user_not_registered` (vedi [sicurezza-identita.md](sicurezza-identita.md#autenticazione)).
+- **Utente applicativo**: `GetMe` (HTTP, `GET /me`) lo crea se non esiste (idempotente, gestisce le richieste parallele), allinea l'email al claim del token e restituisce `{ showGuide, isAdmin }`; `DismissGuide` (HTTP, `PUT /me/guide`, corpo `{ "dismissed": true }`) salva la prima chiusura della guida. Finché l'utente non esiste le altre funzioni HTTP rispondono `403 user_not_registered` (vedi [sicurezza-identita.md](sicurezza-identita.md#autenticazione)).
+- **Parametri di sistema**: `GetSystemSettings` e `UpdateSystemSettings` (HTTP, `GET` e `PUT /admin/settings`), solo per gli utenti con `Users.IsAdmin` (gli altri ricevono `403 admin_required`). Valori nella riga unica di `SystemSettings` ([schema.md](schema.md#systemsettings)): ogni colonna null usa la configurazione delle Functions.
+
+  | Parametro | Configurazione (predefinito) |
+  |---|---|
+  | Azure AI Speech attivo | `Speech__Enabled` (`useAzureSpeech`) |
+  | Timeout di base e per minuto di audio della trascrizione | `Speech__BaseTimeoutSeconds` (30), `Speech__TimeoutPerAudioMinuteSeconds` (10) |
+  | Similarità minima e numero massimo di risultati della ricerca | `Search__MinSimilarity` (0,3), `Search__MaxResults` (10) |
+  | Similarità minima e timeout dell'attesa dei tag | `Tagging__MinSimilarity` (0,35), `Tagging__PendingTimeoutMinutes` (15) |
+
+  `SystemSettingsProvider` legge la riga solo quando una funzione ne ha bisogno e la tiene in memoria per un minuto per istanza (nessuna lettura periodica): una modifica vale subito sull'istanza che la salva, sulle altre entro un minuto. Una nuova soglia dei tag vale per le note elaborate e i tag modificati da quel momento, senza ricalcolare le assegnazioni esistenti. Restano solo in configurazione i parametri condivisi con il frontend o con il job (durata massima dell'audio) e quelli che richiederebbero di ricalcolare i vettori (dimensione dei frammenti).
 
 ---
 
@@ -67,7 +77,7 @@ Negli esiti `.error.json` il codice d'errore sta nei metadati del blob.
 3. **`ValidateUpload`** (Event Grid): controlla la dimensione senza leggere il file (vuoto o oltre 350 MB), collega il file come allegato e scrive l'URL su `normalization`. Se il file non è valido porta il record a "in errore" e non accoda nulla; il file resta, per poterlo analizzare.
 4. **`NormalizeRecord`** (coda): `ffmpeg` verifica formato reale e durata e crea la copia Ogg Opus in `audio`. Se il file va scartato scrive invece l'esito `.error.json`.
 5. **`EnqueueTranscription`** (Event Grid): per la copia `.opus` salva percorso e durata e scrive su `transcription`; per l'esito porta il record a "in errore".
-6. **`TranscribeRecord`** (coda): invia la copia ad Azure AI Speech con timeout di 30 s + 10 s per minuto di audio, salva testo (`Text` e `OriginalTranscript`) e lingua nel database e scrive il RecordUid su `indexing`. Se il servizio non risponde entro il timeout, restituisce 429/413 o fallisce all'ultimo tentativo, inoltra il messaggio su `transcription-fallback`. Con la feature flag `Speech__Enabled` a `false` (`useAzureSpeech` in `infra/main.bicep`) non chiama il servizio e inoltra subito ogni messaggio, dopo aver controllato record e copia normalizzata.
+6. **`TranscribeRecord`** (coda): invia la copia ad Azure AI Speech con timeout di 30 s + 10 s per minuto di audio (modificabili dai [parametri di sistema](#backend)), salva testo (`Text` e `OriginalTranscript`) e lingua nel database e scrive il RecordUid su `indexing`. Se il servizio non risponde entro il timeout, restituisce 429/413 o fallisce all'ultimo tentativo, inoltra il messaggio su `transcription-fallback`. Con la feature flag `Speech__Enabled` a `false` (`useAzureSpeech` in `infra/main.bicep`, sostituibile dai parametri di sistema) non chiama il servizio e inoltra subito ogni messaggio, dopo aver controllato record e copia normalizzata.
 7. **Ripiego**: il job di trascrizione (Whisper o faster-whisper, solo audio fino a 10 minuti, oppure Parakeet, fino alla durata massima dell'app) scrive `.txt` o `.error.json` in `transcripts`. **`EnqueueIndexing`** (Event Grid) salva testo e lingua e scrive su `indexing`, oppure porta il record a "in errore".
 8. **`IndexRecord`** (coda): divide il testo in frammenti, ne calcola gli embedding, li sostituisce in una transazione e porta il record a "pronto". Poi scrive il RecordUid su `tagging` (anche per un messaggio duplicato su un record già pronto, così un errore di scrittura sulla coda dopo il salvataggio non fa perdere i tag).
 9. **`TagRecords`** (coda): assegna i tag automatici (vedi [Tag](#tag)).
@@ -101,7 +111,7 @@ Tag per utente, con nome (massimo 50 caratteri, univoco per utente) e descrizion
 
 - **Embedding del tag**: calcolati subito dalla Function HTTP (`CreateTag`, `UpdateTag`), alla creazione e quando nome o descrizione cambiano: uno su nome e descrizione, uno sul solo nome (senza descrizione coincidono). Se Azure OpenAI non risponde la richiesta fallisce (503) e nulla viene salvato.
 - **Titolo della nota**: non ha un embedding e non partecipa all'assegnazione dei tag né alla ricerca; cambiarlo non riaccoda la nota su `tagging`.
-- **Assegnazione automatica** (`TagRecords`, coda `tagging`): un record riceve un tag attivo se almeno uno dei suoi frammenti ha con il tag (nome e descrizione) una similarità coseno pari almeno alla soglia `Tagging__MinSimilarity` (0,35, da tarare). La similarità salvata è la maggiore tra i frammenti. Si confrontano solo vettori dello stesso modello già salvati nel database: nessuna chiamata ad Azure OpenAI.
+- **Assegnazione automatica** (`TagRecords`, coda `tagging`): un record riceve un tag attivo se almeno uno dei suoi frammenti ha con il tag (nome e descrizione) una similarità coseno pari almeno alla soglia `Tagging__MinSimilarity` (0,35, da tarare, sostituibile dai [parametri di sistema](#backend)). La similarità salvata è la maggiore tra i frammenti. Si confrontano solo vettori dello stesso modello già salvati nel database: nessuna chiamata ad Azure OpenAI.
   - **Per record**: dopo l'indicizzazione, confronto con tutti i tag attivi dell'utente.
   - **Per tag**: alla creazione, a una modifica di nome o descrizione e alla riattivazione, confronto con tutti i record pronti dell'utente.
 - **Origine dell'assegnazione** (`RecordTags.Source`): `Auto`, `Manual` o `Excluded`. L'assegnazione automatica sostituisce in una transazione solo le righe `Auto`; le manuali restano e un tag tolto dall'utente diventa `Excluded`, quindi non viene riassegnato.
@@ -112,7 +122,7 @@ Tag per utente, con nome (massimo 50 caratteri, univoco per utente) e descrizion
   - ha un ricalcolo in attesa (`Tags.AssignmentPendingSince`, impostato da `CreateTag` e da `UpdateTag` quando accoda il tag), oppure
   - è attivo e almeno una nota dell'utente non in errore attende il confronto (`Records.TagsPendingSince`, impostato quando la nota entra in elaborazione: creazione, modifica del testo, riprova, rigenerazione).
 - **Fine dell'attesa**: `TagRecords` azzera il timestamp nella stessa transazione delle assegnazioni, solo se è ancora quello letto all'inizio (una modifica successiva ne apre uno nuovo). Lo azzera anche quando ignora un tag disattivato e, all'ultimo tentativo fallito, prima che il messaggio vada nella coda dei non elaborabili. Una rigenerazione con testo invariato lo azzera subito (nessun confronto da fare). Una nota in errore non conta.
-- **Timeout**: un'attesa più vecchia di `Tagging__PendingTimeoutMinutes` (15 minuti) non conta più, così un processo fallito senza ripulire non lascia il tag bloccato. Con l'attesa che parte dall'inizio dell'elaborazione, un audio lungo trascritto dal ripiego può superarla: il tag torna `Ready` prima del confronto, che avviene comunque.
+- **Timeout**: un'attesa più vecchia di `Tagging__PendingTimeoutMinutes` (15 minuti, sostituibile dai parametri di sistema) non conta più, così un processo fallito senza ripulire non lascia il tag bloccato. Con l'attesa che parte dall'inizio dell'elaborazione, un audio lungo trascritto dal ripiego può superarla: il tag torna `Ready` prima del confronto, che avviene comunque.
 
 ---
 

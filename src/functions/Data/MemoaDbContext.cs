@@ -27,6 +27,9 @@ public sealed class MemoaDbContext(DbContextOptions<MemoaDbContext> options, Cur
 
     public DbSet<RecordTag> RecordTags => Set<RecordTag>();
 
+    /// <summary>Senza filtro globale: parametri di sistema, non dati dell'utente.</summary>
+    public DbSet<SystemSettings> SystemSettings => Set<SystemSettings>();
+
     // Il filtro deve riferirsi a un membro del contesto per essere valutato a ogni query.
     private Guid? CurrentEntraObjectId => currentUser.EntraObjectId;
 

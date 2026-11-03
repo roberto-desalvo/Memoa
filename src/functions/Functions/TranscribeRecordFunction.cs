@@ -6,6 +6,7 @@ using Azure.Storage.Queues.Models;
 using Memoa.Functions.Data;
 using Memoa.Functions.Data.Entities;
 using Memoa.Functions.Normalization;
+using Memoa.Functions.Settings;
 using Memoa.Functions.Storage;
 using Memoa.Functions.Transcription;
 using Memoa.Shared.Pipeline;
@@ -24,7 +25,8 @@ namespace Memoa.Functions.Functions;
 /// Se il servizio non risponde entro il timeout, si superano i limiti o falliscono tutti i tentativi, il
 /// messaggio va invece sulla coda di ripiego, letta dal job di trascrizione (Whisper o Parakeet); il flusso prosegue
 /// dal blob della trascrizione (<see cref="EnqueueIndexingFunction"/>). Con Azure AI Speech disattivato
-/// (<see cref="SpeechOptions.Enabled"/>) ogni messaggio va direttamente sulla coda di ripiego.
+/// (<see cref="SpeechOptions.Enabled"/> o la pagina di amministrazione) ogni messaggio va direttamente sulla
+/// coda di ripiego.
 /// Idempotente: la coda consegna almeno una volta; i messaggi di un record non più in elaborazione o già
 /// trascritto non richiamano il servizio.
 /// </summary>
@@ -35,16 +37,11 @@ public sealed class TranscribeRecordFunction(
     TranscriptStore transcripts,
     IOptions<ContainerOptions> containers,
     IOptions<AudioOptions> audioOptions,
-    IOptions<SpeechOptions> speechOptions,
+    SystemSettingsProvider systemSettings,
     ILogger<TranscribeRecordFunction> logger)
 {
     /// <summary>Uguale a extensions.queues.maxDequeueCount in host.json.</summary>
     private const int MaxDequeueCount = 5;
-
-    // Timeout proporzionale alla durata: Microsoft non garantisce una latenza, ma dichiara circa 15 secondi
-    // per 10 minuti di audio.
-    private static readonly TimeSpan BaseTimeout = TimeSpan.FromSeconds(30);
-    private static readonly TimeSpan TimeoutPerAudioMinute = TimeSpan.FromSeconds(10);
 
     [Function("TranscribeRecord")]
     public async Task<TranscriptionOutput> Run(
@@ -128,7 +125,8 @@ public sealed class TranscribeRecordFunction(
             FallbackMessage = new TranscriptionRequest(blobUri.ToUri().ToString(), record.User.PreferredLanguage).Serialize(),
         };
 
-        if (!speechOptions.Value.Enabled)
+        var settings = await systemSettings.GetAsync(cancellationToken);
+        if (!settings.SpeechEnabled)
         {
             // Il job non scrive alcun esito se la copia manca: il controllo resta qui, senza scaricarla.
             if (!await blob.ExistsAsync(cancellationToken))
@@ -153,7 +151,8 @@ public sealed class TranscribeRecordFunction(
 
         // Se manca la durata della copia normalizzata si usa il massimo accettato.
         var durationMinutes = attachment.DurationSeconds / 60.0 ?? audioOptions.Value.MaxDurationMinutes;
-        var timeout = BaseTimeout + TimeoutPerAudioMinute * durationMinutes;
+        // Timeout proporzionale alla durata (SpeechOptions o la pagina di amministrazione).
+        var timeout = settings.SpeechBaseTimeout + settings.SpeechTimeoutPerAudioMinute * durationMinutes;
         var stopwatch = Stopwatch.StartNew();
         TranscriptionResult result;
 

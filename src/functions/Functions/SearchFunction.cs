@@ -1,6 +1,7 @@
 using Memoa.Functions.Data;
 using Memoa.Functions.Data.Entities;
 using Memoa.Functions.Embeddings;
+using Memoa.Functions.Settings;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
@@ -19,17 +20,10 @@ namespace Memoa.Functions.Functions;
 public sealed class SearchFunction(
     MemoaDbContext db,
     EmbeddingClient embeddingClient,
+    SystemSettingsProvider systemSettings,
     ILogger<SearchFunction> logger)
 {
     public const int MaxQueryLength = 1_000;
-
-    private const int MaxResults = 10;
-
-    /// <summary>
-    /// Similarità coseno minima (1 - distanza) perché un frammento sia un risultato. Valore iniziale per
-    /// text-embedding-3-small, da tarare sulle note reali: tra lingue diverse le similarità sono più basse.
-    /// </summary>
-    private const double MinSimilarity = 0.3;
 
     [Function("Search")]
     public async Task<IActionResult> Run(
@@ -48,7 +42,9 @@ public sealed class SearchFunction(
 
         var model = embeddings.Model;
         var vector = new SqlVector<float>(embeddings[0].ToFloats());
-        const double maxDistance = 1 - MinSimilarity;
+        // Similarità minima e numero di risultati: SearchOptions o la pagina di amministrazione.
+        var settings = await systemSettings.GetAsync(cancellationToken);
+        var maxDistance = 1 - settings.SearchMinSimilarity;
 
         // Il filtro globale limita i frammenti a quelli dell'utente autenticato. Si confrontano solo i
         // vettori dello stesso modello: quelli di un modello diverso non sono confrontabili.
@@ -66,7 +62,7 @@ public sealed class SearchFunction(
             })
             .Where(r => r.Distance <= maxDistance)
             .OrderBy(r => r.Distance)
-            .Take(MaxResults)
+            .Take(settings.SearchMaxResults)
             .ToListAsync(cancellationToken);
 
         logger.LogInformation("Ricerca completata: {ResultCount} risultati", rows.Count);

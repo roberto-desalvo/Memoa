@@ -18,6 +18,18 @@ public sealed class SpeechOptions
     /// <summary>
     /// Feature flag: se false la Function di trascrizione non chiama Azure AI Speech e inoltra ogni
     /// messaggio al job di trascrizione (coda di ripiego). Impostata da useAzureSpeech in infra/main.bicep.
+    /// Questo e gli altri valori sono i predefiniti, sostituibili dalla pagina di amministrazione
+    /// (<see cref="Settings.SystemSettingsProvider"/>).
     /// </summary>
     public bool Enabled { get; set; } = true;
+
+    /// <summary>
+    /// Parte fissa del timeout di una trascrizione, a cui si aggiunge <see cref="TimeoutPerAudioMinuteSeconds"/>
+    /// per minuto di audio: Microsoft non garantisce una latenza, ma dichiara circa 15 secondi per 10 minuti.
+    /// </summary>
+    [Range(1, 600)]
+    public int BaseTimeoutSeconds { get; set; } = 30;
+
+    [Range(0, 120)]
+    public int TimeoutPerAudioMinuteSeconds { get; set; } = 10;
 }

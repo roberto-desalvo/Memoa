@@ -49,7 +49,7 @@ Contenuti: [App](#app) · [Installazione e service worker](#installazione-e-serv
 ## Struttura
 
 - Angular 22, componenti standalone, una cartella per funzionalità in `src/web/src/app`: `account`, `auth`, `config`, `guide`, `home`, `notes`, `recording`, `records`, `settings`, `tags`, `uploads`.
-- **Route**: `/` (elenco), `/new/:mode` (nuova nota), `/records/:recordUid`, `/tags`, `/tags/new`, `/tags/:tagUid`, `/settings`, `/about`. Tutte protette da `MsalGuard`.
+- **Route**: `/` (elenco), `/new/:mode` (nuova nota), `/records/:recordUid`, `/tags`, `/tags/new`, `/tags/:tagUid`, `/settings`, `/admin`, `/about`. Tutte protette da `MsalGuard`; `/admin` anche da `adminGuard`, che apre la pagina solo se `GET /me` restituisce `isAdmin` (il controllo vero lo fanno le Functions). Le impostazioni mostrano il collegamento ai parametri di sistema solo agli amministratori.
 - **Autenticazione**: MSAL (`@azure/msal-angular`) con login a redirect sul tenant Entra External ID dell'ambiente. `MsalInterceptor` aggiunge il token solo alle chiamate verso le Functions, mai verso lo storage.
 - **Registrazione dell'utente applicativo**: la homepage chiama `GET /me` (`AccountState`, una sola chiamata anche con richieste concorrenti, poi la risposta resta in memoria per la sessione) e solo dopo carica la lista. Un interceptor riconosce `403 user_not_registered` su qualunque chiamata, azzera lo stato e torna alla homepage, che chiama di nuovo `/me`.
 - **Guida**: componente proprio su `@angular/cdk` Overlay (`guide/`), nessuna libreria esterna. Gli elementi evidenziati hanno l'attributo `data-guide`.

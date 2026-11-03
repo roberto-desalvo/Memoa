@@ -19,6 +19,12 @@ public sealed class User
     /// </summary>
     public DateTime? GuideDismissedAt { get; set; }
 
+    /// <summary>
+    /// Può modificare i parametri di sistema (<see cref="SystemSettings"/>). Si imposta solo a mano sul
+    /// database: nessuna funzione lo modifica.
+    /// </summary>
+    public bool IsAdmin { get; set; }
+
     public DateTime CreatedAt { get; set; }
 
     public List<Record> Records { get; set; } = [];

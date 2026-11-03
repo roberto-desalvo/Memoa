@@ -8,12 +8,14 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
+import { AccountState } from '../account/account-state';
 import { Language, SettingsApi } from './settings-api';
 import { Theme, ThemePreference } from './theme';
 
 /**
  * Impostazioni: lingua preferita (salvata nell'account) e modalità chiara / scura (salvata nel
- * browser). Il nome visualizzato è rimandato.
+ * browser). Il nome visualizzato è rimandato. Agli amministratori mostra il collegamento ai parametri di
+ * sistema.
  */
 @Component({
   selector: 'app-settings-page',
@@ -34,6 +36,7 @@ import { Theme, ThemePreference } from './theme';
 export class SettingsPage implements OnInit {
   private readonly api = inject(SettingsApi);
   protected readonly theme = inject(Theme);
+  protected readonly account = inject(AccountState);
 
   protected readonly language = signal<Language | null>(null);
   protected readonly status = signal<'idle' | 'saving' | 'saved' | 'failed'>('idle');
@@ -45,6 +48,10 @@ export class SettingsPage implements OnInit {
   ];
 
   async ngOnInit(): Promise<void> {
+    // Già in memoria se si arriva dalla homepage; serve solo a sapere se l'utente è amministratore.
+    this.account
+      .ensureRegistered()
+      .catch((err) => console.error('Lettura dell’utente non riuscita', err));
     try {
       const settings = await firstValueFrom(this.api.get());
       this.language.set(settings.preferredLanguage);
