@@ -38,6 +38,22 @@
     <button mat-icon-button aria-label="Chiudi la ricerca" (click)="closeFind()">
       <mat-icon svgIcon="close" />
     </button>
+  } @else if (textEditing()) {
+    <!-- Modifica del testo sul posto: chiudi e salva restano visibili mentre si scorre. -->
+    <button mat-icon-button aria-label="Annulla la modifica" (click)="cancelTextEdit()">
+      <mat-icon svgIcon="close" />
+    </button>
+    <h1>Modifica testo</h1>
+    @if (record(); as record) {
+      <button
+        mat-icon-button
+        aria-label="Salva il testo"
+        [disabled]="busy()"
+        (click)="saveTextEdit(record)"
+      >
+        <mat-icon svgIcon="check" />
+      </button>
+    }
   } @else {
     <a mat-icon-button routerLink="/" aria-label="Torna alle note">
       <mat-icon svgIcon="back" />
@@ -234,7 +250,8 @@
 
     <!-- La card del lettore c'è da subito; il caricamento resta finché non arriva l'URL dell'audio. -->
     @if (record.hasAudio) {
-      <mat-card class="section">
+      <!-- Durante la modifica del testo il lettore resta sotto l'intestazione: si ascolta mentre si corregge. -->
+      <mat-card class="section" [class.docked]="textEditing()">
         <mat-card-content class="player">
           @if (audioFailed()) {
             <p class="error" role="alert">
@@ -300,7 +317,12 @@
 
     @if (record.text) {
       <!-- Durante una nuova trascrizione resta solo l'avviso qui sopra. -->
-      @if (record.isTranscript && record.processingStep !== 'Transcribing') {
+      @if (textEditing()) {
+        <p class="label text-secondary muted">
+          <mat-icon svgIcon="write" />
+          Dopo il salvataggio il testo viene indicizzato di nuovo.
+        </p>
+      } @else if (record.isTranscript && record.processingStep !== 'Transcribing') {
         <p class="label text-secondary muted">
           <mat-icon svgIcon="mic" />
           {{
@@ -312,19 +334,33 @@
       }
       <mat-card class="section">
         <mat-card-content>
-          <button
-            mat-icon-button
-            class="copy"
-            aria-label="Copia il testo"
-            (click)="copyText(record.text)"
-          >
-            <mat-icon svgIcon="copy" />
-          </button>
-          <!-- Su una riga sola: con white-space: pre-wrap gli spazi tra i nodi sarebbero visibili. -->
-          @let parts = textParts();
-          <!-- Parti evidenziate: frammento della ricerca semantica oppure occorrenze della ricerca nel testo. -->
-          <!-- prettier-ignore -->
-          <article class="text text-body" [class.finding]="finding()">@for (part of parts; track $index) {@switch (part.mark) {@case ('current') {<mark #currentMatch class="current">{{ part.text }}</mark>}@case ('match') {<mark>{{ part.text }}</mark>}@default {<ng-container>{{ part.text }}</ng-container>}}}</article>
+          @if (textEditing()) {
+            <textarea
+              #textField
+              class="text text-body text-field"
+              aria-label="Testo della nota"
+              cdkTextareaAutosize
+              [maxLength]="maxTextLength"
+              [value]="editText()"
+              (input)="editText.set($any($event.target).value)"
+              (keydown)="onTextKeydown($event, record)"
+            ></textarea>
+          } @else {
+            <button
+              mat-icon-button
+              class="copy"
+              aria-label="Copia il testo"
+              (click)="copyText(record.text)"
+            >
+              <mat-icon svgIcon="copy" />
+            </button>
+            <!-- Su una riga sola: con white-space: pre-wrap gli spazi tra i nodi sarebbero visibili. -->
+            @let parts = textParts();
+            <!-- Parti evidenziate: frammento della ricerca semantica oppure occorrenze della ricerca nel testo. -->
+            <!-- Pressione prolungata: il testo diventa modificabile, con il cursore nel punto premuto. -->
+            <!-- prettier-ignore -->
+            <article #textView class="text text-body" [class.finding]="finding()" appLongPress (longPress)="startTextEdit(record, $event)">@for (part of parts; track $index) {@switch (part.mark) {@case ('current') {<mark #currentMatch class="current">{{ part.text }}</mark>}@case ('match') {<mark>{{ part.text }}</mark>}@default {<ng-container>{{ part.text }}</ng-container>}}}</article>
+          }
         </mat-card-content>
       </mat-card>
     }

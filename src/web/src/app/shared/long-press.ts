@@ -5,9 +5,16 @@ const LONG_PRESS_MS = 500;
 /** Spostamento oltre il quale la pressione diventa uno scorrimento e non conta più. */
 const MOVE_TOLERANCE_PX = 10;
 
+/** Punto dello schermo in cui è iniziata la pressione. */
+export interface LongPressPoint {
+  x: number;
+  y: number;
+}
+
 /**
- * Pressione prolungata su una voce della lista (o clic destro con il mouse). Il clic che segue la
- * pressione non apre la voce: si intercetta in fase di cattura, prima di RouterLink.
+ * Pressione prolungata su una voce della lista o su un testo (o clic destro con il mouse), con il punto
+ * premuto. Il clic che segue la pressione non apre la voce: si intercetta in fase di cattura, prima di
+ * RouterLink.
  */
 @Directive({
   selector: '[appLongPress]',
@@ -18,11 +25,11 @@ const MOVE_TOLERANCE_PX = 10;
     '(pointercancel)': 'cancel()',
     '(pointerleave)': 'cancel()',
     // Su Android la pressione su un collegamento apre il menu del browser: lo sostituisce la selezione.
-    '(contextmenu)': '$event.preventDefault(); fire()',
+    '(contextmenu)': '$event.preventDefault(); fire({ x: $event.clientX, y: $event.clientY })',
   },
 })
 export class LongPress {
-  readonly longPress = output<void>();
+  readonly longPress = output<LongPressPoint>();
 
   private timer?: ReturnType<typeof setTimeout>;
   private origin?: { x: number; y: number };
@@ -50,9 +57,10 @@ export class LongPress {
     if (event.button !== 0) {
       return;
     }
-    this.origin = { x: event.clientX, y: event.clientY };
+    const origin = { x: event.clientX, y: event.clientY };
+    this.origin = origin;
     clearTimeout(this.timer);
-    this.timer = setTimeout(() => this.fire(), LONG_PRESS_MS);
+    this.timer = setTimeout(() => this.fire(origin), LONG_PRESS_MS);
   }
 
   protected move(event: PointerEvent): void {
@@ -69,9 +77,9 @@ export class LongPress {
     this.origin = undefined;
   }
 
-  protected fire(): void {
+  protected fire(point: LongPressPoint): void {
     this.cancel();
     this.fired = true;
-    this.longPress.emit();
+    this.longPress.emit(point);
   }
 }

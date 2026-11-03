@@ -22,6 +22,23 @@ form .full + .full {
   overflow-wrap: anywhere;
 }
 
+// Descrizione in modifica sul posto: stessa impaginazione del testo, così il punto premuto resta dov'era.
+.description-field {
+  display: block;
+  width: 100%;
+  padding: 0;
+  color: inherit;
+  background: none;
+  border: none;
+  outline: none;
+  resize: none;
+}
+
+.counter {
+  margin: var(--space-2) 0 0;
+  text-align: end;
+}
+
 .records {
   margin-top: var(--space-5);
 }

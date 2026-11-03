@@ -1,12 +1,28 @@
 <mat-toolbar class="page-header">
-  <a mat-icon-button routerLink="/tags" aria-label="Torna ai tag">
-    <mat-icon svgIcon="back" />
-  </a>
-  <h1>{{ tagUid() ? tag()?.name : 'Nuovo tag' }}</h1>
-  @if (tag() && !editing()) {
-    <button mat-icon-button aria-label="Altre azioni" [matMenuTriggerFor]="moreMenu">
-      <mat-icon svgIcon="more" />
+  @if (descriptionEditing()) {
+    <!-- Modifica della descrizione sul posto: chiudi e salva restano visibili mentre si scorre. -->
+    <button mat-icon-button aria-label="Annulla la modifica" (click)="cancelDescriptionEdit()">
+      <mat-icon svgIcon="close" />
     </button>
+    <h1>Modifica descrizione</h1>
+    <button
+      mat-icon-button
+      aria-label="Salva la descrizione"
+      [disabled]="busy()"
+      (click)="saveDescriptionEdit()"
+    >
+      <mat-icon svgIcon="check" />
+    </button>
+  } @else {
+    <a mat-icon-button routerLink="/tags" aria-label="Torna ai tag">
+      <mat-icon svgIcon="back" />
+    </a>
+    <h1>{{ tagUid() ? tag()?.name : 'Nuovo tag' }}</h1>
+    @if (tag() && !editing()) {
+      <button mat-icon-button aria-label="Altre azioni" [matMenuTriggerFor]="moreMenu">
+        <mat-icon svgIcon="more" />
+      </button>
+    }
   }
 </mat-toolbar>
 
@@ -74,12 +90,32 @@
   }
   <mat-card class="section">
     <mat-card-content>
-      @if (tag.description) {
-        <p class="description text-body">{{ tag.description }}</p>
-      } @else {
-        <p class="text-secondary muted">
-          Nessuna descrizione: il tag viene assegnato in automatico in base al solo nome.
+      @if (descriptionEditing()) {
+        <textarea
+          #descriptionField
+          class="description text-body description-field"
+          aria-label="Descrizione del tag"
+          placeholder="Di cosa parlano le note con questo tag"
+          cdkTextareaAutosize
+          [maxLength]="maxDescriptionLength"
+          [value]="description()"
+          (input)="description.set($any($event.target).value)"
+          (keydown)="onDescriptionKeydown($event)"
+        ></textarea>
+        <p class="counter text-secondary muted">
+          {{ description().length }}/{{ maxDescriptionLength }}
         </p>
+      } @else {
+        <!-- Pressione prolungata: la descrizione diventa modificabile, con il cursore nel punto premuto. -->
+        <div #descriptionView appLongPress (longPress)="startDescriptionEdit(tag, $event)">
+          @if (tag.description) {
+            <p class="description text-body">{{ tag.description }}</p>
+          } @else {
+            <p class="text-secondary muted">
+              Nessuna descrizione: il tag viene assegnato in automatico in base al solo nome.
+            </p>
+          }
+        </div>
       }
     </mat-card-content>
   </mat-card>

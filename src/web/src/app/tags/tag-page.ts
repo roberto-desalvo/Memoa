@@ -1,4 +1,16 @@
-import { Component, inject, input, OnDestroy, OnInit, signal } from '@angular/core';
+import {
+  afterNextRender,
+  Component,
+  ElementRef,
+  inject,
+  Injector,
+  input,
+  OnDestroy,
+  OnInit,
+  signal,
+  viewChild,
+} from '@angular/core';
+import { TextFieldModule } from '@angular/cdk/text-field';
 import { HttpErrorResponse } from '@angular/common/http';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -15,7 +27,9 @@ import { firstValueFrom } from 'rxjs';
 import { PAGE_POLL_INTERVAL_MS } from '../config/polling';
 import { NoteDatePipe } from '../notes/note-date';
 import { DELETE_TAG_DIALOG, openConfirmDialog } from '../shared/confirm-dialog';
+import { LongPress, LongPressPoint } from '../shared/long-press';
 import { NoteRow } from '../shared/note-row';
+import { focusAt, textOffsetAt } from '../shared/text-offset';
 import {
   MAX_TAG_DESCRIPTION_LENGTH,
   MAX_TAG_NAME_LENGTH,
@@ -27,7 +41,8 @@ import {
 
 /**
  * Pagina di un tag: descrizione, note a cui il tag è assegnato, modifica ed eliminazione dal menu, come
- * nella pagina di una nota; nome e descrizione diventano modificabili solo dopo "Modifica".
+ * nella pagina di una nota; nome e descrizione diventano modificabili solo dopo "Modifica". La sola
+ * descrizione si modifica anche sul posto, con una pressione prolungata.
  * Senza tagUid (percorso /tags/new) mostra subito il form per creare un tag nuovo. Dopo la creazione o una
  * modifica di nome o descrizione il tag viene applicato alle note esistenti in background: finché è in
  * assegnazione la pagina lo mostra e si aggiorna con il polling, come quella di una nota in elaborazione.
@@ -39,6 +54,8 @@ import {
     RouterLink,
     NoteDatePipe,
     NoteRow,
+    LongPress,
+    TextFieldModule,
     MatButtonModule,
     MatCardModule,
     MatFormFieldModule,
@@ -66,11 +83,18 @@ export class TagPage implements OnInit, OnDestroy {
   protected readonly editing = signal(false);
   protected readonly name = signal('');
   protected readonly description = signal('');
+  /** Modifica della sola descrizione sul posto, senza il form; usa anche lei `description`. */
+  protected readonly descriptionEditing = signal(false);
   protected readonly busy = signal(false);
   protected readonly actionError = signal<string | null>(null);
 
   protected readonly maxNameLength = MAX_TAG_NAME_LENGTH;
   protected readonly maxDescriptionLength = MAX_TAG_DESCRIPTION_LENGTH;
+
+  private readonly injector = inject(Injector);
+  private readonly descriptionView = viewChild<ElementRef<HTMLElement>>('descriptionView');
+  private readonly descriptionField =
+    viewChild<ElementRef<HTMLTextAreaElement>>('descriptionField');
 
   private destroyed = false;
   private timer?: ReturnType<typeof setTimeout>;
@@ -163,6 +187,67 @@ export class TagPage implements OnInit, OnDestroy {
     } catch (err) {
       console.error('Salvataggio del tag non riuscito', err);
       this.actionError.set(tagSaveError(err));
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  /** Pressione prolungata sulla descrizione: diventa modificabile, con il cursore nel punto premuto. */
+  protected startDescriptionEdit(tag: TagDetail, point: LongPressPoint): void {
+    if (this.descriptionEditing() || this.editing()) {
+      return;
+    }
+    const view = this.descriptionView()?.nativeElement;
+    // Senza descrizione il punto cade sul testo che lo dice: il campo vuoto ha il cursore all'inizio.
+    const offset = view && tag.description ? textOffsetAt(view, point) : null;
+    this.description.set(tag.description ?? '');
+    this.descriptionEditing.set(true);
+    afterNextRender(
+      () => {
+        const field = this.descriptionField()?.nativeElement;
+        if (field) {
+          focusAt(field, offset);
+        }
+      },
+      { injector: this.injector },
+    );
+  }
+
+  protected cancelDescriptionEdit(): void {
+    this.descriptionEditing.set(false);
+  }
+
+  /** Esc annulla, Ctrl+Invio (o Cmd+Invio) salva. */
+  protected onDescriptionKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      this.cancelDescriptionEdit();
+    } else if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+      event.preventDefault();
+      void this.saveDescriptionEdit();
+    }
+  }
+
+  protected async saveDescriptionEdit(): Promise<void> {
+    const tag = this.tag();
+    if (!tag) {
+      return;
+    }
+    const description = this.description().trim();
+    if (description === (tag.description ?? '')) {
+      this.descriptionEditing.set(false);
+      return;
+    }
+
+    this.busy.set(true);
+    try {
+      const updated = await firstValueFrom(this.api.update(tag.tagUid, { description }));
+      this.tag.set({ ...tag, ...updated });
+      this.descriptionEditing.set(false);
+      // Descrizione cambiata: il tag è in assegnazione.
+      this.schedule();
+    } catch (err) {
+      console.error('Salvataggio della descrizione non riuscito', err);
+      this.snackBar.open(tagSaveError(err));
     } finally {
       this.busy.set(false);
     }

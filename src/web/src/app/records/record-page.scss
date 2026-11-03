@@ -115,6 +115,27 @@ audio {
   overflow-wrap: anywhere;
 }
 
+// Testo in modifica sul posto: stessa impaginazione del testo, così il punto premuto resta dov'era.
+.text-field {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  color: inherit;
+  background: none;
+  border: none;
+  outline: none;
+  resize: none;
+}
+
+// Lettore durante la modifica del testo: fermo sotto l'intestazione (alta 64px più l'area sicura),
+// il testo scorre sotto.
+.docked {
+  position: sticky;
+  top: calc(64px + env(safe-area-inset-top));
+  z-index: 4;
+}
+
 // Copia in alto a destra: flottante, così solo le prime righe si accorciano e il resto del testo usa
 // tutta la larghezza (importante su telefono).
 .copy {

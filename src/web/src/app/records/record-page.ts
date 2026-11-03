@@ -12,6 +12,7 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
+import { TextFieldModule } from '@angular/cdk/text-field';
 import { HttpErrorResponse } from '@angular/common/http';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -38,6 +39,8 @@ import {
 import { RecordsStore } from './records-store';
 import { SearchState } from '../search/search-state';
 import { DELETE_NOTE_DIALOG, openConfirmDialog } from '../shared/confirm-dialog';
+import { LongPress, LongPressPoint } from '../shared/long-press';
+import { focusAt, textOffsetAt } from '../shared/text-offset';
 import { openRecordTagsDialog } from '../tags/record-tags-dialog';
 
 /**
@@ -94,17 +97,28 @@ function foldText(text: string): FoldedText {
   return { text: folded, origins };
 }
 
+/** Messaggio per un salvataggio delle modifiche non riuscito. */
+function updateError(err: unknown): string {
+  return err instanceof HttpErrorResponse && err.status === 409
+    ? 'La nota è stata aggiornata nel frattempo: ricarica la pagina e riprova.'
+    : 'Salvataggio non riuscito.';
+}
+
 /**
  * Pagina di un record: audio normalizzato riproducibile, testo, modifica ed eliminazione.
  * L'audio si riproduce tramite un SAS di sola lettura chiesto alle Functions, appena esiste la copia
  * normalizzata. Un record in elaborazione mostra l'avanzamento e si aggiorna con il polling finché la
  * pagina è aperta e visibile; modifica e rigenerazione sono disponibili solo a elaborazione conclusa.
+ * Oltre alla modifica dal menu (titolo, data e testo) il testo si modifica sul posto con una pressione
+ * prolungata: il lettore resta visibile, così si corregge la trascrizione mentre si ascolta l'audio.
  */
 @Component({
   selector: 'app-record-page',
   imports: [
     RouterLink,
     NoteDatePipe,
+    LongPress,
+    TextFieldModule,
     MatButtonModule,
     MatCardModule,
     MatChipsModule,
@@ -140,6 +154,8 @@ export class RecordPage implements OnInit, OnDestroy {
   protected readonly editTitle = signal('');
   protected readonly editDate = signal('');
   protected readonly editText = signal('');
+  /** Modifica del solo testo sul posto, senza il form; usa anche lei `editText`. */
+  protected readonly textEditing = signal(false);
   protected readonly busy = signal(false);
   protected readonly actionError = signal<string | null>(null);
   protected readonly maxTextLength = MAX_TEXT_LENGTH;
@@ -231,6 +247,8 @@ export class RecordPage implements OnInit, OnDestroy {
   private readonly header = viewChild('header', { read: ElementRef<HTMLElement> });
   private readonly findInput = viewChild<ElementRef<HTMLInputElement>>('findInput');
   private readonly currentMatch = viewChild<ElementRef<HTMLElement>>('currentMatch');
+  private readonly textView = viewChild<ElementRef<HTMLElement>>('textView');
+  private readonly textField = viewChild<ElementRef<HTMLTextAreaElement>>('textField');
   private scrolledToMatch = false;
 
   /**
@@ -360,7 +378,7 @@ export class RecordPage implements OnInit, OnDestroy {
     this.tagsTimer = setTimeout(async () => {
       try {
         const record = await firstValueFrom(this.api.get(this.recordUid()));
-        if (!this.destroyed && !this.editing()) {
+        if (!this.destroyed && !this.editing() && !this.textEditing()) {
           this.record.set(record);
           this.store.replace(record);
         }
@@ -376,6 +394,7 @@ export class RecordPage implements OnInit, OnDestroy {
     if (
       !this.destroyed &&
       !this.editing() &&
+      !this.textEditing() &&
       document.visibilityState === 'visible' &&
       this.record()?.status === 'Processing'
     ) {
@@ -482,11 +501,73 @@ export class RecordPage implements OnInit, OnDestroy {
       this.show(updated);
     } catch (err) {
       console.error('Modifica del record non riuscita', err);
-      this.actionError.set(
-        err instanceof HttpErrorResponse && err.status === 409
-          ? 'La nota è stata aggiornata nel frattempo: ricarica la pagina e riprova.'
-          : 'Salvataggio non riuscito.',
-      );
+      this.actionError.set(updateError(err));
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  /**
+   * Pressione prolungata sul testo: diventa modificabile, con il cursore nel punto premuto. Come la
+   * modifica dal menu, solo a elaborazione conclusa.
+   */
+  protected startTextEdit(record: RecordDetail, point: LongPressPoint): void {
+    if (record.status !== 'Ready' || this.textEditing() || this.editing()) {
+      return;
+    }
+    const view = this.textView()?.nativeElement;
+    const offset = view ? textOffsetAt(view, point) : null;
+    this.closeFind();
+    this.editText.set(record.text ?? '');
+    this.textEditing.set(true);
+    afterNextRender(
+      () => {
+        const field = this.textField()?.nativeElement;
+        if (field) {
+          focusAt(field, offset);
+        }
+      },
+      { injector: this.injector },
+    );
+  }
+
+  protected cancelTextEdit(): void {
+    this.textEditing.set(false);
+  }
+
+  /** Esc annulla, Ctrl+Invio (o Cmd+Invio) salva. */
+  protected onTextKeydown(event: KeyboardEvent, record: RecordDetail): void {
+    if (event.key === 'Escape') {
+      this.cancelTextEdit();
+    } else if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+      event.preventDefault();
+      void this.saveTextEdit(record);
+    }
+  }
+
+  protected async saveTextEdit(record: RecordDetail): Promise<void> {
+    const text = this.editText();
+    if (text === record.text) {
+      this.textEditing.set(false);
+      return;
+    }
+    if (!text.trim()) {
+      this.snackBar.open('Il testo non può essere vuoto.');
+      return;
+    }
+
+    this.busy.set(true);
+    try {
+      const updated = await firstValueFrom(this.api.update(record.recordUid, { text }));
+      this.store.replace(updated);
+      // Il frammento si riferiva al testo precedente.
+      this.highlight.set(null);
+      // Il testo va indicizzato di nuovo: la pagina ne mostra l'avanzamento.
+      this.textEditing.set(false);
+      this.show(updated);
+    } catch (err) {
+      console.error('Modifica del testo non riuscita', err);
+      this.snackBar.open(updateError(err));
     } finally {
       this.busy.set(false);
     }
