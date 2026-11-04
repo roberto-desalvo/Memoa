@@ -5,6 +5,7 @@ import { MatDividerModule } from '@angular/material/divider';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSelectModule } from '@angular/material/select';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
@@ -35,11 +36,13 @@ import { Theme, ThemePreference } from './theme';
 })
 export class SettingsPage implements OnInit {
   private readonly api = inject(SettingsApi);
+  private readonly snackBar = inject(MatSnackBar);
   protected readonly theme = inject(Theme);
   protected readonly account = inject(AccountState);
 
   protected readonly language = signal<Language | null>(null);
-  protected readonly status = signal<'idle' | 'saving' | 'saved' | 'failed'>('idle');
+  protected readonly saving = signal(false);
+  protected readonly loadFailed = signal(false);
 
   protected readonly themes: { value: ThemePreference; label: string }[] = [
     { value: 'system', label: 'Come il sistema' },
@@ -57,21 +60,23 @@ export class SettingsPage implements OnInit {
       this.language.set(settings.preferredLanguage);
     } catch (err) {
       console.error('Caricamento delle impostazioni non riuscito', err);
-      this.status.set('failed');
+      this.loadFailed.set(true);
     }
   }
 
   protected async setLanguage(language: Language): Promise<void> {
     const previous = this.language();
     this.language.set(language);
-    this.status.set('saving');
+    this.saving.set(true);
     try {
       await firstValueFrom(this.api.update({ preferredLanguage: language }));
-      this.status.set('saved');
+      this.snackBar.open('Lingua salvata.');
     } catch (err) {
       console.error('Salvataggio della lingua non riuscito', err);
       this.language.set(previous);
-      this.status.set('failed');
+      this.snackBar.open('Salvataggio della lingua non riuscito.');
+    } finally {
+      this.saving.set(false);
     }
   }
 }

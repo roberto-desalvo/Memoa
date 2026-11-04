@@ -16,28 +16,18 @@
         <mat-select
           aria-labelledby="language-label"
           [value]="language()"
-          [disabled]="language() === null || status() === 'saving'"
+          [disabled]="language() === null || saving()"
           (selectionChange)="setLanguage($event.value)"
         >
           <mat-option value="it">Italiano</mat-option>
           <mat-option value="en">English</mat-option>
         </mat-select>
       </mat-form-field>
-      <div aria-live="polite">
-        @switch (status()) {
-          @case ('saving') {
-            <p class="text-secondary muted">Salvataggio…</p>
-          }
-          @case ('saved') {
-            <p class="text-secondary muted">Salvata.</p>
-          }
-          @case ('failed') {
-            <p class="error text-secondary">
-              <mat-icon svgIcon="error" />Impossibile caricare o salvare la lingua.
-            </p>
-          }
-        }
-      </div>
+      @if (loadFailed()) {
+        <p class="error text-secondary" role="alert">
+          <mat-icon svgIcon="error" />Impossibile caricare la lingua.
+        </p>
+      }
     </section>
 
     <mat-divider />

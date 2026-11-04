@@ -3,18 +3,25 @@ import { Component, inject, OnInit, signal } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
+import { MatDialog } from '@angular/material/dialog';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { AdminApi, SystemSettings, SystemSettingsValues } from './admin-api';
+import {
+  openRestoreDefaultsDialog,
+  RestorableSetting,
+  SettingKey,
+} from './restore-defaults-dialog';
 
-type NumericSetting = Exclude<keyof SystemSettingsValues, 'speechEnabled'>;
+type NumericSetting = Exclude<SettingKey, 'speechEnabled'>;
 
 /** Le similarità sono decimali, gli altri valori interi (come nelle Functions). */
 const DECIMAL_SETTINGS: readonly NumericSetting[] = ['searchMinSimilarity', 'taggingMinSimilarity'];
@@ -25,14 +32,24 @@ interface NumericField {
   label: string;
   min: number;
   max: number;
-  step: number;
 }
 
 /**
+ * Valore di un campo: sempre quello in uso, mostrato nel campo. Con `isDefault` il valore è quello della
+ * configurazione e si salva come null, così segue eventuali modifiche della configurazione.
+ */
+interface FieldState<T> {
+  value: T;
+  isDefault: boolean;
+}
+
+const SPEECH_LABEL = 'Azure AI Speech';
+
+/**
  * Parametri di sistema, solo per gli amministratori ({@link adminGuard}): trascrizione con Azure AI
- * Speech, soglie di similarità di ricerca e tag e altri valori da tarare. Un campo vuoto usa il valore
- * della configurazione delle Functions, mostrato come predefinito. Le altre istanze delle Functions
- * applicano le modifiche entro un minuto.
+ * Speech, soglie di similarità di ricerca e tag e altri valori da tarare. Ogni campo mostra il valore in
+ * uso; "Ripristina predefiniti" riporta i parametri scelti al valore della configurazione delle Functions,
+ * da confermare salvando. Le altre istanze delle Functions applicano le modifiche entro un minuto.
  */
 @Component({
   selector: 'app-admin-page',
@@ -55,47 +72,39 @@ interface NumericField {
 })
 export class AdminPage implements OnInit {
   private readonly api = inject(AdminApi);
+  private readonly dialog = inject(MatDialog);
+  private readonly snackBar = inject(MatSnackBar);
 
   protected readonly defaults = signal<SystemSettingsValues | null>(null);
   protected readonly loadFailed = signal(false);
-  protected readonly status = signal<'idle' | 'saving' | 'saved' | 'failed'>('idle');
-  protected readonly saveError = signal<string | null>(null);
+  protected readonly saving = signal(false);
 
-  /** 'default' usa la configurazione. */
-  protected readonly speech = signal<'default' | 'on' | 'off'>('default');
-  /** Testo dei campi numerici; vuoto usa la configurazione. */
-  protected readonly numbers = signal<Record<NumericSetting, string>>(emptyNumbers());
+  protected readonly speech = signal<FieldState<boolean>>({ value: true, isDefault: true });
+  /** Testo dei campi numerici, come scritto dall'utente. */
+  protected readonly numbers = signal<Record<NumericSetting, FieldState<string>> | null>(null);
 
   protected readonly speechFields: NumericField[] = [
-    {
-      key: 'speechBaseTimeoutSeconds',
-      label: 'Timeout di base (secondi)',
-      min: 1,
-      max: 600,
-      step: 1,
-    },
+    { key: 'speechBaseTimeoutSeconds', label: 'Timeout di base (secondi)', min: 1, max: 600 },
     {
       key: 'speechTimeoutPerAudioMinuteSeconds',
       label: 'Timeout per minuto di audio (secondi)',
       min: 0,
       max: 120,
-      step: 1,
     },
   ];
 
   protected readonly searchFields: NumericField[] = [
-    { key: 'searchMinSimilarity', label: 'Similarità minima (0–1)', min: 0, max: 1, step: 0.01 },
-    { key: 'searchMaxResults', label: 'Numero massimo di risultati', min: 1, max: 50, step: 1 },
+    { key: 'searchMinSimilarity', label: 'Similarità minima', min: 0, max: 1 },
+    { key: 'searchMaxResults', label: 'Numero massimo di risultati', min: 1, max: 50 },
   ];
 
   protected readonly taggingFields: NumericField[] = [
-    { key: 'taggingMinSimilarity', label: 'Similarità minima (0–1)', min: 0, max: 1, step: 0.01 },
+    { key: 'taggingMinSimilarity', label: 'Similarità minima', min: 0, max: 1 },
     {
       key: 'taggingPendingTimeoutMinutes',
       label: 'Attesa massima dell’assegnazione (minuti)',
       min: 1,
       max: 1440,
-      step: 1,
     },
   ];
 
@@ -113,56 +122,103 @@ export class AdminPage implements OnInit {
   }
 
   protected numberOf(key: NumericSetting): string {
-    return this.numbers()[key];
+    return this.numbers()?.[key].value ?? '';
   }
 
   protected setNumber(key: NumericSetting, value: string): void {
-    this.numbers.update((numbers) => ({ ...numbers, [key]: value }));
-    this.status.set('idle');
+    this.numbers.update((numbers) => numbers && { ...numbers, [key]: { value, isDefault: false } });
   }
 
-  protected setSpeech(value: 'default' | 'on' | 'off'): void {
-    this.speech.set(value);
-    this.status.set('idle');
+  protected setSpeech(value: boolean): void {
+    this.speech.set({ value, isDefault: false });
   }
 
-  /** Il campo torna vuoto: si usa il valore della configurazione. */
-  protected clear(key: NumericSetting): void {
-    this.setNumber(key, '');
+  /** Parametri non già al valore predefinito: si sceglie quali riportare, poi si salva. */
+  protected async restoreDefaults(): Promise<void> {
+    const keys = await openRestoreDefaultsDialog(this.dialog, this.restorable());
+    const defaults = this.defaults();
+    if (!keys || !defaults) {
+      return;
+    }
+    for (const key of keys) {
+      if (key === 'speechEnabled') {
+        this.speech.set({ value: defaults.speechEnabled ?? true, isDefault: true });
+      } else {
+        this.numbers.update(
+          (numbers) =>
+            numbers && { ...numbers, [key]: { value: format(defaults[key]), isDefault: true } },
+        );
+      }
+    }
+  }
+
+  protected canRestore(): boolean {
+    return this.restorable().length > 0;
   }
 
   protected async save(): Promise<void> {
     const values = this.values();
     if (!values) {
-      this.saveError.set('Controlla i valori: alcuni non sono numeri validi.');
-      this.status.set('failed');
+      this.snackBar.open('Controlla i valori: alcuni non sono numeri validi.');
       return;
     }
-    this.status.set('saving');
-    this.saveError.set(null);
+    this.saving.set(true);
     try {
       this.apply(await firstValueFrom(this.api.update(values)));
-      this.status.set('saved');
+      this.snackBar.open('Parametri salvati.');
     } catch (err) {
       console.error('Salvataggio dei parametri di sistema non riuscito', err);
-      this.saveError.set(
+      this.snackBar.open(
         err instanceof HttpErrorResponse && err.error?.error === 'invalid_setting'
           ? 'Un valore è fuori dall’intervallo ammesso.'
-          : 'Impossibile salvare i parametri.',
+          : 'Salvataggio non riuscito.',
       );
-      this.status.set('failed');
+    } finally {
+      this.saving.set(false);
     }
   }
 
+  private restorable(): RestorableSetting[] {
+    const defaults = this.defaults();
+    const numbers = this.numbers();
+    if (!defaults || !numbers) {
+      return [];
+    }
+    const settings: RestorableSetting[] = [];
+    if (!this.speech().isDefault) {
+      settings.push({
+        key: 'speechEnabled',
+        label: SPEECH_LABEL,
+        defaultValue: defaults.speechEnabled ? 'attivo' : 'disattivato',
+      });
+    }
+    for (const field of [...this.speechFields, ...this.searchFields, ...this.taggingFields]) {
+      if (!numbers[field.key].isDefault) {
+        settings.push({
+          key: field.key,
+          label: field.label,
+          defaultValue: format(defaults[field.key]),
+        });
+      }
+    }
+    return settings;
+  }
+
+  /** Ogni campo mostra il valore salvato o, se manca, quello della configurazione. */
   private apply(settings: SystemSettings): void {
-    this.defaults.set(settings.defaults);
-    const values = settings.values;
-    this.speech.set(
-      values.speechEnabled === null ? 'default' : values.speechEnabled ? 'on' : 'off',
-    );
-    const numbers = emptyNumbers();
-    for (const key of Object.keys(numbers) as NumericSetting[]) {
-      numbers[key] = values[key]?.toString() ?? '';
+    const { values, defaults } = settings;
+    this.defaults.set(defaults);
+    this.speech.set({
+      value: values.speechEnabled ?? defaults.speechEnabled ?? true,
+      isDefault: values.speechEnabled === null,
+    });
+    const numbers = {} as Record<NumericSetting, FieldState<string>>;
+    for (const field of [...this.speechFields, ...this.searchFields, ...this.taggingFields]) {
+      const stored = values[field.key];
+      numbers[field.key] = {
+        value: format(stored ?? defaults[field.key]),
+        isDefault: stored === null,
+      };
     }
     this.numbers.set(numbers);
   }
@@ -170,19 +226,23 @@ export class AdminPage implements OnInit {
   /** Valori da salvare, oppure null se un campo non è un numero (o non è intero dove serve). */
   private values(): SystemSettingsValues | null {
     const speech = this.speech();
-    const values: SystemSettingsValues = {
-      speechEnabled: speech === 'default' ? null : speech === 'on',
-      ...emptyValues(),
-    };
     const numbers = this.numbers();
+    if (!numbers) {
+      return null;
+    }
+    const values = {
+      speechEnabled: speech.isDefault ? null : speech.value,
+    } as SystemSettingsValues;
     for (const key of Object.keys(numbers) as NumericSetting[]) {
-      // Anche la virgola come separatore decimale.
-      const text = numbers[key].trim().replace(',', '.');
-      if (text === '') {
+      const field = numbers[key];
+      if (field.isDefault) {
+        values[key] = null;
         continue;
       }
-      const value = Number(text);
+      // Anche la virgola come separatore decimale.
+      const value = Number(field.value.trim().replace(',', '.'));
       if (
+        field.value.trim() === '' ||
         !Number.isFinite(value) ||
         (!DECIMAL_SETTINGS.includes(key) && !Number.isInteger(value))
       ) {
@@ -194,24 +254,6 @@ export class AdminPage implements OnInit {
   }
 }
 
-function emptyNumbers(): Record<NumericSetting, string> {
-  return {
-    speechBaseTimeoutSeconds: '',
-    speechTimeoutPerAudioMinuteSeconds: '',
-    searchMinSimilarity: '',
-    searchMaxResults: '',
-    taggingMinSimilarity: '',
-    taggingPendingTimeoutMinutes: '',
-  };
-}
-
-function emptyValues(): Omit<SystemSettingsValues, 'speechEnabled'> {
-  return {
-    speechBaseTimeoutSeconds: null,
-    speechTimeoutPerAudioMinuteSeconds: null,
-    searchMinSimilarity: null,
-    searchMaxResults: null,
-    taggingMinSimilarity: null,
-    taggingPendingTimeoutMinutes: null,
-  };
+function format(value: number | boolean | null): string {
+  return value?.toString() ?? '';
 }

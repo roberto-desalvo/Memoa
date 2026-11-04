@@ -66,7 +66,7 @@ Contenuti: [Account](#account) · [Contenuti in ingresso](#contenuti-in-ingresso
 | Riassunti periodici | Riassunti generati periodicamente. | avanzata | ⬜ |
 | Tag | Tag dell'utente con nome e descrizione (massimo 2.000 caratteri), gestiti dalla pagina Tag: modifica, eliminazione, elenco delle note e interruttore per disattivarli. Assegnati in automatico per similarità semantica tra tag e testo della nota, oppure a mano dalla pagina del record o a più note insieme dalla selezione multipla della homepage (anche creando un tag nuovo). Un tag tolto a mano non viene riassegnato in automatico. | avanzata | ✅ |
 | Categorie | Categorie delle note. | avanzata | ⬜ |
-| Parametri di sistema | Pagina di amministrazione, solo per gli utenti con `IsAdmin`, raggiungibile dalle impostazioni: Azure AI Speech attivo o no, timeout della trascrizione, similarità minima e numero di risultati della ricerca, similarità minima e timeout dell'attesa dei tag. Un campo vuoto usa la configurazione. | avanzata | ✅ |
+| Parametri di sistema | Pagina di amministrazione, solo per gli utenti con `IsAdmin`, raggiungibile dalle impostazioni: Azure AI Speech attivo o no, timeout della trascrizione, similarità minima e numero di risultati della ricerca, similarità minima e timeout dell'attesa dei tag. Ogni campo mostra il valore in uso e, sotto, il predefinito della configurazione; "Ripristina predefiniti" riporta i parametri scelti al predefinito, da confermare salvando. | avanzata | ✅ |
 
 ---
 
