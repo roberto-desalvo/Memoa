@@ -17,6 +17,8 @@ namespace Memoa.Functions.Functions;
 /// Parametri di sistema (<see cref="SystemSettings"/>), solo per gli utenti con <see cref="User.IsAdmin"/>:
 /// gli altri ricevono 403 con il codice <see cref="ForbiddenError"/>. Ogni valore null vale "usa la
 /// configurazione"; la risposta riporta anche i valori della configurazione, mostrati come predefiniti.
+/// Percorso system/settings e non admin/...: l'host di Azure Functions riserva il prefisso admin alle proprie
+/// API.
 /// </summary>
 public sealed class AdminFunctions(
     MemoaDbContext db,
@@ -31,7 +33,7 @@ public sealed class AdminFunctions(
 
     [Function("GetSystemSettings")]
     public async Task<IActionResult> Get(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "admin/settings")] HttpRequest req,
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "system/settings")] HttpRequest req,
         CancellationToken cancellationToken)
     {
         if (await AdminIdAsync(cancellationToken) is null)
@@ -48,7 +50,7 @@ public sealed class AdminFunctions(
 
     [Function("UpdateSystemSettings")]
     public async Task<IActionResult> Update(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "admin/settings")] HttpRequest req,
+        [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "system/settings")] HttpRequest req,
         CancellationToken cancellationToken)
     {
         if (await AdminIdAsync(cancellationToken) is not { } userId)

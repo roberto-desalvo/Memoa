@@ -16,7 +16,7 @@ Contenuti: [Backend](#backend) · [Normalizzazione](#normalizzazione) · [Compon
 - Senza istanze "always ready" ci sono cold start.
 - Niente modelli pesanti (Whisper) nelle Functions: il ripiego della trascrizione gira in un Container Apps Job. ffmpeg invece sì, come binario statico nel pacchetto (vedi [Normalizzazione](#normalizzazione)).
 - **Utente applicativo**: `GetMe` (HTTP, `GET /me`) lo crea se non esiste (idempotente, gestisce le richieste parallele), allinea l'email al claim del token e restituisce `{ showGuide, isAdmin }`; `DismissGuide` (HTTP, `PUT /me/guide`, corpo `{ "dismissed": true }`) salva la prima chiusura della guida. Finché l'utente non esiste le altre funzioni HTTP rispondono `403 user_not_registered` (vedi [sicurezza-identita.md](sicurezza-identita.md#autenticazione)).
-- **Parametri di sistema**: `GetSystemSettings` e `UpdateSystemSettings` (HTTP, `GET` e `PUT /admin/settings`), solo per gli utenti con `Users.IsAdmin` (gli altri ricevono `403 admin_required`). Valori nella riga unica di `SystemSettings` ([schema.md](schema.md#systemsettings)): ogni colonna null usa la configurazione delle Functions.
+- **Parametri di sistema**: `GetSystemSettings` e `UpdateSystemSettings` (HTTP, `GET` e `PUT /system/settings`; non `admin/...`, prefisso riservato dall'host di Azure Functions), solo per gli utenti con `Users.IsAdmin` (gli altri ricevono `403 admin_required`). Valori nella riga unica di `SystemSettings` ([schema.md](schema.md#systemsettings)): ogni colonna null usa la configurazione delle Functions.
 
   | Parametro | Configurazione (predefinito) |
   |---|---|

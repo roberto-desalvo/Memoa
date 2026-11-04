@@ -14,7 +14,7 @@ export interface SystemSettingsValues {
   taggingPendingTimeoutMinutes: number | null;
 }
 
-/** Risposta di `GET /admin/settings`, solo per gli amministratori. */
+/** Risposta di `GET /system/settings`, solo per gli amministratori. */
 export interface SystemSettings {
   /** Valori salvati nel database. */
   values: SystemSettingsValues;
@@ -27,7 +27,7 @@ export interface SystemSettings {
 @Injectable({ providedIn: 'root' })
 export class AdminApi {
   private readonly http = inject(HttpClient);
-  private readonly url = `${inject(APP_CONFIG).apiBaseUrl}/admin/settings`;
+  private readonly url = `${inject(APP_CONFIG).apiBaseUrl}/system/settings`;
 
   get(): Observable<SystemSettings> {
     return this.http.get<SystemSettings>(this.url);
