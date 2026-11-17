@@ -25,7 +25,9 @@ Contesto: al massimo 10 utenti nella fase iniziale, budget di manutenzione massi
 
 In [schemas/](schemas/):
 
+- [panoramica.svg](schemas/panoramica.svg): componenti e collegamenti principali (usato nel README)
 - [architettura.svg](schemas/architettura.svg): risorse Azure e servizi esterni
+- [ricerca-tag.svg](schemas/ricerca-tag.svg): embedding, ricerca semantica e assegnazione dei tag ([backend-elaborazione.md](project/backend-elaborazione.md#tag))
 - [flusso-audio.svg](schemas/flusso-audio.svg): una nota audio dall'upload all'indicizzazione ([backend-elaborazione.md](project/backend-elaborazione.md#flusso-audio))
 - [trascrizione.svg](schemas/trascrizione.svg): Azure AI Speech, retry e ripiego Whisper ([trascrizione-ai.md](project/trascrizione-ai.md#trascrizione))
 - [autenticazione.svg](schemas/autenticazione.svg): login, token e accesso ai dati ([sicurezza-identita.md](project/sicurezza-identita.md#autenticazione))
